@@ -5,6 +5,7 @@ from tensorflow import keras
 import py_compile
 import os
 import dis
+import sys  # Import the sys module
 
 # Import the functions from the other files
 from differential_equation_solver import solve_exponential_decay
@@ -81,37 +82,53 @@ class TestAll(unittest.TestCase):
         self.assertIsNone(result) #Check the function returns None
 
 if __name__ == "__main__":
-    # Compile the modules
-    py_compile.compile("differential_equation_solver.py")
-    py_compile.compile("convolutional_network.py")
-    py_compile.compile("matrix_multiplication.py")
+    # Get the program argument
+    if len(sys.argv) < 2:
+        print("Usage: python main.py <program>")
+        print("  <program>: ode, cnn, or matrix")
+        sys.exit(1)
+    program = sys.argv[1].lower()
 
-    # Disassemble the modules to separate files
-    disassemble_to_file(solve_exponential_decay, "differential_equation_solver.dis")
-    disassemble_to_file(create_cnn, "convolutional_network.dis")
-    disassemble_to_file(matrix_multiply, "matrix_multiplication.dis")
+    # Run the specified program
+    if program == "ode":
+        print("Running ODE program...")
+        py_compile.compile("differential_equation_solver.py")
+        disassemble_to_file(solve_exponential_decay, "differential_equation_solver.dis")
+        unittest.main(argv=['first-arg-is-ignored'], exit=False)  # Run tests
+        # ODE Example
+        initial_condition_1 = [5.0]
+        t_span_1 = (0, 3)
+        t_eval_1 = np.linspace(0, 3, 100)
+        k_1 = 0.5
+        solution_1 = solve_exponential_decay(initial_condition_1, t_span_1, t_eval_1, k_1)
+        print(f"ODE Solution 1 (k=0.5): {solution_1[:5]}...")
 
-    # ODE Example
-    initial_condition_1 = [5.0]
-    t_span_1 = (0, 3)
-    t_eval_1 = np.linspace(0, 3, 100)
-    k_1 = 0.5
-    solution_1 = solve_exponential_decay(initial_condition_1, t_span_1, t_eval_1, k_1)
-    print(f"ODE Solution 1 (k=0.5): {solution_1[:5]}...")
+    elif program == "cnn":
+        print("Running CNN program...")
+        py_compile.compile("convolutional_network.py")
+        disassemble_to_file(create_cnn, "convolutional_network.dis")
+        unittest.main(argv=['first-arg-is-ignored'], exit=False)  # Run tests
+        # CNN Example
+        (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+        x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
+        x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
+        model_1 = create_cnn((28, 28, 1), 10)
+        loss_1, accuracy_1 = train_and_evaluate_cnn(model_1, x_train, y_train, x_test, y_test, epochs=5)
+        print(f"CNN (Default) - Loss: {loss_1:.4f}, Accuracy: {accuracy_1:.4f}")
 
-    # CNN Example
-    (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
-    x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
-    x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
-    model_1 = create_cnn((28, 28, 1), 10)
-    loss_1, accuracy_1 = train_and_evaluate_cnn(model_1, x_train, y_train, x_test, y_test, epochs=5)
-    print(f"CNN (Default) - Loss: {loss_1:.4f}, Accuracy: {accuracy_1:.4f}")
-
-    # Matrix Multiplication Example
-    matrix_a_1 = np.array([[1, 2, 3], [4, 5, 6]])
-    matrix_b_1 = np.array([[7, 8], [9, 10], [11, 12]])
-    result_1 = matrix_multiply(matrix_a_1, matrix_b_1)
-    print("Matrix Multiplication Result 1:")
-    print(result_1)
-
-    unittest.main(argv=['first-arg-is-ignored'], exit=False)
+    elif program == "matrix":
+        print("Running Matrix program...")
+        py_compile.compile("matrix_multiplication.py")
+        disassemble_to_file(matrix_multiply, "matrix_multiplication.dis")
+        unittest.main(argv=['first-arg-is-ignored'], exit=False)  # Run tests
+        # Matrix Multiplication Example
+        matrix_a_1 = np.array([[1, 2, 3], [4, 5, 6]])
+        matrix_b_1 = np.array([[7, 8], [9, 10], [11, 12]])
+        result_1 = matrix_multiply(matrix_a_1, matrix_b_1)
+        print("Matrix Multiplication Result 1:")
+        print(result_1)
+    else:
+        print("Invalid program argument.")
+        print("Usage: python main.py <program>")
+        print("  <program>: ode, cnn, or matrix")
+        sys.exit(1)
