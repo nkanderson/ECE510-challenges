@@ -4,11 +4,12 @@ import tensorflow as tf
 from tensorflow import keras
 import py_compile
 import os
+import dis
 
-# Import the functions from the other filesfrom differential_equation_solver import solve_exponential_decay
+# Import the functions from the other files
+from differential_equation_solver import solve_exponential_decay
 from convolutional_network import create_cnn, train_and_evaluate_cnn
 from matrix_multiplication import matrix_multiply
-from differential_equation_solver import solve_exponential_decay
 
 class TestAll(unittest.TestCase):
     def test_solve_exponential_decay(self):
@@ -66,6 +67,18 @@ if __name__ == "__main__":
     py_compile.compile("convolutional_network.py")
     py_compile.compile("matrix_multiplication.py")
 
+    # Disassemble the modules
+    print("Disassembly of differential_equation_solver.py:")
+    dis.dis(solve_exponential_decay)
+    print("\n" + "-"*40 + "\n")
+
+    print("Disassembly of convolutional_network.py:")
+    dis.dis(create_cnn)
+    print("\n" + "-"*40 + "\n")
+
+    print("Disassembly of matrix_multiplication.py:")
+    dis.dis(matrix_multiply)
+    print("\n" + "-"*40 + "\n")
     # ODE Example
     initial_condition_1 = [5.0]
     t_span_1 = (0, 3)
