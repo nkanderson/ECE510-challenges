@@ -8,6 +8,7 @@ import os
 # Import the functions from the other filesfrom differential_equation_solver import solve_exponential_decay
 from convolutional_network import create_cnn, train_and_evaluate_cnn
 from matrix_multiplication import matrix_multiply
+from differential_equation_solver import solve_exponential_decay
 
 class TestAll(unittest.TestCase):
     def test_solve_exponential_decay(self):
