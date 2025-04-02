@@ -11,6 +11,25 @@ from differential_equation_solver import solve_exponential_decay
 from convolutional_network import create_cnn, train_and_evaluate_cnn
 from matrix_multiplication import matrix_multiply
 
+def disassemble_to_file(func, filename):
+    """
+    Disassembles a function and writes the output to a file.
+
+    Args:
+        func: The function to disassemble.
+        filename: The name of the file to write to.
+    """
+    with open(filename, "w") as f:
+        # Redirect standard output to the file
+        import sys
+        old_stdout = sys.stdout
+        sys.stdout = f
+        try:
+            dis.dis(func)
+        finally:
+            # Restore standard output
+            sys.stdout = old_stdout
+
 class TestAll(unittest.TestCase):
     def test_solve_exponential_decay(self):
         """
@@ -67,18 +86,11 @@ if __name__ == "__main__":
     py_compile.compile("convolutional_network.py")
     py_compile.compile("matrix_multiplication.py")
 
-    # Disassemble the modules
-    print("Disassembly of differential_equation_solver.py:")
-    dis.dis(solve_exponential_decay)
-    print("\n" + "-"*40 + "\n")
+    # Disassemble the modules to separate files
+    disassemble_to_file(solve_exponential_decay, "differential_equation_solver.dis")
+    disassemble_to_file(create_cnn, "convolutional_network.dis")
+    disassemble_to_file(matrix_multiply, "matrix_multiplication.dis")
 
-    print("Disassembly of convolutional_network.py:")
-    dis.dis(create_cnn)
-    print("\n" + "-"*40 + "\n")
-
-    print("Disassembly of matrix_multiplication.py:")
-    dis.dis(matrix_multiply)
-    print("\n" + "-"*40 + "\n")
     # ODE Example
     initial_condition_1 = [5.0]
     t_span_1 = (0, 3)
