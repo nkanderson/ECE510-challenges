@@ -2,9 +2,10 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
+import py_compile
+import os
 
-# Import the functions from the other files
-from differential_equation_solver import solve_exponential_decay
+# Import the functions from the other filesfrom differential_equation_solver import solve_exponential_decay
 from convolutional_network import create_cnn, train_and_evaluate_cnn
 from matrix_multiplication import matrix_multiply
 
@@ -59,6 +60,11 @@ class TestAll(unittest.TestCase):
         self.assertIsNone(result) #Check the function returns None
 
 if __name__ == "__main__":
+    # Compile the modules
+    py_compile.compile("differential_equation_solver.py")
+    py_compile.compile("convolutional_network.py")
+    py_compile.compile("matrix_multiplication.py")
+
     # ODE Example
     initial_condition_1 = [5.0]
     t_span_1 = (0, 3)
