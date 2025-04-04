@@ -76,23 +76,23 @@ def main():
     """Main function to parse arguments and run program/analysis."""
     if len(sys.argv) < 3:
         print("Usage: python main.py <program> <action>")
-        print("  <program>: ode, cnn, or matrix")
+        print("  <program>: ode, cnn, matrix, qs, or crypt")
         print("  <action>: run, analyze")
         sys.exit(1)
     program = sys.argv[1].lower()
     action = sys.argv[2].lower()
 
-    if program not in ["ode", "cnn", "matrix"]:
+    if program not in ["ode", "cnn", "matrix", "qs", "crypt"]:
         print("Invalid program argument.")
         print("Usage: python main.py <program> <action>")
-        print("  <program>: ode, cnn, or matrix")
+        print("  <program>: ode, cnn, matrix, qs, or crypt")
         print("  <action>: run, analyze")
         sys.exit(1)
 
     if action not in ["run", "analyze"]:
         print("Invalid action argument.")
         print("Usage: python main.py <program> <action>")
-        print("  <program>: ode, cnn, or matrix")
+        print("  <program>: ode, cnn, matrix, qs, or crypt")
         print("  <action>: run, analyze")
         sys.exit(1)
 
@@ -104,6 +104,10 @@ def main():
             module_name = "convolutional_network"
         case "matrix":
             module_name = "matrix_multiplication"
+        case "qs":
+            module_name = "quicksort"
+        case "crypt":
+            module_name = "cryptography"
         case _:
             # This should be caught above, but is included as a last resort.
             print("Invalid program argument.")
