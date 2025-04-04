@@ -6,6 +6,7 @@ import py_compile
 import os
 import dis
 import sys  # Import the sys module
+import logging # Import logging
 
 # Import the functions from the other files
 from differential_equation_solver import solve_exponential_decay
@@ -88,6 +89,11 @@ if __name__ == "__main__":
         print("  <program>: ode, cnn, or matrix")
         sys.exit(1)
     program = sys.argv[1].lower()
+
+    # Suppress TensorFlow warnings
+    if program != "cnn":
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0 = all, 1 = info, 2 = warning, 3 = error
+        logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
     # Run the specified program
     if program == "ode":
