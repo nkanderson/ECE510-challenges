@@ -31,8 +31,11 @@ def profile_function(func, *args, **kwargs):
     ps.print_stats()
     return s.getvalue()
 
-def analyze_bytecode(func):
-    """Analyzes the bytecode of a function and returns instruction counts."""
+def analyze_bytecode_optimized(func):
+    """
+    Analyzes the bytecode of a function and returns instruction counts,
+    reflecting optimizations performed by the Python interpreter.
+    """
     code = func.__code__
     instructions = []
     i = 0
@@ -44,6 +47,29 @@ def analyze_bytecode(func):
     counts = {}
     for instr in instructions:
         counts[instr] = counts.get(instr, 0) + 1
+    return counts
+
+def analyze_bytecode(dis_filename):
+    """Analyzes the disassembled bytecode from a .dis file and returns instruction counts."""
+    counts = {}
+    try:
+        with open(dis_filename, "r") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) > 1:
+                    # Check if the first part is a line number
+                    if parts[0].strip().isdigit():
+                        # Opcode is the second part
+                        opcode = parts[1].strip()
+                        if parts[1].strip().isdigit():
+                           opcode = parts[2].strip()
+                        # Handle opcodes with arguments
+                        if '(' in opcode:
+                            opcode = opcode.split('(')[0].strip()
+                        counts[opcode] = counts.get(opcode, 0) + 1
+    except FileNotFoundError:
+        print(f"Error: .dis file not found: {dis_filename}")
+        return {}
     return counts
 
 def main():
@@ -101,7 +127,7 @@ def main():
     elif action == "analyze":
         disassemble_to_file(module.main, f"{module_name}.dis")  # Disassemble the module's main
         print(f"Bytecode analysis of {program}:")
-        print(analyze_bytecode(module.main))  # Use the main module's analyze_bytecode
+        print(analyze_bytecode(f"{module_name}.dis"))  # Use the main module's analyze_bytecode
         print(f"\nProfiling {program}:")
         print(profile_function(module.main))  # Use the main module's profile_function
     else:
