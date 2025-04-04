@@ -15,10 +15,11 @@ def import_tensorflow():
     try:
         import tensorflow as tf
         from tensorflow import keras
+        from tensorflow.keras.layers import Input # Import Input layer
         from convolutional_network import create_cnn, train_and_evaluate_cnn # Import CNN functions
-        return tf, keras, create_cnn, train_and_evaluate_cnn
+        return tf, keras, create_cnn, train_and_evaluate_cnn, Input  # Return Input
     except ImportError:
-        return None, None, None, None
+        return None, None, None, None, None
 
 def disassemble_to_file(func, filename):
     """
@@ -49,7 +50,7 @@ class TestAll(unittest.TestCase):
         t_eval = np.linspace(0, 3, 4)  # Evaluate at 4 points
         k = 0.5                   # Decay constant
         solution = solve_exponential_decay(initial_condition, t_span, t_eval, k)
-        # Expected solution: y(t) = y0 * exp(-kt)
+        # Expected solution: y(t) = y0 * exp(-0.5 * t_eval)
         expected_solution = 5.0 * np.exp(-0.5 * t_eval)
         # Use assertAlmostEqual for floating-point comparisons
         for i in range(len(t_eval)):
@@ -59,7 +60,7 @@ class TestAll(unittest.TestCase):
         """
         Tests CNN training on a small, random dataset. Checks for reasonable accuracy.
         """
-        tf, keras, create_cnn, train_and_evaluate_cnn = import_tensorflow()
+        tf, keras, create_cnn, train_and_evaluate_cnn, Input = import_tensorflow()
         if not tf:
             self.skipTest("TensorFlow is not installed")
             return
@@ -102,12 +103,6 @@ if __name__ == "__main__":
         sys.exit(1)
     program = sys.argv[1].lower()
 
-    # Conditional import and suppression
-    tf, keras, create_cnn, train_and_evaluate_cnn = import_tensorflow()  # Import tensorflow
-    if program != "cnn" and tf:
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0 = all, 1 = info, 2 = warning, 3 = error
-        logging.getLogger('tensorflow').setLevel(logging.ERROR)
-
     # Run the specified program
     if program == "ode":
         print("Running ODE program...")
@@ -124,6 +119,12 @@ if __name__ == "__main__":
 
     elif program == "cnn":
         print("Running CNN program...")
+        # Import tensorflow and suppress warnings only when cnn is selected
+        tf, keras, create_cnn, train_and_evaluate_cnn, Input = import_tensorflow()
+        if tf:
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0 = all, 1 = info, 2 = warning, 3 = error
+            logging.getLogger('tensorflow').setLevel(logging.ERROR)
+
         py_compile.compile("convolutional_network.py")
         disassemble_to_file(create_cnn, "convolutional_network.dis")
         unittest.main(argv=['first-arg-is-ignored'], exit=False)  # Run tests

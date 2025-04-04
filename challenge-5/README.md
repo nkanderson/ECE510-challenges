@@ -1071,3 +1071,12 @@ Prompt: This hasn't imported functions like create_cnn and train_and_evaluate_cn
 Response: You're absolutely correct. The functions create_cnn and train_and_evaluate_cnn were not imported in the latest version of the code. I apologize for that oversight. Let me correct that.
 
 The import_tensorflow function now returns the  create_cnn and train_and_evaluate_cnn functions, and the code calls the function to retrieve them.
+
+Prompt: That hasn't solved the issue. I'm still getting all of the below output when attempting to run `python main.py matrix`: <included shell output>
+
+Response: Okay, I understand.  The issue is that TensorFlow is being initialized before our conditional logic, meaning the messages are printed regardless of whether the CNN program is run.  We need to defer the TensorFlow import and any TensorFlow-related initialization until it's absolutely necessary.
+
+Reasoning:
+
+    Move tf import: The import of tensorflow is now inside the elif program == "cnn": block. This ensures that tensorflow is imported only when the user specifically requests the CNN functionality.
+    Conditional suppression: The lines to suppress tensorflow warnings are also moved inside the elif program == "cnn": block, and will only execute if tensorflow is imported.
