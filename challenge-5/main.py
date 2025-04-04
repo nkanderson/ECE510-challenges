@@ -1,9 +1,7 @@
 import sys
-import py_compile
 import os
 import importlib
 import dis
-import time
 import cProfile
 import io
 import pstats
@@ -101,7 +99,6 @@ def main():
 
         module.main()  # Call the module's main function
     elif action == "analyze":
-        py_compile.compile(f"{module_name}.py")  # Compile the module's .py file
         disassemble_to_file(module.main, f"{module_name}.dis")  # Disassemble the module's main
         print(f"Bytecode analysis of {program}:")
         print(analyze_bytecode(module.main))  # Use the main module's analyze_bytecode
