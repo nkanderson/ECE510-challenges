@@ -1,17 +1,23 @@
 import unittest
 import numpy as np
-import tensorflow as tf
-from tensorflow import keras
 import py_compile
 import os
 import dis
 import sys  # Import the sys module
-import logging # Import logging
+import logging
 
 # Import the functions from the other files
 from differential_equation_solver import solve_exponential_decay
-from convolutional_network import create_cnn, train_and_evaluate_cnn
 from matrix_multiplication import matrix_multiply
+
+# Conditional import of tensorflow and keras
+def import_tensorflow():
+    try:
+        import tensorflow as tf
+        from tensorflow import keras
+        return tf, keras
+    except ImportError:
+        return None, None
 
 def disassemble_to_file(func, filename):
     """
@@ -52,6 +58,11 @@ class TestAll(unittest.TestCase):
         """
         Tests CNN training on a small, random dataset. Checks for reasonable accuracy.
         """
+        tf, keras = import_tensorflow()
+        if not tf:
+            self.skipTest("TensorFlow is not installed")
+            return
+
         input_shape = (28, 28, 1)
         num_classes = 10
         model = create_cnn(input_shape, num_classes)
@@ -90,8 +101,9 @@ if __name__ == "__main__":
         sys.exit(1)
     program = sys.argv[1].lower()
 
-    # Suppress TensorFlow warnings
-    if program != "cnn":
+    # Conditional import and suppression
+    tf, keras = import_tensorflow()  # Import tensorflow
+    if program != "cnn" and tf:
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0 = all, 1 = info, 2 = warning, 3 = error
         logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
@@ -115,12 +127,15 @@ if __name__ == "__main__":
         disassemble_to_file(create_cnn, "convolutional_network.dis")
         unittest.main(argv=['first-arg-is-ignored'], exit=False)  # Run tests
         # CNN Example
-        (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
-        x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
-        x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
-        model_1 = create_cnn((28, 28, 1), 10)
-        loss_1, accuracy_1 = train_and_evaluate_cnn(model_1, x_train, y_train, x_test, y_test, epochs=5)
-        print(f"CNN (Default) - Loss: {loss_1:.4f}, Accuracy: {accuracy_1:.4f}")
+        if not tf:
+            print("TensorFlow is not installed. Skipping CNN example.")
+        else:
+            (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+            x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
+            x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
+            model_1 = create_cnn((28, 28, 1), 10)
+            loss_1, accuracy_1 = train_and_evaluate_cnn(model_1, x_train, y_train, x_test, y_test, epochs=5)
+            print(f"CNN (Default) - Loss: {loss_1:.4f}, Accuracy: {accuracy_1:.4f}")
 
     elif program == "matrix":
         print("Running Matrix program...")

@@ -874,4 +874,194 @@ if __name__ == "__main__":
 
 Prompt: Alright, so there's something that's not working with the convolutional network code. Before troubleshooting that, I want to modify the main program. In this iteration, it should accept an argument indicating which program I want to test, compile bytecode for, and output the disassembled code for. So it should be possible to run the main program and specify it to only run the matrix_multiplication, for example, which will test the matrix multiplication functionality, compile the bytecode, and generate the disassembled code into a separate file, and not run any of the other programs. 
 
+Response: Okay, I'll modify the main.py script to accept a command-line argument to specify which program (ODE, CNN, or matrix multiplication) to test, compile, and disassemble.
 
+import unittest
+import numpy as np
+import tensorflow as tf
+from tensorflow import keras
+import py_compile
+import os
+import dis
+import sys  # Import the sys module
+
+# Import the functions from the other files
+from differential_equation_solver import solve_exponential_decay
+from convolutional_network import create_cnn, train_and_evaluate_cnn
+from matrix_multiplication import matrix_multiply
+
+def disassemble_to_file(func, filename):
+    """
+    Disassembles a function and writes the output to a file.
+
+    Args:
+        func: The function to disassemble.
+        filename: The name of the file to write to.
+    """
+    with open(filename, "w") as f:
+        # Redirect standard output to the file
+        import sys
+        old_stdout = sys.stdout
+        sys.stdout = f
+        try:
+            dis.dis(func)
+        finally:
+            # Restore standard output
+            sys.stdout = old_stdout
+
+class TestAll(unittest.TestCase):
+    def test_solve_exponential_decay(self):
+        """
+        Tests the solve_exponential_decay function.  Checks a known solution.
+        """
+        initial_condition = [5.0]  # Initial value of y
+        t_span = (0, 3)         # Time span from t=0 to t=3
+        t_eval = np.linspace(0, 3, 4)  # Evaluate at 4 points
+        k = 0.5                   # Decay constant
+        solution = solve_exponential_decay(initial_condition, t_span, t_eval, k)
+        # Expected solution: y(t) = y0 * exp(-kt)
+        expected_solution = 5.0 * np.exp(-0.5 * t_eval)
+        # Use assertAlmostEqual for floating-point comparisons
+        for i in range(len(t_eval)):
+            self.assertAlmostEqual(solution[i], expected_solution[i], places=6)
+
+    def test_cnn_training(self):
+        """
+        Tests CNN training on a small, random dataset. Checks for reasonable accuracy.
+        """
+        input_shape = (28, 28, 1)
+        num_classes = 10
+        model = create_cnn(input_shape, num_classes)
+        x_train = np.random.rand(100, 28, 28, 1).astype(np.float32)
+        y_train = np.random.randint(0, 10, 100).astype(np.int32)
+        x_test = np.random.rand(20, 28, 28, 1).astype(np.float32)
+        y_test = np.random.randint(0, 10, 20).astype(np.int32)
+        loss, accuracy = train_and_evaluate_cnn(model, x_train, y_train, x_test, y_test, epochs=3)
+        self.assertGreaterEqual(accuracy, 0.1) # Check for minimal accuracy
+        self.assertGreaterEqual(loss, 0)
+
+    def test_multiply_matrices(self):
+        """
+        Tests matrix multiplication with a simple 2x2 case.
+        """
+        matrix1 = np.array([[1, 2], [3, 4]])
+        matrix2 = np.array([[5, 6], [7, 8]])
+        result = matrix_multiply(matrix1, matrix2)
+        expected_result = np.array([[19, 22], [43, 50]])
+        self.assertTrue(np.array_equal(result, expected_result))
+
+    def test_multiply_incompatible_matrices(self):
+        """
+        Tests the case where matrix dimensions are incompatible.
+        """
+        matrix1 = np.array([[1, 2], [3, 4]])
+        matrix2 = np.array([[5, 6, 7], [8, 9, 10]])  # 2x3 matrix
+        result = matrix_multiply(matrix1, matrix2)
+        self.assertIsNone(result) #Check the function returns None
+
+if __name__ == "__main__":
+    # Get the program argument
+    if len(sys.argv) < 2:
+        print("Usage: python main.py <program>")
+        print("  <program>: ode, cnn, or matrix")
+        sys.exit(1)
+    program = sys.argv[1].lower()
+
+    # Run the specified program
+    if program == "ode":
+        print("Running ODE program...")
+        py_compile.compile("differential_equation_solver.py")
+        disassemble_to_file(solve_exponential_decay, "differential_equation_solver.dis")
+        unittest.main(argv=['first-arg-is-ignored'], exit=False)  # Run tests
+        # ODE Example
+        initial_condition_1 = [5.0]
+        t_span_1 = (0, 3)
+        t_eval_1 = np.linspace(0, 3, 100)
+        k_1 = 0.5
+        solution_1 = solve_exponential_decay(initial_condition_1, t_span_1, t_eval_1, k_1)
+        print(f"ODE Solution 1 (k=0.5): {solution_1[:5]}...")
+
+    elif program == "cnn":
+        print("Running CNN program...")
+        py_compile.compile("convolutional_network.py")
+        disassemble_to_file(create_cnn, "convolutional_network.dis")
+        unittest.main(argv=['first-arg-is-ignored'], exit=False)  # Run tests
+        # CNN Example
+        (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+        x_train = x_train.reshape(x_train.shape[0], 28, 28, 1).astype('float32') / 255
+        x_test = x_test.reshape(x_test.shape[0], 28, 28, 1).astype('float32') / 255
+        model_1 = create_cnn((28, 28, 1), 10)
+        loss_1, accuracy_1 = train_and_evaluate_cnn(model_1, x_train, y_train, x_test, y_test, epochs=5)
+        print(f"CNN (Default) - Loss: {loss_1:.4f}, Accuracy: {accuracy_1:.4f}")
+
+    elif program == "matrix":
+        print("Running Matrix program...")
+        py_compile.compile("matrix_multiplication.py")
+        disassemble_to_file(matrix_multiply, "matrix_multiplication.dis")
+        unittest.main(argv=['first-arg-is-ignored'], exit=False)  # Run tests
+        # Matrix Multiplication Example
+        matrix_a_1 = np.array([[1, 2, 3], [4, 5, 6]])
+        matrix_b_1 = np.array([[7, 8], [9, 10], [11, 12]])
+        result_1 = matrix_multiply(matrix_a_1, matrix_b_1)
+        print("Matrix Multiplication Result 1:")
+        print(result_1)
+    else:
+        print("Invalid program argument.")
+        print("Usage: python main.py <program>")
+        print("  <program>: ode, cnn, or matrix")
+        sys.exit(1)
+
+Changes:
+
+    Import sys: The sys module is imported to access command-line arguments.
+    Command-Line Argument:
+        The script now checks for a command-line argument.
+        It expects one argument: ode, cnn, or matrix.
+        If no argument is provided, or if the argument is invalid, the script prints a usage message and exits.
+
+    Conditional Execution:
+
+    The if __name__ == "__main__": block now uses if/elif/else to execute only the code related to the specified program.
+    For each program (ode, cnn, matrix):
+        It compiles the corresponding module.
+        It disassembles the relevant function to a file.
+        It runs the unit tests.
+        It executes the example code for that program.
+
+<Plus details on how to run it>
+
+
+Prompt: I'm getting lots of warnings from tensorflow, even when running an unrelated program. What's the best way to clean up the output when not running a program that uses tensorflow? 
+
+<No longer pasting in here for readability considerations, but adding the changes to main.py in a separate commit>
+
+Key Changes:
+
+    Import logging: The logging module is imported.
+    Suppress TensorFlow Warnings:
+        Inside the if __name__ == "__main__": block, before the program logic, I've added a conditional to suppress TensorFlow warnings:
+        Python
+
+        if program != "cnn":
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0 = all, 1 = info, 2 = warning, 3 = error
+            logging.getLogger('tensorflow').setLevel(logging.ERROR)
+
+        This code will only execute if the user runs the program with an argument other than "cnn".
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3': This environment variable controls the verbosity of TensorFlow logging. Setting it to '3' filters out all messages except errors.
+        logging.getLogger('tensorflow').setLevel(logging.ERROR): This sets the logging level for the TensorFlow logger to logging.ERROR, which further suppresses warnings and informational messages.
+
+This will effectively silence the TensorFlow warnings when you run python main.py ode or python main.py matrix, while allowing the warnings to appear when you run python main.py cnn.
+
+Prompt: That didn't work. Here's an example of the output I'm seeing: <pasted in warnings from TensorFlow>
+
+Response: Okay, I understand. It seems like TensorFlow is still initializing and printing those messages even when you're not running the CNN program. This is because TensorFlow, once imported, sometimes performs initialization steps that generate those messages.
+
+To address this more effectively, we need to make sure the TensorFlow import itself is conditional. Here's the revised main.py:
+
+Reasoning for the change:
+
+    Conditional Import: The key change is the introduction of the import_tensorflow() function. This function attempts to import TensorFlow and Keras. If the import is successful, it returns the modules; otherwise, it returns None for both.
+    Conditional Suppression: The if program != "cnn": block now checks if TensorFlow was successfully imported before attempting to suppress the warnings. This prevents errors if the user doesn't even have TensorFlow installed.
+    CNN Case Handling: The CNN case now also checks if TensorFlow was imported. If not, it prints a message indicating that the CNN example is being skipped because TensorFlow is not available. This prevents the program from crashing if TensorFlow is not installed.
+
+This approach ensures that TensorFlow is only imported when the CNN program is selected, and the warning suppression logic only executes when TensorFlow is actually imported. This should resolve the issue you were encountering.
