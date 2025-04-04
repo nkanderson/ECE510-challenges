@@ -6,7 +6,9 @@ import dis
 import time
 import cProfile
 import io
+import pstats
 from pstats import SortKey
+import unittest
 
 def disassemble_to_file(func, filename):
     """Disassembles a function and writes the output to a file."""
@@ -90,6 +92,13 @@ def main():
         sys.exit(1)
 
     if action == "run":
+        # Run tests *before* the main program logic
+        test_suite = unittest.defaultTestLoader.discover(os.path.dirname(os.path.abspath(__file__)), pattern=f"{module_name}.py")
+        runner = unittest.TextTestRunner(verbosity=2)
+        result = runner.run(test_suite)
+        if not result.wasSuccessful():
+            sys.exit(1)  # Exit if tests fail
+
         module.main()  # Call the module's main function
     elif action == "analyze":
         py_compile.compile(f"{module_name}.py")  # Compile the module's .py file

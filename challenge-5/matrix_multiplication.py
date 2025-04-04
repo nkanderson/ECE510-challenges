@@ -1,11 +1,5 @@
 import unittest
 import numpy as np
-import logging
-import time
-import cProfile
-import io
-import sys
-from pstats import SortKey
 
 def matrix_multiply(matrix1, matrix2):
     """Multiplies two matrices."""
@@ -33,8 +27,7 @@ class TestMatrix(unittest.TestCase):
 
 def main():
     """Main function to run the matrix program and tests."""
-    print("Running Matrix program and tests...")
-    unittest.main(argv=['first-arg-is-ignored'], exit=False)
+    print("Running Matrix program execution...")
     # Example
     matrix_a = np.array([[1, 2, 3], [4, 5, 6]])
     matrix_b = np.array([[7, 8], [9, 10], [11, 12]])
@@ -43,4 +36,4 @@ def main():
     print(result)
 
 if __name__ == "__main__":
-    main()
+    unittest.main()

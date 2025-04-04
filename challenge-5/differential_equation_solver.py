@@ -1,11 +1,5 @@
 import unittest
 import numpy as np
-import logging
-import time
-import cProfile
-import io
-import sys
-from pstats import SortKey
 
 def solve_exponential_decay(initial_condition, t_span, t_eval, k):
     """Solves the exponential decay equation."""
@@ -29,9 +23,8 @@ class TestODE(unittest.TestCase):
 
 
 def main():
-    """Main function to run the ODE program and tests."""
-    print("Running ODE program and tests...")
-    unittest.main(argv=['first-arg-is-ignored'], exit=False)
+    """Main function to run the ODE program."""
+    print("ODE program execution...")
     # Example
     initial_condition = [5.0]
     t_span = (0, 3)
@@ -41,4 +34,4 @@ def main():
     print(f"ODE Solution: {solution[:5]}...")
 
 if __name__ == "__main__":
-    main()
+    unittest.main()

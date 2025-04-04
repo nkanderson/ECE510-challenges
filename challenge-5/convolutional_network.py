@@ -1,14 +1,9 @@
 import unittest
 import numpy as np
-import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Input
 import logging
-import time
-import cProfile
-import io
-import sys
-from pstats import SortKey
+import os
 
 def create_cnn(input_shape, num_classes):
     """Creates a convolutional neural network model."""
@@ -50,12 +45,12 @@ class TestCNN(unittest.TestCase):
 
 
 def main():
-    """Main function to run the CNN program and tests."""
-    print("Running CNN program and tests...")
+    """Main function to run the CNN program."""
+    print("Running CNN program execution...")
     # Suppress TensorFlow warnings
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0 = all, 1 = info, 2 = warning, 3 = error
     logging.getLogger('tensorflow').setLevel(logging.ERROR)
-    unittest.main(argv=['first-arg-is-ignored'], exit=False)
+
 
     # Example
     (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
@@ -66,4 +61,4 @@ def main():
     print(f"CNN - Loss: {loss:.4f}, Accuracy: {accuracy:.4f}")
 
 if __name__ == "__main__":
-    main()
+    unittest.main()

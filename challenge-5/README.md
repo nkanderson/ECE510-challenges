@@ -1363,3 +1363,60 @@ Prompt: My bad, match it is
 Response: No problem, I've updated main.py to use a match statement as you requested.
 
 I've made the change you requested. Let me know if you need any further adjustments.
+
+Prompt: When I run `python main.py matrix run`, I get the following output:
+
+```
+
+Running Matrix program and tests...
+
+
+----------------------------------------------------------------------
+
+Ran 0 tests in 0.000s
+
+
+NO TESTS RAN
+
+Matrix Multiplication Result:
+
+[[ 58  64]
+
+ [139 154]]
+
+```
+
+indicating the unit tests are not running 
+
+Response: You're right, the unit tests are not being run when you execute python main.py matrix run. This is because the unittest.main() function is being called within the main() function of each module (differential_equation_solver.py, convolutional_network.py, and matrix_multiplication.py) with exit=False.  When exit is set to False, unittest.main() does not exit the program after running the tests. However, it also means that the tests are not run if the module is imported, as is the case when main.py imports and calls the module's main() function.
+
+To fix this, we need to ensure that the tests are run when the module is executed directly (e.g., python matrix_multiplication.py) and when the module is imported and its main() function is called by main.py.
+
+Here's the corrected code:
+<in canvas>
+
+Key Changes:
+
+    run_tests() function in each module: I've added a run_tests() function to each of the module files (differential_equation_solver.py, convolutional_network.py, and matrix_multiplication.py). This function explicitly calls unittest.main() with exit=False.
+    Call to run_tests() in main(): The main() function in each module now calls run_tests() to execute the unit tests.
+
+With these changes, the unit tests will be executed whenever the module's main() function is called, whether it's called directly (e.g., when running the module as a script) or indirectly (when imported and called by main.py).
+
+Prompt: How would this be any different? It just adds a layer of indirection, but the same funciton call `unittest.main(argv=['first-arg-is-ignored'], exit=False)` is still the same 
+
+Response: You are absolutely correct. Adding the run_tests function doesn't fundamentally change the behavior of unittest.main() with exit=False. It simply wraps the call in another function.
+
+The problem, as you pointed out, is that unittest.main(exit=False) prevents the tests from running when the module is imported and its main() function is called by another script (like main.py).
+
+To fix this, we need to separate the test execution logic from the module's main function. Here's the revised approach:
+
+<in canvas>
+
+Key Changes:
+
+    Test Discovery in main.py: The main.py now uses unittest.defaultTestLoader.discover to find and run tests. This is the recommended way to run tests, as it automatically finds all test cases in the specified directory (or file). The pattern argument ensures that only files matching the module name (e.g., matrix_multiplication.py) are considered.
+    unittest.main() in module __main__: The if __name__ == "__main__": block in each module now calls unittest.main() without the argv argument and without exit=False. This is the standard way to run tests when a module is executed directly.
+
+This approach ensures that tests are run both when the module is executed directly and when it's imported and used by main.py.
+
+<can now run tests using e.g. `python main.py matrix run` and analyze using `python main.py matrix analyze`>
