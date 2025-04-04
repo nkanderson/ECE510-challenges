@@ -15,9 +15,10 @@ def import_tensorflow():
     try:
         import tensorflow as tf
         from tensorflow import keras
-        return tf, keras
+        from convolutional_network import create_cnn, train_and_evaluate_cnn # Import CNN functions
+        return tf, keras, create_cnn, train_and_evaluate_cnn
     except ImportError:
-        return None, None
+        return None, None, None, None
 
 def disassemble_to_file(func, filename):
     """
@@ -58,7 +59,7 @@ class TestAll(unittest.TestCase):
         """
         Tests CNN training on a small, random dataset. Checks for reasonable accuracy.
         """
-        tf, keras = import_tensorflow()
+        tf, keras, create_cnn, train_and_evaluate_cnn = import_tensorflow()
         if not tf:
             self.skipTest("TensorFlow is not installed")
             return
@@ -102,7 +103,7 @@ if __name__ == "__main__":
     program = sys.argv[1].lower()
 
     # Conditional import and suppression
-    tf, keras = import_tensorflow()  # Import tensorflow
+    tf, keras, create_cnn, train_and_evaluate_cnn = import_tensorflow()  # Import tensorflow
     if program != "cnn" and tf:
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # 0 = all, 1 = info, 2 = warning, 3 = error
         logging.getLogger('tensorflow').setLevel(logging.ERROR)

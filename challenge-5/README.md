@@ -1065,3 +1065,9 @@ Reasoning for the change:
     CNN Case Handling: The CNN case now also checks if TensorFlow was imported. If not, it prints a message indicating that the CNN example is being skipped because TensorFlow is not available. This prevents the program from crashing if TensorFlow is not installed.
 
 This approach ensures that TensorFlow is only imported when the CNN program is selected, and the warning suppression logic only executes when TensorFlow is actually imported. This should resolve the issue you were encountering.
+
+Prompt: This hasn't imported functions like create_cnn and train_and_evaluate_cnn 
+
+Response: You're absolutely correct. The functions create_cnn and train_and_evaluate_cnn were not imported in the latest version of the code. I apologize for that oversight. Let me correct that.
+
+The import_tensorflow function now returns the  create_cnn and train_and_evaluate_cnn functions, and the code calls the function to retrieve them.
