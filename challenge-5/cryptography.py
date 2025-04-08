@@ -2,11 +2,16 @@ import unittest
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 import os
+import cProfile
+import pstats
+import io
+
 
 class AESCipher:
     """
     A class for encrypting and decrypting data using AES.
     """
+
     def __init__(self, key):
         """
         Initializes the cipher with a key.
@@ -29,7 +34,7 @@ class AESCipher:
         Returns:
             The encrypted data (bytes).
         """
-        raw = pad(raw.encode('utf-8'), self.bs)
+        raw = pad(raw.encode("utf-8"), self.bs)
         iv = os.urandom(AES.block_size)
         cipher = AES.new(self.key, AES.MODE_CBC, iv)
         return iv + cipher.encrypt(raw)
@@ -44,15 +49,15 @@ class AESCipher:
         Returns:
             The decrypted data (string).
         """
-        iv = enc[:AES.block_size]
+        iv = enc[: AES.block_size]
         cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        raw = cipher.decrypt(enc[AES.block_size:])
-        return unpad(raw, self.bs).decode('utf-8')
+        raw = cipher.decrypt(enc[AES.block_size :])
+        return unpad(raw, self.bs).decode("utf-8")
 
 
 class TestCryptography(unittest.TestCase):
     def setUp(self):
-        self.key = b'This is a secret key123456789'  # 32 bytes
+        self.key = b"This is a secret key123456789"  # 32 bytes
         self.cipher = AESCipher(self.key)
         self.data = "This is some sensitive data to encrypt."
 
@@ -72,19 +77,35 @@ class TestCryptography(unittest.TestCase):
     def test_invalid_key_length(self):
         """Tests that an error is raised for an invalid key length."""
         with self.assertRaises(ValueError):
-            AESCipher(b'invalidkey')  # 8 bytes
+            AESCipher(b"invalidkey")  # 8 bytes
+
 
 def main():
     """Main function to run the cryptography program and tests."""
     print("Running Cryptography program execution...")
     # Example
-    key = b'This is a secret key123456789'  # 32 bytes
+    key = b"This is a secret key123456789"  # 32 bytes
     cipher = AESCipher(key)
     data = "This is some sensitive data to encrypt."
     encrypted_data = cipher.encrypt(data)
     print("Encrypted Data:", encrypted_data)
     decrypted_data = cipher.decrypt(encrypted_data)
     print("Decrypted Data:", decrypted_data)
+
+    # Profile the execution
+    profiler = cProfile.Profile()
+    profiler.enable()
+    cipher.encrypt(data)  # Profile the encryption
+    cipher.decrypt(encrypted_data)  # also profile decryption
+    profiler.disable()
+
+    # Save the profiling results to a file
+    profiler.dump_stats("cryptography.prof")
+
+    # Print the statistics to the console
+    stats = pstats.Stats(profiler)
+    stats.sort_stats("cumulative").print_stats()
+
 
 if __name__ == "__main__":
     unittest.main()
