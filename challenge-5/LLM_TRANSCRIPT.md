@@ -1618,3 +1618,23 @@ one should implement quicksort and the other should implement a cryptography alg
 Response: Okay, here are the code implementations for quicksort.py and cryptography.py, formatted similarly to your matrix_multiplication.py example.
 
 I've added comprehensive unit tests for both modules and included a main function in each to demonstrate their usage.  The cryptography.py module uses the Crypto library (which you may need to install: pip install pycryptodome) for AES encryption.
+
+Prompt: Tell me how to use `snakeviz` for interactive visualization 
+
+Okay, here's how to use snakeviz for interactive visualization of the selected code.
+
+To use snakeviz for interactive visualization, follow these steps:
+
+    Install snakeviz: If you haven't already, install it using pip:
+
+    pip install snakeviz
+
+    Run your code with profiling: Modify your main function (or the relevant part of your script) to profile the execution and save the results to a file.  I've added the necessary code to the Canvas.
+
+    Visualize with snakeviz: After your script has been run and the profile data has been saved (e.g., to quicksort.prof), use the following command in your terminal:
+
+    snakeviz quicksort.prof
+
+    Replace quicksort.prof with the actual name of your profile data file.
+
+    Open in your browser: snakeviz will start a web server and display a URL in your terminal.  Open this URL in your web browser to see the interactive visualization.

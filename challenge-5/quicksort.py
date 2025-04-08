@@ -1,5 +1,9 @@
 import unittest
 import random
+import cProfile
+import pstats
+import io
+
 
 def quicksort(arr):
     """
@@ -18,6 +22,7 @@ def quicksort(arr):
     middle = [x for x in arr if x == pivot]
     right = [x for x in arr if x > pivot]
     return quicksort(left) + middle + quicksort(right)
+
 
 class TestQuicksort(unittest.TestCase):
     def test_quicksort_empty_array(self):
@@ -44,6 +49,7 @@ class TestQuicksort(unittest.TestCase):
         result = quicksort(arr)
         self.assertEqual(result, sorted(arr))
 
+
 def main():
     """Main function to run the quicksort program and tests."""
     print("Running Quicksort program execution...")
@@ -51,6 +57,20 @@ def main():
     arr = [5, 2, 9, 1, 5, 6]
     sorted_arr = quicksort(arr)
     print("Sorted Array:", sorted_arr)
+
+    # Profile the execution
+    profiler = cProfile.Profile()
+    profiler.enable()
+    quicksort(arr)  # Or any other function you want to profile
+    profiler.disable()
+
+    # Save the profiling results to a file
+    profiler.dump_stats("quicksort.prof")
+
+    # Print the statistics to the console
+    stats = pstats.Stats(profiler)
+    stats.sort_stats("cumulative").print_stats()
+
 
 if __name__ == "__main__":
     unittest.main()
