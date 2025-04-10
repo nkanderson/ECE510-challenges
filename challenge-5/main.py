@@ -108,8 +108,6 @@ def main():
             module_name = "differential_equation_solver"
         case "cnn":
             module_name = "convolutional_network"
-            print(f"Error: Module {module_name} not working yet!")
-            sys.exit(1)
         case "matrix":
             module_name = "matrix_multiplication"
         case "qs":

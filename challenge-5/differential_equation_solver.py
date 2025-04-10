@@ -1,8 +1,5 @@
 import unittest
 import numpy as np
-import cProfile
-import pstats
-import io
 
 
 def solve_exponential_decay(initial_condition, t_span, t_eval, k):
@@ -29,26 +26,12 @@ class TestODE(unittest.TestCase):
 def main():
     """Main function to run the ODE program."""
     print("ODE program execution...")
-    # Example
     initial_condition = [5.0]
     t_span = (0, 3)
     t_eval = np.linspace(0, 3, 100)
     k = 0.5
     solution = solve_exponential_decay(initial_condition, t_span, t_eval, k)
     print(f"ODE Solution: {solution[:5]}...")
-
-    # Profile the execution
-    profiler = cProfile.Profile()
-    profiler.enable()
-    solve_exponential_decay(initial_condition, t_span, t_eval, k)
-    profiler.disable()
-
-    # Save the profiling results to a file
-    profiler.dump_stats("differential_equation_solver.prof")
-
-    # Print the statistics to the console
-    stats = pstats.Stats(profiler)
-    stats.sort_stats("cumulative").print_stats()
 
 
 if __name__ == "__main__":

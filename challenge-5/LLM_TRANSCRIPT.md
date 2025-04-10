@@ -2068,3 +2068,513 @@ if __name__ == "__main__":
     unittest.main(verbosity=2, exit=False)
 
 Would you like me to paste the updated version of the whole script with all these suggestions included?
+
+Prompt: Actually, maybe you can help me clean up this whole this program. The main goal is to have individual programs with unit tests, like the cryptography module (which is in a file named cryptography.py). There is a main.py file that accepts as arguments the name of the program to run and a command indicating whether it should run that program's unit tests or perform analysis on the program. The analysis consists of analyzing bytecode (with 2 options, but the default should remain the same for now) and performing profiling using cProfile. I'd also like it to be possible to use snakeviz for visualization. The goal will be to analyze the algorithmic structure of each program and the data dependencies of the code to identify potential parallelism. Included below are the current main.py and one of the programs (quicksort.py). I'd like to refactor one step at a time. Can you provide a summary of your recommendations, and we'll go through each change one step at a time?
+
+Response: Awesome — thanks for the detailed info and for sharing the files. You're already in a strong place architecturally, and with a few cleanups and some added structure, we can make it cleaner, more extensible, and ready for deeper analysis or visualization tools like snakeviz.
+
+✅ Summary of Recommendations (Step-by-Step Roadmap)
+
+Here’s a high-level summary of what I’d recommend, grouped in steps for easy iteration:
+
+Step 1: Structure and Naming
+
+    ✅ Refactor main.py to a CLI-friendly structure: Add a basic argparse interface.
+
+    ✅ Unify test discovery: Separate logic for test discovery to a utility function.
+
+    ✅ Make program.main() optional: Some modules might not have a main, and you want graceful fallback.
+
+Step 2: Analysis Improvements
+
+    ✅ Refactor disassembly and bytecode analysis:
+
+        Clean up logic for .dis file generation.
+
+        Use dis.get_instructions() directly for better bytecode parsing.
+
+    ✅ Support --visualize or --snakeviz for launching profiling output.
+
+Step 3: Generalization and Extensibility
+
+    ✅ Add a consistent interface that each program module can implement:
+
+        main()
+
+        profile_entry() (optional override for profiling target)
+
+    ✅ Enable per-module analyze() logic optionally (if a program wants to customize it).
+
+Step 4: Code Cleanup
+
+    ✅ Remove duplicated profiling code from modules (e.g., cryptography.py, quicksort.py) — centralize in main.py.
+
+    ✅ Use __all__ or module metadata for discoverability later if desired.
+
+    ✅ Consider separating analysis_utils.py from main.py.
+
+Step 5: Parallelism Goals
+
+    ✅ Add a placeholder or real function to output data dependencies or call graphs.
+
+    ✅ Possibly leverage ast, bytecode, or other tools in the future for analyzing data flow or call structure.
+
+Let's Start with Step 1
+
+Do you want to begin by:
+
+    🔹 Cleaning up main.py with a better CLI and modular structure?
+
+This would involve moving away from sys.argv manually and using argparse or a clean command dispatcher. If that sounds good, I’ll show you the minimal refactor for that.
+
+Prompt: Yes, let's start there.
+
+Response: Perfect — let’s clean up main.py by introducing argparse to improve clarity and flexibility. This step will:
+
+    Replace the manual sys.argv parsing.
+
+    Provide helpful command-line usage automatically.
+
+    Make future arguments like --snakeviz easier to add later.
+
+✅ Step 1: Introduce argparse CLI in main.py
+
+Here’s the refactored version of just the top part of main.py to clean up the CLI logic:
+🔁 Before (manual sys.argv parsing)
+```python
+if len(sys.argv) < 3:
+    print("Usage: python main.py <program> <action>")
+    ...
+```
+
+✅ After (argparse-based)
+```python
+import argparse
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run or analyze individual programs."
+    )
+    parser.add_argument(
+        "program",
+        choices=["ode", "cnn", "matrix", "qs", "crypt"],
+        help="The name of the program to run or analyze.",
+    )
+    parser.add_argument(
+        "action",
+        choices=["run", "analyze"],
+        help="Whether to run the program/tests or analyze it.",
+    )
+    parser.add_argument(
+        "--visualize",
+        action="store_true",
+        help="Use snakeviz to visualize profiling results (only valid with analyze).",
+    )
+    return parser.parse_args()
+```
+
+
+
+Then update your main() function to use it:
+
+```python
+def main():
+    args = parse_args()
+    program = args.program
+    action = args.action
+```
+
+🔄 Next Steps
+
+Once this is in place, we can:
+
+    Clean up the match section using a dictionary.
+
+    Add graceful fallback for modules without main().
+
+    Move test discovery into a helper function.
+
+Would you like me to update the rest of main.py now to reflect this change and carry on with the next few parts of Step 1?
+
+Prompt: Yes
+
+Response: Awesome! Let’s fully implement Step 1 by cleaning up and modularizing the rest of main.py to go with the new argparse structure.
+
+✅ Updated main.py (with cleaner CLI and modular structure)
+
+Here's the refactored version, broken into:
+
+    parse_args() – CLI interface
+
+    PROGRAM_MODULES – mapping program names to module files
+
+    run_tests() – utility to discover and run unit tests
+
+    main() – logic using argparse and improved control flow
+
+<provided full main.py>
+
+✅ Improvements So Far
+
+    ✅ argparse for clear CLI with help
+
+    ✅ Test discovery refactored to run_tests()
+
+    ✅ Bytecode and profiling now cleanly separated
+
+    ✅ Snakeviz supported with --visualize
+
+    ✅ Graceful fallback if a module lacks a main()
+
+Would you like to continue to Step 2: clean up and standardize the modules (e.g., cryptography.py, quicksort.py) next — specifically to remove profiling code from within them and have them just define main()?
+
+<Confirmed new main.py runs>
+
+Prompt: Yes, let's clean up one at a time (there are 5 total), starting with differential_equation_solver.py:
+
+<pasted in code>
+
+Response: Great — this is a clean module already, and our goal here is to:
+
+    Keep the algorithm and tests intact.
+
+    Remove profiling from the module (that’s now handled centrally in main.py).
+
+    Keep a simple main() that just shows example output.
+
+    Let the module be import-safe, so tests and main execution don't run on import.
+
+✅ Cleaned-up differential_equation_solver.py
+
+<provided full code, which I tested with new main.py>
+
+✅ Benefits
+
+    The main() function is now purely for demonstration and light execution.
+
+    All profiling and disassembly is done through main.py.
+
+    Safe for import (unit tests won't run unless this file is run directly).
+
+Would you like to continue with the next module — maybe cryptography.py?
+
+Prompt: Sure, here's cryptography.py: <pasted in code>
+
+Response: Thanks! It looks like cryptography.py accidentally has the entire file duplicated — no worries, we’ll clean that up too while we refactor.
+🎯 Goal
+
+    Remove profiling code from main()
+
+    Keep demonstration logic in main() (optional execution example)
+
+    Preserve unit tests under unittest
+
+    Ensure safe imports (so that tests and main() don’t run unexpectedly)
+
+✅ Cleaned-up cryptography.py
+
+<provided full file>
+
+🔍 Summary of Changes
+Change	Benefit
+✅ Removed profiling code	Centralized in main.py
+✅ Removed duplicate file content	Prevents accidental redefinition
+✅ Cleaned up main()	Now just a demo of encrypt/decrypt
+✅ Import-safe test logic	No tests run on import
+
+Ready to move on to matrix_multiplication.py?
+
+<NOTE: I accidentally pasted it in twice in ChatGPT, it wasn't duplicated in my code. Tested new code and it worked>
+
+Prompt: Yes, here's matrix_multiplication.py: <pasted in code>
+
+Response: Thanks! Let’s clean up matrix_multiplication.py with the same goals as before:
+🎯 Goals
+
+    ✅ Remove profiling logic — now handled by main.py
+
+    ✅ Restore the commented-out test for incompatible matrices (since it's valid and useful)
+
+    ✅ Keep the main() function as a demo of a few matrix multiplications
+
+    ✅ Make the module import-safe and clean
+
+✅ Cleaned-up matrix_multiplication.py
+
+<provided full code, which I tested and had one failure>
+
+✅ Summary of Changes
+Change	Reason
+Removed cProfile, pstats, io imports	Profiling is handled centrally
+Restored test_multiply_incompatible_matrices	It's a valid and useful edge case
+Cleaned up main() for just demo output	Separation of concerns (demo vs analysis)
+
+Would you like to move on to quicksort.py next?
+
+Prompt: Ok, but after we do quicksort.py and convolutional_network.py, we'll need to come back to matrix_multiplication.py because there's a failing test. Here's quicksort.py: <pasted in code>
+
+Response: Nice — this one is straightforward and already pretty clean.
+🎯 Goals for quicksort.py
+
+    ✅ Remove profiling code — now handled in main.py
+
+    ✅ Keep the example in main() for quick manual verification
+
+    ✅ Ensure unittest runs only when the module is run directly
+
+    ✅ Remove unused imports (like io)
+
+✅ Cleaned-up quicksort.py
+
+<provided code, which I tested>
+
+✅ Summary of Changes
+Change	Reason
+Removed cProfile, pstats, io	Profiling moved to main.py
+Cleaned up main() demo	Quick visual verification only
+Kept full test coverage	No loss of behavior
+
+Ready to knock out the last one — convolutional_network.py — and then we’ll revisit the matrix multiplication test that’s failing. Go ahead and paste it in when ready.
+
+Prompt: Here's convolutional_network.py: <pasted in code>
+
+Response: Perfect — this module is already clean and well-structured, but we’ll make it consistent with the rest of the project by:
+🎯 Goals
+
+    ✅ Remove direct profiling logic (none here — ✅)
+
+    ✅ Keep a clear, minimal main() demo (uses real MNIST — nice!)
+
+    ✅ Suppress TensorFlow warnings cleanly
+
+    ✅ Ensure import safety (so unittest.main() doesn’t auto-run on import)
+
+    ⚠️ Optional: make MNIST loading in main() robust to failures (e.g. no internet)
+
+✅ Cleaned-up convolutional_network.py
+
+<provided full code - tested, but it wasn't working before; still hangs>
+
+✅ Summary of Changes
+Change	Reason
+Added try/except around MNIST load	Graceful fallback if network is unavailable
+Kept profiling out	Now managed by main.py
+Main demo unchanged	Demonstrates real use of model
+
+That’s all 5 modules refactored! 🎉
+
+Now let’s head back to matrix_multiplication.py and fix the failing test. Can you share the error message you're getting when that test runs?
+
+Prompt: Yes, this is the test failure resulting from matrix multiplication:
+<pasted in error>
+
+Response: Thanks — the error is crystal clear: the incompatible test is actually passing because the matrices are, in fact, compatible! 😄
+🔍 Root Cause
+
+Here’s the test from earlier:
+
+```python
+matrix1 = np.array([[1, 2], [3, 4]])  # shape: (2, 2)
+matrix2 = np.array([[5, 6, 7], [8, 9, 10]])  # shape: (2, 3)
+```
+
+    ✅ matrix1.shape[1] == 2
+
+    ✅ matrix2.shape[0] == 2
+    → These are compatible for multiplication.
+
+So np.dot(matrix1, matrix2) correctly returns a (2, 3) result.
+
+✅ Fix: Use truly incompatible dimensions
+
+To trigger the None return path in matrix_multiply(), the second matrix's row count must not match the first matrix's column count.
+🔧 Replace this:
+
+```python
+matrix1 = np.array([[1, 2], [3, 4]])       # shape: (2, 2)
+matrix2 = np.array([[5, 6, 7]])            # shape: (1, 3)
+```
+📏 Result:
+
+    matrix1.shape[1] = 2
+
+    matrix2.shape[0] = 1
+    → ❌ Not compatible → matrix_multiply() should return None.
+
+✅ Updated Test Code
+```python
+def test_multiply_incompatible_matrices(self):
+    """Tests the case where matrix dimensions are incompatible."""
+    matrix1 = np.array([[1, 2], [3, 4]])  # shape: (2, 2)
+    matrix2 = np.array([[5, 6, 7]])       # shape: (1, 3)
+    result = matrix_multiply(matrix1, matrix2)
+    self.assertIsNone(result)
+```
+
+Once you make that fix, the test will behave correctly.
+
+Let me know if you'd like me to regenerate the full, corrected matrix_multiplication.py file.
+
+Prompt: Great, that works! Let's revisit convolution_network.py, because it's hanging. Here's the code again:
+<pasted in code>
+
+Response: Great — you're almost there! Let's fix the hanging issue in convolutional_network.py.
+
+🧠 Diagnosis: Why It's Hanging
+
+You're calling unittest.main() at the end:
+```python
+if __name__ == "__main__":
+    unittest.main()
+```
+
+When run via python main.py cnn run, this causes the CNN test case to execute, and because it trains a CNN for 3 epochs on random data, it may take a while, especially without a GPU — or seem like it's "hanging."
+
+✅ Fix Options
+
+There are two good ways to fix this depending on your goal:
+
+✅ Option 1: Reduce epochs for testing
+
+Update the unit test to train faster by reducing epochs:
+
+```python
+loss, accuracy = train_and_evaluate_cnn(
+    model, x_train, y_train, x_test, y_test, epochs=1  # Faster
+)
+```
+Use 1 epoch in tests, and let main() use more for "real" execution. This keeps tests fast and meaningful.
+
+✅ Option 2: Mark test as "slow" and skip it unless explicitly run
+
+Use Python’s unittest.skipUnless with a flag:
+```python
+import os
+
+@unittest.skipUnless(os.getenv("RUN_SLOW_TESTS") == "1", "Skipping slow test")
+def test_cnn_training(self):
+    ...
+```
+Then only run it like this when you really want to:
+```sh
+RUN_SLOW_TESTS=1 python main.py cnn run
+```
+
+🚀 Recommended Hybrid Fix
+
+Do both:
+
+    Use epochs=1 in the test
+
+    Leave the real training in main() with 5 epochs
+
+✅ Final test_cnn_training() Example
+
+```python
+class TestCNN(unittest.TestCase):
+    @unittest.skipUnless(os.getenv("RUN_SLOW_TESTS") == "1", "Skipping slow test")
+    def test_cnn_training(self):
+        """Tests CNN training on a small, random dataset."""
+        input_shape = (28, 28, 1)
+        num_classes = 10
+        model = create_cnn(input_shape, num_classes)
+        x_train = np.random.rand(100, 28, 28, 1).astype(np.float32)
+        y_train = np.random.randint(0, 10, 100).astype(np.int32)
+        x_test = np.random.rand(20, 28, 28, 1).astype(np.float32)
+        y_test = np.random.randint(0, 10, 20).astype(np.int32)
+        loss, accuracy = train_and_evaluate_cnn(
+            model, x_train, y_train, x_test, y_test, epochs=1  # Quick
+        )
+        self.assertGreaterEqual(accuracy, 0.1)
+        self.assertGreaterEqual(loss, 0)
+```
+Would you like me to regenerate the complete final version of convolutional_network.py with this fix baked in?
+
+Prompt: So my goal is to profile this code and look for optimization opportunities, in particular, identifying potential parallelism. The only reason I'd want to run multiple epochs is if that somehow might uncover that, but it doesn't sound like that would be the case. If I'm understanding correctly, this would probably run on a GPU when available, so running multiple epochs will probably not support my goals. But I would like to be able to see which parts run in parallel on a GPU when one is available. Can you tell me more about that? Also, for the time being, I just want to go with option 2, unless we determine there would be some benefit to me in using the hybrid option.
+
+Response: Got it — thanks for clarifying. You’re absolutely right: running more epochs doesn’t reveal additional opportunities for parallelism, especially for the type of profiling you're after
+
+🧠 A Quick Primer: Parallelism and GPU Profiling in TensorFlow
+
+When you train a model like your CNN using TensorFlow:
+
+    TensorFlow will automatically use GPU acceleration if:
+
+        A supported GPU (NVIDIA, CUDA) is available.
+
+        TensorFlow-GPU is installed correctly.
+
+    TensorFlow operations like Conv2D, MaxPooling2D, etc. are implemented in C++/CUDA under the hood and dispatched asynchronously via compute graphs.
+
+    This means:
+
+        Execution of operations may be parallel (multi-core CPU or GPU kernels).
+
+        Timing at the Python level (e.g., cProfile) often doesn't reflect actual execution timing inside the GPU.
+
+        Most GPU parallelism is invisible to standard Python profilers.
+
+🔬 How to See Parallel Execution on GPU
+
+To analyze parallelism specifically on GPU, here are your best options:
+✅ 1. TensorFlow Profiler (Recommended)
+
+    Built into TensorBoard (tensorboard CLI tool).
+
+    Can show which ops were parallelized, memory usage, GPU utilization, kernel timings.
+
+    Requires enabling profiling callbacks in your model’s fit():
+
+```python
+from tensorflow.python.profiler import profiler_v2 as tf_profiler
+
+def train_and_evaluate_cnn(...):
+    ...
+    log_dir = "/tmp/tf-profile"
+    tensorboard_cb = keras.callbacks.TensorBoard(log_dir=log_dir, profile_batch='1,3')
+    model.fit(x_train, y_train, epochs=epochs, callbacks=[tensorboard_cb])
+```
+
+Then run:
+```sh
+tensorboard --logdir=/tmp/tf-profile
+```
+🛠 2. Nsight Systems / Nsight Compute (NVIDIA GPUs only)
+
+    Extremely low-level, shows exact kernel launches, thread block configs, etc.
+
+    Used when you're tuning CUDA kernels or deep-diving into bottlenecks.
+
+    Overkill unless you’re working with custom TensorFlow ops or native CUDA code.
+
+❌ Limitations of cProfile
+
+    Only shows Python-side function call timing.
+
+    TensorFlow runs most ops via backend outside the Python interpreter.
+
+    You’ll see model.fit() take time, but not why or where — it’s a black box.
+
+✅ Your Plan Sounds Spot On
+
+    ✔️ Use cProfile + bytecode analysis on custom Python logic (like quicksort, cryptography, etc.)
+
+    ✔️ Use TensorBoard profiling if you're profiling deep learning models
+
+    ✔️ Use @unittest.skipUnless(...) for CNN tests so you don't run them unless needed
+
+✅ Final Change for convolutional_network.py (Option 2 only)
+
+```python
+class TestCNN(unittest.TestCase):
+    @unittest.skipUnless(os.getenv("RUN_SLOW_TESTS") == "1", "Skipping slow test")
+    def test_cnn_training(self):
+        ...
+```
+You can now opt-in when needed:
+```sh
+RUN_SLOW_TESTS=1 python main.py cnn run
+```
+Let me know if you'd like help integrating TensorFlow profiling with TensorBoard into your current setup — I can walk you through that too.
+
+<made change, called `python main.py cnn run` and it did eventually finish>

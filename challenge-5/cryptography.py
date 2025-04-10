@@ -2,9 +2,6 @@ import unittest
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 import os
-import cProfile
-import pstats
-import io
 
 
 class AESCipher:
@@ -19,11 +16,11 @@ class AESCipher:
         Args:
             key: The encryption key (must be 16, 24, or 32 bytes long).
         """
-        self.key = key
         if not isinstance(key, (bytes, bytearray)):
             raise TypeError("Key must be bytes or bytearray")
         if len(key) not in (16, 24, 32):
-            raise ValueError(f"Key must be 16, 24, or 32 bytes long.  Got {len(key)}.")
+            raise ValueError(f"Key must be 16, 24, or 32 bytes long. Got {len(key)}.")
+        self.key = key
         self.bs = AES.block_size  # 16
 
     def encrypt(self, raw):
@@ -71,10 +68,9 @@ class TestCryptography(unittest.TestCase):
 
     def test_encrypt_decrypt_empty_string(self):
         """Tests encryption and decryption with an empty string."""
-        empty_data = ""
-        encrypted_data = self.cipher.encrypt(empty_data)
+        encrypted_data = self.cipher.encrypt("")
         decrypted_data = self.cipher.decrypt(encrypted_data)
-        self.assertEqual(decrypted_data, empty_data)
+        self.assertEqual(decrypted_data, "")
 
     def test_invalid_key_length(self):
         """Tests that an error is raised for an invalid key length."""
@@ -83,30 +79,17 @@ class TestCryptography(unittest.TestCase):
 
 
 def main():
-    """Main function to run the cryptography program and tests."""
+    """Main function to run the cryptography demo."""
     print("Running Cryptography program execution...")
-    # Example
     key = b"0123456789abcdef"  # 16 bytes
     cipher = AESCipher(key)
     data = "This is some sensitive data to encrypt."
+
     encrypted_data = cipher.encrypt(data)
     print("Encrypted Data:", encrypted_data)
+
     decrypted_data = cipher.decrypt(encrypted_data)
     print("Decrypted Data:", decrypted_data)
-
-    # Profile the execution
-    profiler = cProfile.Profile()
-    profiler.enable()
-    cipher.encrypt(data)  # Profile the encryption
-    cipher.decrypt(encrypted_data)  # also profile decryption
-    profiler.disable()
-
-    # Save the profiling results to a file
-    profiler.dump_stats("cryptography.prof")
-
-    # Print the statistics to the console
-    stats = pstats.Stats(profiler)
-    stats.sort_stats("cumulative").print_stats()
 
 
 if __name__ == "__main__":
