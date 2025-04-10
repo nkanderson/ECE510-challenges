@@ -3201,3 +3201,76 @@ Other options include:
 
 Let me know if you want to batch test all benchmarks, export charts, or highlight opcode breakdowns per category!
 
+Prompt: Let's revisit snakeviz and interpreting profiling results for now. Can you help me interpret the output from the profiler and visualization in snakeviz?
+
+Response: Great — let's walk through how to interpret profiling results, both in text (cProfile + pstats) and visually with SnakeViz.
+
+🧩 Part 1: Text Output from cProfile
+
+When main.py runs profile_function(...), it prints stats like:
+```sh
+ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+50      0.002    0.000    0.010    0.000   your_module.py:42(some_func)
+```
+📌 Column meanings:
+
+    ncalls – number of calls made to that function
+
+    tottime – time spent in that function alone (not including calls to others)
+
+    percall (tottime) – average time per call: tottime / ncalls
+
+    cumtime – cumulative time: time in this function + subcalls
+
+    percall (cumtime) – average cumulative time per call
+
+    filename:lineno(function) – where the function is located
+
+📈 Part 2: Interpreting SnakeViz Output
+
+When you run with:
+```sh
+python main.py matrix analyze --visualize
+```
+
+You’ll see something like:
+🔷 Icicle Graph (top-down view):
+
+    Taller blocks = more time
+
+    Each layer represents a function call → call stack
+
+    Click a block to zoom into its call chain
+
+    Hover to see filename:line + time breakdown
+
+🔶 Table View (bottom):
+
+    Sortable columns
+
+    Great for spotting bottlenecks (sort by cumtime)
+
+✅ What to Look For
+Symptom	Interpretation
+High tottime, low cumtime	Pure CPU work in that function
+High cumtime	Lots of subcalls (recursive? deep stack?)
+Many calls with small time	May indicate inefficiency from overhead or granularity
+Blocks labeled <method '...' of 'numpy.ndarray'>	Native extension functions (NumPy, TensorFlow, etc.)
+
+🧠 Real-world Use
+
+If you're profiling matrix_multiplication.py, you'd probably see:
+
+    np.dot() as a single call, taking up most time (but not revealing how the math is done internally)
+
+    Function overhead (argument passing, shape checks) in Python
+
+If you're profiling quicksort.py, you'll likely see:
+
+    Recursive calls to quicksort
+
+    Time spent in list comprehensions and slicing
+
+    Flat structure unless deeply nested
+
+Would you like to try interpreting a specific profiling output (text or SnakeViz) together? You can paste the text output, or describe what you see in the graph.
