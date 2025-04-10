@@ -1825,3 +1825,246 @@ I've added the profiling code back into the main function.  The program will now
     Run the unit tests to verify the correctness of the matrix_multiply function.
 
 <had to comment out one of the tests, still not passing>
+
+Prompt: With the cryptography module, I'm getting the following errors:
+
+<pasted in module and error output>
+
+Response: Okay, I see the error. The key I provided in the setUp method of the TestCryptography class is 33 bytes long, which is not a valid key length for AES. I will correct this in the Canvas.
+
+I've changed the key in setUp to be exactly 16 bytes long, which is a valid AES key length. This should resolve the ValueError and allow the tests to run correctly
+
+Prompt: Still getting the following errors <pasted in errors, same errors as above>
+
+Response: Okay, I understand.  It seems the key length is still causing an issue. Let me examine the code in "cryptography_module_fixed" more closely.
+
+You are correct. The error occurs because the key used in setUp  is b"This is a secret key". This is indeed 16 bytes long, which is a valid key length. However, the traceback indicates the error is happening within the AESCipher initialization inside the setUp method.
+
+The problem is not the length of the string literal itself, but how it's being interpreted. Let me correct the  setUp  method to ensure the key is treated as a byte string with the correct length.
+
+The key in the setUp method is already a byte string:  self.key = b"This is a secret key".  This is correct, and its length is 16 bytes.  Therefore, the error cannot be due to the key length or type in setUp.
+
+The error is happening when the AESCipher is initialized within setUp, which means the problem is very likely within the AESCipher class itself.  Specifically, the __init__ method.
+
+Given that the error persists even with a 16-byte key, the issue must be in how the key length is being checked.
+
+Prompt: So do you have a recommendation for fixing the issue?
+
+Response: Okay, let's get this cryptography issue fixed. I've analyzed the code and the error you're encountering, and I've identified the problem.
+
+Reasoning for the fix:
+
+The original code was raising a ValueError because the key was not explicitly a byte or bytearray. The added check isinstance(key, (bytes, bytearray)) ensures that the key is of the correct type before checking its length
+
+Prompt: I guess that check might be helpful, but the tests are still failing with the ValueError from above, the new TypeError you added is not the issue
+
+Response: You're right, the TypeError isn't the root cause of the original ValueError. It seems I'm still missing something about how the key is being handled. Let's try to get to the bottom of this.
+
+Reasoning:
+
+The code explicitly checks if the key is of type bytes or bytearray. If it is not, a TypeError is raised. If the key is of the correct type, its length is checked. If the length is not 16, 24, or 32, a ValueError is raised. This ensures that the key is of the correct type and length before being used for AES encryption/decryption.
+
+<no changes to code>
+
+Prompt: So what do you think needs to be fixed in the tests to prevent the ValueError?
+
+Response: Okay, let's pinpoint what needs to be fixed in the tests to prevent the ValueError in the cryptography module.
+
+Looking at the cryptography_module_fixed code, the ValueError is raised within the AESCipher class's __init__ method if the key length is not 16, 24, or 32 bytes.
+
+The test test_invalid_key_length is designed to check this behavior. It initializes AESCipher with an 8-byte key (b"invalidkey") and asserts that a ValueError is raised. This test should pass as is.
+
+The other tests, test_encrypt_decrypt and test_encrypt_decrypt_empty_string, initialize AESCipher in the setUp method, which uses a 16-byte key (b"This is a secret key").  This key length is valid, so these tests should also pass.
+
+Therefore, no changes are needed in the tests to prevent the ValueError as long as the key provided in setUp is 16, 24, or 32 bytes long.
+
+<bailed on Gemini, switched to ChatGPT>
+
+### ChatGPT
+
+Prompt: I have this Python cryptography module with some tests. The tests aren't passing because there's something wrong with the key length
+
+<pasted in cryptography module>
+
+Response: The issue you're running into likely stems from a subtle key length mistake in your TestCryptography.setUp() method:
+
+self.key = b"This is a secret"  # 16 bytes
+
+Let's check that:
+
+    "This is a secret" has 16 characters.
+
+    But b"This is a secret" is 15 bytes, because there's only 15 characters:
+    "This is a secret" → T(1) h(2) i(3) s(4) (5) i(6) s(7) (8) a(9) (10) s(11) e(12) c(13) r(14) e(15) t(16)
+
+Wait — that's actually 16 characters. So it should be valid — if and only if there are no trailing or leading spaces causing confusion.
+
+To confirm this, run:
+
+print(len(b"This is a secret"))  # Expected: 16
+
+If it turns out your key is actually shorter or longer, even by 1 byte, AES will throw the ValueError.
+
+✅ Fix suggestion
+
+To be extra safe, use a clear fixed-length key for your test like:
+
+self.key = b"0123456789abcdef"  # Exactly 16 bytes
+
+Or, if you want a 24- or 32-byte key for testing:
+
+self.key = b"0123456789abcdef01234567"  # 24 bytes
+self.key = b"0123456789abcdef0123456789abcdef"  # 32 bytes
+
+Then update the comment accordingly so it doesn’t mislead (e.g. don’t say “16 bytes” if it’s not).
+
+🧪 Bonus Tip
+
+You can add a quick test to check key length explicitly in your test setup to catch such issues:
+
+def setUp(self):
+    self.key = b"This is a secret"
+    print("Key length:", len(self.key))  # Temporary debug print
+    self.cipher = AESCipher(self.key)
+
+Let me know if you'd like me to generate a fixed version of the code!
+
+Prompt: No, it's still not working. This is the output:
+
+<pasted error output>
+
+Response: Ah, thanks for the full traceback — now we see the issue is not with the tests, but with the main() function.
+🔍 Problem
+
+From your main():
+
+key = b"This is a secret key123456789"  # 32 bytes (?)
+cipher = AESCipher(key)
+
+You commented that it's 32 bytes, but it’s actually only 29 bytes.
+
+Let’s count:
+
+"This is a secret key123456789"
+        ↑        ↑         ↑
+       16       20        29
+
+So this string is only 29 characters, not 32 — and since you're using a bytes literal (b"..."), the length is exactly 29 bytes.
+
+✅ Fix
+
+Change the key to be exactly 32 bytes — for example:
+
+key = b"0123456789abcdef0123456789abcdef"  # 32 bytes
+
+Or, if you want to fix your current key, just pad it:
+
+key = b"This is a secret key1234567890!!"  # 32 bytes
+
+You can always check dynamically:
+
+print(f"Key length: {len(key)}")  # Should print 16, 24, or 32
+
+🧪 Optional: Add Validation Debugging
+
+To avoid this in the future, enhance the error message:
+
+raise ValueError(f"Key must be 16, 24, or 32 bytes long. Got {len(key)}. Key: {key!r}")
+
+Let me know if you’d like me to clean up or refactor the whole script while we’re at it.
+
+Prompt: Sure, what specific changes would you advise making to the script?
+
+Response: Great! Here's a breakdown of improvements you can make to your script for clarity, robustness, and readability — all without changing the actual logic:
+
+✅ 1. Fix the incorrect key in main()
+
+Replace the invalid 29-byte key with a valid 32-byte key:
+
+key = b"0123456789abcdef0123456789abcdef"  # 32 bytes
+
+Or dynamically generate a key of the correct size if you're testing:
+
+key = os.urandom(32)  # Random 32-byte key
+
+✅ 2. Add key length print/check during development
+
+Inside AESCipher.__init__(), temporarily add:
+
+print(f"[DEBUG] Key length: {len(key)}")
+
+Then remove or replace with logging later.
+
+✅ 3. Improve error message (optional, but helpful for debugging)
+
+Instead of:
+
+raise ValueError(f"Key must be 16, 24, or 32 bytes long.  Got {len(key)}.")
+
+Make it more verbose:
+
+raise ValueError(f"Key must be 16, 24, or 32 bytes long. Got {len(key)} bytes. Key: {key!r}")
+
+✅ 4. Make your main() function pure — separate test and profile logic
+
+Right now main() runs everything. Better separation:
+
+```python
+def demo_cryptography():
+    print("Running Cryptography demo...")
+    key = b"0123456789abcdef0123456789abcdef"
+    cipher = AESCipher(key)
+    data = "This is some sensitive data to encrypt."
+
+    encrypted_data = cipher.encrypt(data)
+    print("Encrypted Data:", encrypted_data)
+
+    decrypted_data = cipher.decrypt(encrypted_data)
+    print("Decrypted Data:", decrypted_data)
+
+def profile_cipher_operations(cipher, data):
+    profiler = cProfile.Profile()
+    profiler.enable()
+    cipher.encrypt(data)
+    cipher.decrypt(cipher.encrypt(data))
+    profiler.disable()
+
+    profiler.dump_stats("cryptography.prof")
+    stats = pstats.Stats(profiler)
+    stats.sort_stats("cumulative").print_stats()
+```
+
+Then in main():
+
+```python
+def main():
+    demo_cryptography()
+    key = b"0123456789abcdef0123456789abcdef"
+    cipher = AESCipher(key)
+    data = "This is some sensitive data to encrypt."
+    profile_cipher_operations(cipher, data)
+
+```
+
+✅ 5. Use __name__ == "__main__" wisely
+
+If you want to run both tests and main():
+
+if __name__ == "__main__":
+    unittest.main(exit=False)  # Run tests
+    main()                     # Run demo and profiling
+
+Or use CLI args (e.g., --test vs --run) with argparse if you want more control.
+
+✅ 6. Clean up test output formatting
+
+If you want clearer test feedback, you can run with verbosity:
+
+python -m unittest -v cryptography.py
+
+Or in code:
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2, exit=False)
+
+Would you like me to paste the updated version of the whole script with all these suggestions included?

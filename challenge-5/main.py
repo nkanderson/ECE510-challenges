@@ -8,16 +8,19 @@ import pstats
 from pstats import SortKey
 import unittest
 
+
 def disassemble_to_file(func, filename):
     """Disassembles a function and writes the output to a file."""
     with open(filename, "w") as f:
         import dis
+
         old_stdout = sys.stdout
         sys.stdout = f
         try:
             dis.dis(func)
         finally:
             sys.stdout = old_stdout
+
 
 def profile_function(func, *args, **kwargs):
     """Profiles the execution of a function and returns the stats."""
@@ -30,6 +33,7 @@ def profile_function(func, *args, **kwargs):
     ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
     ps.print_stats()
     return s.getvalue()
+
 
 def analyze_bytecode_optimized(func):
     """
@@ -49,6 +53,7 @@ def analyze_bytecode_optimized(func):
         counts[instr] = counts.get(instr, 0) + 1
     return counts
 
+
 def analyze_bytecode(dis_filename):
     """Analyzes the disassembled bytecode from a .dis file and returns instruction counts."""
     counts = {}
@@ -62,15 +67,16 @@ def analyze_bytecode(dis_filename):
                         # Opcode is the second part
                         opcode = parts[1].strip()
                         if parts[1].strip().isdigit():
-                           opcode = parts[2].strip()
+                            opcode = parts[2].strip()
                         # Handle opcodes with arguments
-                        if '(' in opcode:
-                            opcode = opcode.split('(')[0].strip()
+                        if "(" in opcode:
+                            opcode = opcode.split("(")[0].strip()
                         counts[opcode] = counts.get(opcode, 0) + 1
     except FileNotFoundError:
         print(f"Error: .dis file not found: {dis_filename}")
         return {}
     return counts
+
 
 def main():
     """Main function to parse arguments and run program/analysis."""
@@ -102,6 +108,8 @@ def main():
             module_name = "differential_equation_solver"
         case "cnn":
             module_name = "convolutional_network"
+            print(f"Error: Module {module_name} not working yet!")
+            sys.exit(1)
         case "matrix":
             module_name = "matrix_multiplication"
         case "qs":
@@ -116,12 +124,16 @@ def main():
     try:
         module = importlib.import_module(module_name)
     except ImportError:
-        print(f"Error: Could not import module {module_name}.  Make sure the file {module_name}.py exists.")
+        print(
+            f"Error: Could not import module {module_name}.  Make sure the file {module_name}.py exists."
+        )
         sys.exit(1)
 
     if action == "run":
         # Run tests *before* the main program logic
-        test_suite = unittest.defaultTestLoader.discover(os.path.dirname(os.path.abspath(__file__)), pattern=f"{module_name}.py")
+        test_suite = unittest.defaultTestLoader.discover(
+            os.path.dirname(os.path.abspath(__file__)), pattern=f"{module_name}.py"
+        )
         runner = unittest.TextTestRunner(verbosity=2)
         result = runner.run(test_suite)
         if not result.wasSuccessful():
@@ -129,15 +141,20 @@ def main():
 
         module.main()  # Call the module's main function
     elif action == "analyze":
-        disassemble_to_file(module.main, f"{module_name}.dis")  # Disassemble the module's main
+        disassemble_to_file(
+            module.main, f"{module_name}.dis"
+        )  # Disassemble the module's main
         print(f"Bytecode analysis of {program}:")
-        print(analyze_bytecode(f"{module_name}.dis"))  # Use the main module's analyze_bytecode
+        print(
+            analyze_bytecode(f"{module_name}.dis")
+        )  # Use the main module's analyze_bytecode
         print(f"\nProfiling {program}:")
         print(profile_function(module.main))  # Use the main module's profile_function
     else:
-        #This should be caught above, but is included as a last resort.
+        # This should be caught above, but is included as a last resort.
         print("Invalid action argument.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

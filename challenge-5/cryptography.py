@@ -20,8 +20,10 @@ class AESCipher:
             key: The encryption key (must be 16, 24, or 32 bytes long).
         """
         self.key = key
+        if not isinstance(key, (bytes, bytearray)):
+            raise TypeError("Key must be bytes or bytearray")
         if len(key) not in (16, 24, 32):
-            raise ValueError("Key must be 16, 24, or 32 bytes long")
+            raise ValueError(f"Key must be 16, 24, or 32 bytes long.  Got {len(key)}.")
         self.bs = AES.block_size  # 16
 
     def encrypt(self, raw):
@@ -57,7 +59,7 @@ class AESCipher:
 
 class TestCryptography(unittest.TestCase):
     def setUp(self):
-        self.key = b"This is a secret key123456789"  # 32 bytes
+        self.key = b"0123456789abcdef"  # 16 bytes
         self.cipher = AESCipher(self.key)
         self.data = "This is some sensitive data to encrypt."
 
@@ -84,7 +86,7 @@ def main():
     """Main function to run the cryptography program and tests."""
     print("Running Cryptography program execution...")
     # Example
-    key = b"This is a secret key123456789"  # 32 bytes
+    key = b"0123456789abcdef"  # 16 bytes
     cipher = AESCipher(key)
     data = "This is some sensitive data to encrypt."
     encrypted_data = cipher.encrypt(data)
