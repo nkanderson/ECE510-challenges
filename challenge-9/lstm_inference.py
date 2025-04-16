@@ -151,7 +151,8 @@ if __name__ == "__main__":
     model = LSTMAutoencoder("saved_model/lstm_weights.npz")
     sequences, _ = preprocess_noaa_csv("data/10_100_00_110.csv", window_size=24)
 
-    for i, seq in enumerate(sequences[:5]):  # Example: just the first 5
+    print("window_index,mse")
+    for i, seq in enumerate(sequences):
         recon = model.reconstruct(seq.tolist())
         error = model.compute_mse(seq.tolist(), recon)
-        print(f"Window {i:03d}: MSE = {error:.6f}")
+        print(f"{i},{error:.6f}")
