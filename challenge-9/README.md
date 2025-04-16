@@ -151,3 +151,17 @@ Model saved to: saved_model/lstm_autoencoder.keras
 Weights saved to: saved_model/lstm_weights.npz
 Scaler saved to: saved_model/scaler.gz
 ```
+
+### Commands
+
+For inference, there are multiple modes. Plotting mode is the default:
+
+```sh
+python lstm_inference.py
+```
+
+CSV output mode is available as well, and the following command will output the MSE values to a CSV:
+
+```sh
+python lstm_inference.py --csv > error_report.csv
+```

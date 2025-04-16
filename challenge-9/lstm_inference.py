@@ -1,6 +1,8 @@
 import math
 import numpy as np
+import matplotlib.pyplot as plt
 from preprocess_data import preprocess_noaa_csv
+import sys
 
 
 # --- Activation functions ---
@@ -151,8 +153,31 @@ if __name__ == "__main__":
     model = LSTMAutoencoder("saved_model/lstm_weights.npz")
     sequences, _ = preprocess_noaa_csv("data/10_100_00_110.csv", window_size=24)
 
-    print("window_index,mse")
+    errors = []
     for i, seq in enumerate(sequences):
         recon = model.reconstruct(seq.tolist())
         error = model.compute_mse(seq.tolist(), recon)
-        print(f"{i},{error:.6f}")
+        errors.append((i, error))
+
+    if "--csv" in sys.argv:
+        print("window_index,mse")
+        for i, err in errors:
+            print(f"{i},{err:.6f}")
+    else:
+        x_vals = [i for i, _ in errors]
+        y_vals = [err for _, err in errors]
+
+        plt.figure(figsize=(12, 4))
+        plt.plot(x_vals, y_vals, marker="o", linestyle="-", label="Reconstruction MSE")
+        plt.axhline(
+            y=np.percentile(y_vals, 95),
+            color="r",
+            linestyle="--",
+            label="95th percentile",
+        )
+        plt.xlabel("Window Index")
+        plt.ylabel("MSE")
+        plt.title("Reconstruction Error per Window")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
