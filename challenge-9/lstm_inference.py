@@ -163,6 +163,14 @@ if __name__ == "__main__":
         print("window_index,mse")
         for i, err in errors:
             print(f"{i},{err:.6f}")
+
+    elif "--anomalies" in sys.argv:
+        threshold = np.percentile([err for _, err in errors], 95)
+        print("window_index,mse")
+        for i, err in errors:
+            if err > threshold:
+                print(f"{i},{err:.6f}")
+
     else:
         x_vals = [i for i, _ in errors]
         y_vals = [err for _, err in errors]
