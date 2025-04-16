@@ -183,3 +183,107 @@ To trace anomalies back to raw data:
 ```sh
 python extract_anomalies.py
 ```
+
+### Profiling and Analysis
+
+Generate a prof file to use with snakeviz:
+```sh
+python -m cProfile -o profile.lstm.prof lstm_inference.py --npz new_data_sequences.npz
+snakeviz profile.lstm.prof
+```
+
+Results from using `kernprof` (with the actual MSE inference output removed):
+```sh
+(venv) ➜  challenge-9 git:(main) ✗ kernprof -l -v lstm_inference.py --npz new_data_sequences.npz
+
+Wrote profile results to lstm_inference.py.lprof
+Timer unit: 1e-06 s
+
+Total time: 2.03411 s
+File: lstm_inference.py
+Function: matvec_mul at line 41
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    41                                           @profile
+    42                                           def matvec_mul(matrix, vec):
+    43   2771496    2034109.0      0.7    100.0      return [sum(m * v for m, v in zip(row, vec)) for row in matrix]
+
+Total time: 2.97621 s
+File: lstm_inference.py
+Function: step at line 64
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    64                                               @profile
+    65                                               def step(self, x, h_prev, c_prev):
+    66     52416     212154.0      4.0      7.1          i = vector_sigmoid(
+    67     52416      78333.0      1.5      2.6              elementwise_add(
+    68     26208     567409.0     21.7     19.1                  matvec_mul(self.W_i, x),
+    69     26208    1509230.0     57.6     50.7                  elementwise_add(matvec_mul(self.U_i, h_prev), self.b_i),
+    70                                                       )
+    71                                                   )
+    72     52416      15441.0      0.3      0.5          f = vector_sigmoid(
+    73     52416      18251.0      0.3      0.6              elementwise_add(
+    74     26208     197643.0      7.5      6.6                  matvec_mul(self.W_f, x),
+    75     26208      53441.0      2.0      1.8                  elementwise_add(matvec_mul(self.U_f, h_prev), self.b_f),
+    76                                                       )
+    77                                                   )
+    78     52416      14827.0      0.3      0.5          c_tilde = vector_tanh(
+    79     52416      17703.0      0.3      0.6              elementwise_add(
+    80     26208      41937.0      1.6      1.4                  matvec_mul(self.W_c, x),
+    81     26208      52655.0      2.0      1.8                  elementwise_add(matvec_mul(self.U_c, h_prev), self.b_c),
+    82                                                       )
+    83                                                   )
+    84     52416      14810.0      0.3      0.5          o = vector_sigmoid(
+    85     52416      18029.0      0.3      0.6              elementwise_add(
+    86     26208      42215.0      1.6      1.4                  matvec_mul(self.W_o, x),
+    87     26208      52662.0      2.0      1.8                  elementwise_add(matvec_mul(self.U_o, h_prev), self.b_o),
+    88                                                       )
+    89                                                   )
+    90     26208      35936.0      1.4      1.2          c = elementwise_add(elementwise_mul(f, c_prev), elementwise_mul(i, c_tilde))
+    91     26208      20916.0      0.8      0.7          h = elementwise_mul(o, vector_tanh(c))
+    92     26208      12620.0      0.5      0.4          return h, c
+
+Total time: 0.318005 s
+File: lstm_inference.py
+Function: forward at line 101
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   101                                               @profile
+   102                                               def forward(self, x):
+   103      6552     318005.0     48.5    100.0          return elementwise_add(matvec_mul(self.W, x), self.b)
+
+Total time: 3.46085 s
+File: lstm_inference.py
+Function: reconstruct at line 130
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   130                                               @profile
+   131                                               def reconstruct(self, sequence):
+   132       273         82.0      0.3      0.0          h1 = [0.0] * self.hidden1
+   133       273         67.0      0.2      0.0          c1 = [0.0] * self.hidden1
+   134       273         52.0      0.2      0.0          h2 = [0.0] * self.hidden2
+   135       273         44.0      0.2      0.0          c2 = [0.0] * self.hidden2
+   136                                           
+   137      6825       1052.0      0.2      0.0          for x in sequence:
+   138      6552     791068.0    120.7     22.9              h1, c1 = self.lstm1.step(x, h1, c1)
+   139      6552     783411.0    119.6     22.6              h2, c2 = self.lstm2.step(h1, h2, c2)
+   140                                           
+   141      6825       1258.0      0.2      0.0          repeated = [h2 for _ in range(len(sequence))]
+   142       273         72.0      0.3      0.0          h3 = [0.0] * self.hidden3
+   143       273         52.0      0.2      0.0          c3 = [0.0] * self.hidden3
+   144       273         57.0      0.2      0.0          h4 = [0.0] * self.hidden4
+   145       273         52.0      0.2      0.0          c4 = [0.0] * self.hidden4
+   146                                           
+   147       273         30.0      0.1      0.0          output_seq = []
+   148      6825       1199.0      0.2      0.0          for x in repeated:
+   149      6552     627067.0     95.7     18.1              h3, c3 = self.lstm3.step(x, h3, c3)
+   150      6552     927005.0    141.5     26.8              h4, c4 = self.lstm4.step(h3, h4, c4)
+   151      6552     327349.0     50.0      9.5              y = self.dense.forward(h4)
+   152      6552        752.0      0.1      0.0              output_seq.append(y)
+   153                                           
+   154       273        182.0      0.7      0.0          return output_seq
+```

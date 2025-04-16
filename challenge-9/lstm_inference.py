@@ -5,6 +5,13 @@ from preprocess_data import preprocess_noaa_csv
 import sys
 import csv
 
+try:
+    profile
+except NameError:
+
+    def profile(func):
+        return func
+
 
 # --- Activation functions ---
 def sigmoid(x):
@@ -31,6 +38,7 @@ def elementwise_mul(a, b):
     return [x * y for x, y in zip(a, b)]
 
 
+@profile
 def matvec_mul(matrix, vec):
     return [sum(m * v for m, v in zip(row, vec)) for row in matrix]
 
@@ -53,6 +61,7 @@ class LSTMCell:
             mat[3 * size : 4 * size],
         )
 
+    @profile
     def step(self, x, h_prev, c_prev):
         i = vector_sigmoid(
             elementwise_add(
@@ -89,6 +98,7 @@ class Dense:
         self.W = W
         self.b = b
 
+    @profile
     def forward(self, x):
         return elementwise_add(matvec_mul(self.W, x), self.b)
 
@@ -117,6 +127,7 @@ class LSTMAutoencoder:
         self.lstm4 = LSTMCell(self.hidden2, self.hidden1, self.W4, self.U4, self.b4)
         self.dense = Dense(self.Wd, self.bd)
 
+    @profile
     def reconstruct(self, sequence):
         h1 = [0.0] * self.hidden1
         c1 = [0.0] * self.hidden1
