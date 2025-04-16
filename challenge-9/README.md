@@ -171,3 +171,9 @@ Output a CSV with the window index and MSE for anomalies, as determined by the 9
 ```sh
 python lstm_inference.py --anomalies
 ```
+
+To trace anomalies back to raw data:
+
+```sh
+python extract_anomalies.py
+```
