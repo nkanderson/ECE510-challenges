@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from preprocess_data import preprocess_noaa_csv
 import sys
+import csv
 
 
 # --- Activation functions ---
@@ -160,16 +161,22 @@ if __name__ == "__main__":
         errors.append((i, error))
 
     if "--csv" in sys.argv:
-        print("window_index,mse")
-        for i, err in errors:
-            print(f"{i},{err:.6f}")
+        with open("error_report.csv", "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["window_index", "mse"])
+            for i, err in errors:
+                writer.writerow([i, f"{err:.6f}"])
+        print("Saved error_report.csv")
 
     elif "--anomalies" in sys.argv:
         threshold = np.percentile([err for _, err in errors], 95)
-        print("window_index,mse")
-        for i, err in errors:
-            if err > threshold:
-                print(f"{i},{err:.6f}")
+        with open("anomalies.csv", "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["window_index", "mse"])
+            for i, err in errors:
+                if err > threshold:
+                    writer.writerow([i, f"{err:.6f}"])
+        print("Saved anomalies.csv")
 
     else:
         x_vals = [i for i, _ in errors]

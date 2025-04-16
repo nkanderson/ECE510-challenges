@@ -163,10 +163,10 @@ python lstm_inference.py
 CSV output mode is available as well, and the following command will output the MSE values to a CSV:
 
 ```sh
-python lstm_inference.py --csv > error_report.csv
+python lstm_inference.py --csv
 ```
 
-Output the window index and MSE for anomalies, as determined by the 95% threshhold:
+Output a CSV with the window index and MSE for anomalies, as determined by the 95% threshhold:
 
 ```sh
 python lstm_inference.py --anomalies
