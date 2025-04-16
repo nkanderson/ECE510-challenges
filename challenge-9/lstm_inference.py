@@ -152,7 +152,14 @@ class LSTMAutoencoder:
 # --- Main ---
 if __name__ == "__main__":
     model = LSTMAutoencoder("saved_model/lstm_weights.npz")
-    sequences, _ = preprocess_noaa_csv("data/10_100_00_110.csv", window_size=24)
+
+    if "--npz" in sys.argv:
+        idx = sys.argv.index("--npz") + 1
+        npz_path = sys.argv[idx]
+        data = np.load(npz_path)
+        sequences = data["sequences"]
+    else:
+        sequences, _ = preprocess_noaa_csv("data/10_100_00_110.csv", window_size=24)
 
     errors = []
     for i, seq in enumerate(sequences):
@@ -178,7 +185,7 @@ if __name__ == "__main__":
                     writer.writerow([i, f"{err:.6f}"])
         print("Saved anomalies.csv")
 
-    else:
+    elif "--plot" in sys.argv:
         x_vals = [i for i, _ in errors]
         y_vals = [err for _, err in errors]
 
@@ -196,3 +203,7 @@ if __name__ == "__main__":
         plt.legend()
         plt.tight_layout()
         plt.show()
+
+    else:
+        for i, err in errors:
+            print(f"Window {i:03d}: MSE = {err:.6f}")

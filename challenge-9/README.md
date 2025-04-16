@@ -154,26 +154,32 @@ Scaler saved to: saved_model/scaler.gz
 
 ### Commands
 
-For inference, there are multiple modes. Plotting mode is the default:
-
+For inference, there are multiple modes. Running inference on the original data is the default:
 ```sh
 python lstm_inference.py
 ```
 
-CSV output mode is available as well, and the following command will output the MSE values to a CSV:
+Running inference on new data which has been normalized can be accomplished with the following:
+```sh
+python lstm_inference.py --npz new_data_sequences.npz
+```
 
+Plotting data can be done with the following:
+```sh
+python lstm_inference.py --plot
+```
+
+CSV output mode is available as well, and the following command will output the MSE values to a CSV:
 ```sh
 python lstm_inference.py --csv
 ```
 
 Output a CSV with the window index and MSE for anomalies, as determined by the 95% threshhold:
-
 ```sh
 python lstm_inference.py --anomalies
 ```
 
 To trace anomalies back to raw data:
-
 ```sh
 python extract_anomalies.py
 ```
