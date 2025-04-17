@@ -287,3 +287,26 @@ Line #      Hits         Time  Per Hit   % Time  Line Contents
    153                                           
    154       273        182.0      0.7      0.0          return output_seq
 ```
+
+## Hardware Acceleration
+
+### Hardware Execution Time
+
+Estimating communication cost:
+- Get baseline for a protocol like PCIe or similar
+- Get estimate of amount of data that would be transferred to hardware
+- The above should provide a basic estimate of communication cost
+- From there, the existing software-only computational bottleneck minus the communication cost (round-trip) should represent a target execution time that the hardware should be faster than
+
+For the `step` function, we can save on communication cost by saving the weights in SRAM. This should be estimated and considered as part of the whole hardware cost.
+
+A few specific points from discussion with ChatGPT:
+
+Chiplet optimizations that may improve data transfer efficiency:
+- Holds weights (W, U, b) locally in SRAM → no transfer needed
+- Chains layers internally (LSTM1 → LSTM2) → you save intermediate transfers
+- Implements on-chip h/c buffering → only stream x in and h out
+
+Best-Case Streamed Input:
+- Just send x per timestep, receive h
+- ~24 × (input_size + hidden_size) × 4 = much smaller
