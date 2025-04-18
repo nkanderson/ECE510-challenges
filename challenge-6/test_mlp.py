@@ -1,5 +1,10 @@
 from mlp import MLP
-from plot_utils import visualize_hidden_activations, plot_mlp_decision_boundary
+from plot_utils import (
+    visualize_hidden_activations,
+    plot_mlp_decision_boundary,
+    visualize_output_neuron_surface,
+    visualize_output_neuron_with_hidden_contributions,
+)
 
 
 def test_mlp_on_xor():
@@ -34,11 +39,13 @@ if __name__ == "__main__":
 
     mlp.train(xor_data, epochs=10000, learning_rate=0.5)
 
-    print("\nAfter training:")
-    visualize_hidden_activations(mlp)
-
-    plot_mlp_decision_boundary(mlp)
-
     for inputs, target in xor_data:
         output = mlp.forward(*inputs)
         print(f"Input: {inputs}, Output: {output:.4f}, Target: {target}")
+
+    # print("\nAfter training:")
+    visualize_hidden_activations(mlp, save_dir="plots")
+
+    plot_mlp_decision_boundary(mlp, save_dir="plots")
+    # visualize_output_neuron_surface(mlp)
+    visualize_output_neuron_with_hidden_contributions(mlp, save_dir="plots")

@@ -1710,3 +1710,177 @@ Would you like to:
 
 Let me know how you’d like to dig deeper.
 
+Prompt: I think I'd like to see the overlay of the output neuron computation to better see how it connects the activations from the hidden layer with the decision boundary
+
+Response: Excellent choice — visualizing how the output neuron combines the hidden activations helps demystify how MLPs construct nonlinear decision boundaries from simpler features.
+
+✅ Goal
+
+Overlay or visualize the output neuron's input, i.e., the weighted sum:
+zout=w1h1(x1,x2)+w2h2(x1,x2)+b
+zout​=w1​h1​(x1​,x2​)+w2​h2​(x1​,x2​)+b
+
+This shows the pre-activation signal to the sigmoid — i.e., where the network “wants” to output high or low before being squashed to [0,1].
+
+We'll plot:
+
+    The contour of zoutzout​
+
+    Color-coded like a decision boundary heatmap
+
+    (Optional) Overlay XOR data points for reference
+
+✅ Step-by-Step: Add the Overlay Visualization
+🔧 In plot_utils.py:
+
+<provided code>
+
+✅ How to Use It
+
+In main.py or your test script:
+```python
+visualize_output_neuron_surface(mlp, name="after-training")
+```
+
+This will show:
+
+    A smooth surface over input space
+
+    Regions where the output neuron fires high or low
+
+    Band or boundary that separates XOR=1 regions (center diagonal)
+
+🧠 What This Shows
+
+    Whether the output neuron is learning to "activate" only for the XOR=1 region
+
+    How it interprets hidden activations across the input space
+
+    How weight sign and magnitude shape the output surface
+
+🔁 Optional Enhancements
+
+Let me know if you'd like to:
+
+    Animate this surface over training epochs
+
+    Show the sigmoid(z) version side-by-side (i.e., final decision boundary)
+
+    Overlay h1/h2 values as contour lines to show their contributions
+
+Ready to try this visualization? Let me know what it reveals in your trained model!
+
+Prompt: Let's try to overlay the h1/h2 values to show their contributions
+
+Response: Perfect — overlaying the activations of h₁ and h₂ as contour lines on top of the output neuron's pre-activation surface will help us visually decompose how the output decision is formed.
+
+✅ Updated Visualization Plan
+
+We’ll:
+
+    Plot the output neuron pre-activation surface (z_out)
+
+    Overlay h₁ and h₂ activation levels as contour lines
+
+        Optional: use different styles or colors for clarity
+
+    Show training points for reference
+
+🔧 Updated Function in plot_utils.py
+
+<provided code>
+
+🧪 What You’ll See
+
+    The red/blue surface = how “strongly activated” the output neuron is
+
+    Yellow dashed lines = where h₁ outputs are ~0.2, 0.5, 0.8
+
+    Green solid lines = where h₂ outputs are ~0.2, 0.5, 0.8
+
+    XOR points overlaid as black/white markers
+
+This shows how the hidden layer sculpts the output boundary.
+
+✅ How to Use It
+```python
+visualize_output_neuron_with_hidden_contributions(mlp, name="after-training")
+```
+
+Try it after training the MLP on XOR.
+
+Let me know what patterns you observe. You might see:
+
+    One neuron (e.g., h₁) doing most of the work
+
+    The output surface turning “on” in a specific band formed by overlapping activations
+
+We can iterate from here to add legends, labels, or even animations!
+
+Prompt: Let's try an animated version. Now that we're creating multiple plots with one run, I'd like to just save all of them instead of opening each and manually saving, so let's make that update first.
+
+Response: Perfect — we’ll do two things:
+
+✅ Step 1: Save All Plots to Files Instead of Showing
+
+Let’s add a save_path parameter to each plotting function so you can write:
+
+✅ Step 1: Save All Plots to Files Instead of Showing
+
+Let’s add a save_path parameter to each plotting function so you can write:
+
+```python
+visualize_hidden_activations(mlp, name="after-training", save_dir="plots/")
+```
+
+Instead of opening with plt.show(), we’ll use:
+```python
+plt.savefig(f"{save_dir}/{name}_h1.png")
+```
+
+✅ Step 2: Add Animated Version of the Output Neuron with Hidden Contributions
+
+This will animate how:
+
+    The output surface (z_out) evolves
+
+    The h₁ and h₂ contours shift over training
+
+We’ll need to:
+
+    Modify the training loop to record weights and biases per epoch
+
+    Generate frames from that history
+
+    Save as a .gif with matplotlib.animation
+
+🔧 Let’s Start with Plot Saving First
+🔁 Update visualize_hidden_activations():
+
+<provided code>
+
+You can do the same pattern in:
+
+    plot_mlp_decision_boundary
+
+    visualize_output_neuron_surface
+
+    visualize_output_neuron_with_hidden_contributions
+
+Just replace plt.show() with:
+
+<provided code>
+
+Let me know if you want me to apply this to all functions — and then we’ll animate.
+
+✅ Then: Animated Hidden Contribution + Output Surface
+
+Ready to animate that next? I’ll walk you through:
+
+    Logging weights/biases during training
+
+    Plotting the evolving surface + contour lines
+
+    Saving as a .gif to disk
+
+Shall we go ahead?

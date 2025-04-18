@@ -62,7 +62,7 @@ def plot_decision_boundary(model: Perceptron, data, name):
     plt.show()
 
 
-def visualize_hidden_activations(mlp, name="mlp", resolution=200):
+def visualize_hidden_activations(mlp, name="mlp", resolution=200, save_dir=None):
     x_vals = np.linspace(0, 1, resolution)
     y_vals = np.linspace(0, 1, resolution)
     xx, yy = np.meshgrid(x_vals, y_vals)
@@ -84,10 +84,112 @@ def visualize_hidden_activations(mlp, name="mlp", resolution=200):
         plt.xlabel("x1")
         plt.ylabel("x2")
         plt.tight_layout()
+
+        if save_dir:
+            plt.savefig(f"{save_dir}/{name}_h{i+1}_activation.png")
+            plt.close()
+        else:
+            plt.show()
+
+
+def visualize_output_neuron_surface(mlp, name="mlp", resolution=200, save_dir=None):
+    x_vals = np.linspace(0, 1, resolution)
+    y_vals = np.linspace(0, 1, resolution)
+    xx, yy = np.meshgrid(x_vals, y_vals)
+
+    zz = np.zeros_like(xx)
+
+    for i in range(resolution):
+        for j in range(resolution):
+            x1 = xx[i, j]
+            x2 = yy[i, j]
+            h1, h2 = mlp.hidden_outputs(x1, x2)
+            z_out = (
+                mlp.output_weights[0] * h1
+                + mlp.output_weights[1] * h2
+                + mlp.output_bias
+            )
+            zz[i, j] = z_out  # not sigmoid! raw output activation
+
+    plt.figure()
+    contour = plt.contourf(xx, yy, zz, levels=50, cmap="RdBu", alpha=0.8)
+    plt.colorbar(contour, label="Output Neuron Pre-Activation (z)")
+    plt.title(f"Output Neuron Pre-Sigmoid Activation ({name})")
+    plt.xlabel("x1")
+    plt.ylabel("x2")
+
+    # XOR training points
+    for (x1, x2), label in [([0, 0], 0), ([0, 1], 1), ([1, 0], 1), ([1, 1], 0)]:
+        plt.scatter(x1, x2, c="black" if label == 1 else "white", edgecolors="k", s=100)
+
+    plt.grid(True)
+    plt.tight_layout()
+    if save_dir:
+        plt.savefig(f"{save_dir}/{name}_output_neuron_presig_activation.png")
+        plt.close()
+    else:
         plt.show()
 
 
-def plot_mlp_decision_boundary(mlp, name="mlp", resolution=200):
+def visualize_output_neuron_with_hidden_contributions(
+    mlp, name="mlp", resolution=200, save_dir=None
+):
+    x_vals = np.linspace(0, 1, resolution)
+    y_vals = np.linspace(0, 1, resolution)
+    xx, yy = np.meshgrid(x_vals, y_vals)
+
+    z_out_vals = np.zeros_like(xx)
+    h1_vals = np.zeros_like(xx)
+    h2_vals = np.zeros_like(xx)
+
+    for i in range(resolution):
+        for j in range(resolution):
+            x1 = xx[i, j]
+            x2 = yy[i, j]
+            h1, h2 = mlp.hidden_outputs(x1, x2)
+            h1_vals[i, j] = h1
+            h2_vals[i, j] = h2
+            z_out_vals[i, j] = (
+                mlp.output_weights[0] * h1
+                + mlp.output_weights[1] * h2
+                + mlp.output_bias
+            )
+
+    plt.figure()
+
+    # Main surface: z_out (pre-sigmoid)
+    contour = plt.contourf(xx, yy, z_out_vals, levels=50, cmap="RdBu", alpha=0.8)
+    plt.colorbar(contour, label="Output Neuron Pre-Activation (z)")
+
+    # Overlay h1 contour lines
+    c1 = plt.contour(
+        xx, yy, h1_vals, levels=[0.2, 0.5, 0.8], colors="yellow", linestyles="dashed"
+    )
+    plt.clabel(c1, inline=True, fontsize=8, fmt="h1=%.1f")
+
+    # Overlay h2 contour lines
+    c2 = plt.contour(
+        xx, yy, h2_vals, levels=[0.2, 0.5, 0.8], colors="lime", linestyles="solid"
+    )
+    plt.clabel(c2, inline=True, fontsize=8, fmt="h2=%.1f")
+
+    # XOR training points
+    for (x1, x2), label in [([0, 0], 0), ([0, 1], 1), ([1, 0], 1), ([1, 1], 0)]:
+        plt.scatter(x1, x2, c="black" if label == 1 else "white", edgecolors="k", s=100)
+
+    plt.title(f"Output Neuron + Hidden Contributions ({name})")
+    plt.xlabel("x1")
+    plt.ylabel("x2")
+    plt.grid(True)
+    plt.tight_layout()
+    if save_dir:
+        plt.savefig(f"{save_dir}/{name}_output_neuron_with_hidden.png")
+        plt.close()
+    else:
+        plt.show()
+
+
+def plot_mlp_decision_boundary(mlp, name="mlp", resolution=200, save_dir=None):
     x_vals = np.linspace(0, 1, resolution)
     y_vals = np.linspace(0, 1, resolution)
     xx, yy = np.meshgrid(x_vals, y_vals)
@@ -108,7 +210,11 @@ def plot_mlp_decision_boundary(mlp, name="mlp", resolution=200):
         plt.scatter(x1, x2, c="black" if label == 1 else "white", edgecolors="k", s=100)
 
     plt.tight_layout()
-    plt.show()
+    if save_dir:
+        plt.savefig(f"{save_dir}/{name}_decision_boundary.png")
+        plt.close()
+    else:
+        plt.show()
 
 
 def animate_decision_boundary(
