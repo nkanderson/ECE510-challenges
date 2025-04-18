@@ -62,6 +62,55 @@ def plot_decision_boundary(model: Perceptron, data, name):
     plt.show()
 
 
+def visualize_hidden_activations(mlp, name="mlp", resolution=200):
+    x_vals = np.linspace(0, 1, resolution)
+    y_vals = np.linspace(0, 1, resolution)
+    xx, yy = np.meshgrid(x_vals, y_vals)
+
+    # Plot each hidden neuron's activation
+    for i in range(2):
+        zz = np.zeros_like(xx)
+        for j in range(resolution):
+            for k in range(resolution):
+                x1 = xx[j, k]
+                x2 = yy[j, k]
+                h = mlp.hidden_outputs(x1, x2)[i]
+                zz[j, k] = h
+
+        plt.figure()
+        plt.contourf(xx, yy, zz, levels=50, cmap="viridis")
+        plt.colorbar()
+        plt.title(f"Hidden Neuron {i+1} Activation ({name})")
+        plt.xlabel("x1")
+        plt.ylabel("x2")
+        plt.tight_layout()
+        plt.show()
+
+
+def plot_mlp_decision_boundary(mlp, name="mlp", resolution=200):
+    x_vals = np.linspace(0, 1, resolution)
+    y_vals = np.linspace(0, 1, resolution)
+    xx, yy = np.meshgrid(x_vals, y_vals)
+
+    zz = np.zeros_like(xx)
+    for i in range(resolution):
+        for j in range(resolution):
+            zz[i, j] = mlp.forward(xx[i, j], yy[i, j])
+
+    plt.figure()
+    plt.contourf(xx, yy, zz, levels=[-1, 0.5, 1], cmap="coolwarm", alpha=0.6)
+    plt.colorbar()
+    plt.title(f"Decision Boundary ({name})")
+    plt.xlabel("x1")
+    plt.ylabel("x2")
+
+    for (x1, x2), label in [([0, 0], 0), ([0, 1], 1), ([1, 0], 1), ([1, 1], 0)]:
+        plt.scatter(x1, x2, c="black" if label == 1 else "white", edgecolors="k", s=100)
+
+    plt.tight_layout()
+    plt.show()
+
+
 def animate_decision_boundary(
     weight_history, bias_history, data, name, interval_epochs=100, save_gif=False
 ):

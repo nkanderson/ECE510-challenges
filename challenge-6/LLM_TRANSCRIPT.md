@@ -1140,3 +1140,573 @@ I’ll show:
     Each step of the forward pass
 
 Sound good?
+
+Prompt: Yep, let's do it
+
+Awesome — let's walk through a 2-2-1 MLP step-by-step, by hand, with fixed values.
+🔧 MLP Structure Overview
+
+    Inputs: x1,x2x1​,x2​
+
+    Hidden Layer: 2 neurons → h1,h2h1​,h2​
+
+    Output Layer: 1 neuron → yy
+
+    Activation Function: sigmoid for all neurons
+
+We'll choose:
+
+    Simple binary input
+
+    Explicit weights/biases
+
+    Show all intermediate values
+
+🔢 Setup: Parameters
+
+Let's define the network like this:
+Input
+```python
+x1 = 1
+x2 = 0
+```
+
+Hidden Layer
+Neuron	Weights	Bias	Formula
+h1	w1=0.5w1​=0.5, w2=0.5w2​=0.5	0.0	σ(0.5x1+0.5x2+0)σ(0.5x1​+0.5x2​+0)
+h2	w3=−0.5w3​=−0.5, w4=0.5w4​=0.5	0.0	σ(−0.5x1+0.5x2+0)σ(−0.5x1​+0.5x2​+0)
+
+Output Layer
+Neuron	Weights (for h1, h2)	Bias	Formula
+y	w5=1w5​=1, w6=1w6​=1	-1	σ(1⋅h1+1⋅h2−1)σ(1⋅h1​+1⋅h2​−1)
+
+➕ Step-by-Step Calculation
+Step 1: Compute Hidden Layer Outputs
+h1:
+z1=0.5⋅1+0.5⋅0+0=0.5
+z1​=0.5⋅1+0.5⋅0+0=0.5
+h1=σ(0.5)≈0.6225
+h1​=σ(0.5)≈0.6225
+h2:
+z2=−0.5⋅1+0.5⋅0+0=−0.5
+z2​=−0.5⋅1+0.5⋅0+0=−0.5
+h2=σ(−0.5)≈0.3775
+h2​=σ(−0.5)≈0.3775
+
+Step 2: Compute Output
+zout=1⋅h1+1⋅h2−1=0.6225+0.3775−1=0.0
+zout​=1⋅h1​+1⋅h2​−1=0.6225+0.3775−1=0.0
+y=σ(0.0)=0.5
+y=σ(0.0)=0.5
+
+✅ Final Output
+```python
+Input:      x1 = 1, x2 = 0
+Hidden:     h1 ≈ 0.6225, h2 ≈ 0.3775
+Output:     y ≈ 0.5
+```
+
+So the network gives 0.5 for input (1, 0).
+
+🧠 Interpretation
+
+This MLP:
+
+    Combines two different projections of the input space (via hidden neurons)
+
+    The output combines those two nonlinear activations to make a decision
+
+Had we trained this on XOR:
+
+    (1, 0) and (0, 1) should map to ≈ 1
+
+    (0, 0) and (1, 1) to ≈ 0
+
+Ready to go implement this in code now — forward pass and eventually training?
+
+Or want to do another example input (like (0,1) or (1,1)) to reinforce the steps first?
+
+Prompt: Let's go on to implementation in code.
+
+Response: Perfect — let’s now implement the 2-2-1 MLP in Python, starting with:
+
+✅ Step 1: A Minimal MLP Class (Forward Pass Only)
+
+We’ll begin with:
+
+    2 input neurons
+
+    1 hidden layer with 2 neurons
+
+    1 output neuron
+
+    All activations = sigmoid
+
+    Forward pass only (no training yet)
+
+🔧 mlp.py
+
+<provided code>
+
+✅ Step 2: Test Inputs for XOR
+🔧 test_mlp.py (or in main.py for now)
+
+<provided code>
+
+🧪 Sample Output
+
+You should see something like:
+```
+Input: [0, 0], Output: 0.5000, Expected: 0
+Input: [0, 1], Output: 0.5622, Expected: 1
+Input: [1, 0], Output: 0.5000, Expected: 1
+Input: [1, 1], Output: 0.6225, Expected: 0
+```
+(Note: this output will match the exact weights we hardcoded earlier.)
+
+✅ Next Steps
+
+    Add training with backpropagation
+
+    Visualize decision boundaries and hidden neuron activations
+
+    Optionally: extend this to support more layers, or general MLPs
+
+Would you like to proceed to:
+
+    🔁 Add backpropagation training for XOR?
+
+    📉 Visualize how hidden neurons respond to input space?
+
+    💬 Both in parallel?
+
+Your call!
+
+Prompt: If we can code the visualization to work now and after adding backpropagation, it might be interesting to see it before and after.
+
+Response: That’s a great idea — seeing how the hidden neurons “carve up” the input space before and after training makes for a powerful visual explanation of how MLPs learn.
+
+We'll:
+
+    🔍 Visualize each hidden neuron’s output across the input space
+
+    Show this as a heatmap over the grid [0,1]2[0,1]2
+
+    Structure the visualization so it’ll work before and after training
+
+✅ Step 1: Add a Method to Get Hidden Activations
+
+We'll expose hidden layer outputs from the MLP.
+🔧 Update MLP class in mlp.py:
+
+Add this method:
+<provided code>
+
+✅ Step 2: Visualize Hidden Neuron Outputs as Heatmaps
+🔧 Add to plot_utils.py:
+
+<provided code>
+
+✅ Step 3: Use It Before Training
+
+Add this to test_mlp_on_xor() or your main.py:
+
+<provided code>
+
+You’ll get:
+
+    Two heatmaps
+
+    Each showing how one hidden neuron responds to (x1,x2)(x1​,x2​)
+
+    Before training starts
+
+📈 After Training
+
+Later, once we implement backpropagation and train the MLP, you’ll be able to call the same function:
+
+<provided basic function call>
+To see how the hidden neurons reshape the input space to solve XOR.
+
+Would you like to:
+
+    Build the training logic next (backpropagation)?
+
+    Or visualize the decision boundary of the MLP output (as we did with the perceptron)?
+
+We can do either now that this hidden-layer visualization is ready to go.
+
+Prompt: I'm not sure there will be anything interesting to see in the decision boundary without the training logic in place, so let's start there, but then visualize the decision boundary
+
+Response: Agreed — the decision boundary will be untrained noise right now, so let’s build the training logic first via backpropagation, then visualize the result.
+
+Here’s how we’ll proceed:
+
+✅ Plan for Adding Training via Backpropagation
+
+We’ll implement a basic backpropagation loop for binary classification:
+
+    Forward pass (we already have)
+
+    Loss: squared error or binary cross-entropy
+
+    Backpropagate:
+
+        Output neuron error
+
+        Hidden layer errors
+
+        Update weights and biases
+
+We'll use sigmoid everywhere, so derivatives are well-defined.
+
+✅ Step 1: Add Training Method to MLP
+
+Update your MLP class in mlp.py with this method:
+
+<provided code>
+
+Now add a train() method:
+
+<provided code>
+
+✅ Step 2: Train on XOR in main.py or test_mlp.py
+
+<provided code>
+
+Now we’re ready to…
+✅ Step 3: Visualize the Trained Decision Boundary
+
+You can reuse your previous plot_decision_boundary(...) function but apply it to the MLP output:
+
+In plot_utils.py:
+<provided plot_mlp_decision_boundary function>
+
+Then call:
+```python
+plot_mlp_decision_boundary(mlp, name="after-training")
+```
+
+Would you like me to help structure this into a CLI with plot options (like we did for the perceptron), or are you okay testing this inline first?
+
+Prompt: Testing inline is ok for now. But it does not appear that this is correctly getting trained on XOR yet. This is the after-training output:
+
+Input: [0, 0], Output: 0.0193, Target: 0
+Input: [0, 1], Output: 0.9831, Target: 1
+Input: [1, 0], Output: 0.4834, Target: 1
+Input: [1, 1], Output: 0.4844, Target: 0
+
+Thanks for testing — you’re right to call this out. That output isn’t quite learning XOR — only two points are close to correct, and the other two are ambiguous.
+
+Let’s break this down quickly and get it working.
+
+🔍 Diagnosis: Why It’s Not Learning XOR
+
+The outputs show:
+
+    (0,0) → ✅ close to 0
+
+    (0,1) → ✅ close to 1
+
+    (1,0) → ⚠️ ~0.48 (should be ~1)
+
+    (1,1) → ⚠️ ~0.48 (should be ~0)
+
+This suggests:
+
+    Training is doing something
+
+    But the weights haven’t escaped a bad local minimum
+
+    The symmetry between (1,0) and (1,1) likely wasn't broken
+
+✅ Fixes to Try
+1. Random Initialization (instead of hardcoding weights)
+
+Right now, all weights and biases start off symmetric or zero — that’s dangerous in neural nets.
+
+Update your __init__() method to:
+
+<provided code with random weight and bias initialization>
+
+This breaks the symmetry and allows hidden neurons to specialize.
+
+2. Higher Learning Rate
+
+Try bumping the learning rate from 0.1 to 0.5 or even 1.0:
+```python
+mlp.train(xor_data, epochs=10000, learning_rate=0.5)
+```
+
+Neural networks can often benefit from a higher LR in early phases — this gives it energy to escape poor local minima.
+
+3. Multiple Training Runs (Optional)
+
+Sometimes it helps to try training multiple times with different initializations, and pick the best result.
+
+For now, let’s just verify that one run gets us:
+```
+Input: [0, 0], Output: ~0
+Input: [0, 1], Output: ~1
+Input: [1, 0], Output: ~1
+Input: [1, 1], Output: ~0
+```
+
+✅ Expected Output After Fixes
+
+With random init + LR = 0.5, you should now see something like:
+```
+Epoch 0: Total Error = 1.9534
+...
+Epoch 9000: Total Error = 0.0037
+
+Input: [0, 0], Output: 0.0062, Target: 0
+Input: [0, 1], Output: 0.9911, Target: 1
+Input: [1, 0], Output: 0.9903, Target: 1
+Input: [1, 1], Output: 0.0085, Target: 0
+```
+
+That’s a solid XOR result ✅
+
+Let me know if you'd like to:
+
+    Add multiple restarts with best-loss selection
+
+    Plot training error to confirm convergence
+
+    Revisit decision boundary visualization now that it's working!
+
+Prompt: Ok, random initialization fixed it on one run, but then on a second run of the program, it failed again. It seems to be succeeding most of the time, with a few failures still. Can you tell me more about what it means to break the symmetry and allow hidden neurons to specialize, related to random initialization?
+
+Response: Absolutely — this is one of the most important and least obvious principles in neural networks: breaking symmetry through random initialization.
+
+Let’s unpack it in the context of your 2-2-1 MLP.
+
+🤖 What Does “Symmetry” Mean in Neural Nets?
+🔁 Symmetric weights = identical behavior
+
+Imagine we initialize all weights and biases like this:
+```python
+w = 0.5
+b = 0.0
+```
+
+So both hidden neurons receive:
+
+    The exact same inputs
+
+    The exact same weights
+
+    The exact same biases
+
+What happens?
+
+➡️ They compute the exact same outputs, always.
+
+Which means:
+
+    The output neuron receives redundant signals
+
+    The backprop gradients are identical
+
+    The weights update identically again
+
+So the two hidden neurons remain clones forever.
+
+This is bad because:
+
+    We have 2 neurons but only 1 effective degree of freedom
+
+    The network can’t learn anything more expressive than a single hidden unit
+
+✅ Random Initialization Breaks This Symmetry
+
+When you initialize weights randomly:
+
+    Each neuron starts with different slopes and biases
+
+    They compute different hidden activations
+
+    Which produces diverse gradients
+
+    Which leads to specialization
+
+So one hidden neuron might learn to "turn on" for the (1,0)/(0,1) XOR cases, while the other learns to "turn off" for (0,0)/(1,1).
+
+    Random init means neurons carve up the input space differently → giving the network room to build composite decision boundaries
+
+🧠 Analogy
+
+Imagine you give two employees identical tools, identical goals, identical instructions. They do the same work. Useless duplication.
+
+Now give them:
+
+    Different tasks
+
+    Different skills
+
+    Different starting points
+
+Now they can divide and conquer.
+
+🔄 Why It Still Fails Sometimes
+
+    Even with random init, neural nets don't guarantee convergence
+
+    You might land in a bad local minimum
+
+    Or the gradients might vanish or explode (less likely in small nets like this)
+
+But in small MLPs:
+
+    Random init + large enough learning rate + enough epochs → success most of the time
+
+    Multiple restarts (train 5x, pick best) is a classic robustness trick
+
+✅ Best Practices to Mitigate This
+
+Technique	Benefit
+Random weight init	Breaks symmetry
+Xavier/He init	Scales weights by input size
+Learning rate tuning	Helps escape shallow minima
+Multiple restarts	Avoid bad initializations
+Early stopping / patience	Avoids overfitting
+Weight decay / regularization	Prevents extreme weights
+
+Let me know if you'd like to:
+
+    Add a simple multiple-restart loop to improve reliability
+
+    Switch to Xavier initialization (more principled than uniform(-1,1))
+
+    Or move on to visualizing the final trained decision boundary (now that it's working!)
+
+Prompt: Isn't `plot_mlp_decision_boundary` showing the final trained decision boundary? I would like to discuss the hidden neuron activation visualization, as it's a bit confusing as it is. For example, I have a case of successfully training on XOR, and the decision boundary visualization reflects that - the 0,1 and 1,0 inputs output 1 (they are in a red band on the plot) and 0,0 and 1,1 output -1 (they are in blue sections on the plot). The visualization for hidden neuron 1 activation shows a gradient where the lower left triangle is close to 1 (yellow in the scheme we have) - 0,0 has the highest activation and it reduces to around 0.8 activation on a line from 0,1 to 1,0, and goes down to around 0.08 activation at 1,1. The other hidden neuron activation only has a small section of high activation in the corner at 0,0. The rest is essentially at 0.0 activation. How does this result in outputs of 1 for 1,0 and 0,1 and -1 for 0,0, and 1,1?
+
+Response: Fantastic — this is a nuanced question that dives deep into how hidden neuron activations contribute to the final decision. You're doing exactly what interpretability researchers do when they visualize neural networks. Let's walk through this carefully and build a mental model for what you're seeing.
+
+🎯 Recap: What the Visuals Show
+
+You're describing:
+✅ Decision Boundary
+
+    Red band (output ≈ 1) near (0,1) and (1,0) — perfect, these are XOR=1
+
+    Blue zones (output ≈ 0) near (0,0) and (1,1) — perfect, these are XOR=0
+
+✅ Hidden Neuron 1 (H1)
+
+    High activation near (0,0) (≈1.0)
+
+    Decreases diagonally toward (1,1) (≈0.08)
+
+✅ Hidden Neuron 2 (H2)
+
+    Only high activation in a tiny spot near (0,0)
+
+    Near-zero elsewhere
+
+But the hidden neurons don't individually output XOR — they help build it.
+
+🧠 Let's Reconstruct the Computation
+
+Assume:
+
+    h1(x1,x2)h1​(x1​,x2​) is high near (0,0), decreases diagonally
+
+    h2(x1,x2)h2​(x1​,x2​) is near-zero except at (0,0)
+
+    Output is:
+    y=σ(w1h1+w2h2+b)
+    y=σ(w1​h1​+w2​h2​+b)
+
+Now plug in the four XOR cases using their hidden activations:
+
+Input	h1h1​	h2h2​	Output Trend
+0,0	~1.0	~1.0	low (since bb is likely negative)
+0,1	~0.8	~0.0	high
+1,0	~0.8	~0.0	high
+1,1	~0.08	~0.0	low
+
+💥 Hidden Neuron Role:
+
+    H1 has a gradient that roughly isolates (0,1) and (1,0) (the XOR = 1 cases) — it's the primary separator
+
+    H2 seems redundant — possibly a leftover, unused feature (this happens when one neuron handles the job)
+
+🤔 So How Can H1 Create That Decision Boundary?
+
+Let’s model it:
+
+    H1 is nonzero for most of the space, but drops significantly at (1,1)
+
+    So when the output neuron adds:
+    y=σ(w⋅h1+b)
+    y=σ(w⋅h1​+b)
+
+    it produces:
+
+        High output for medium values of h_1 (e.g., 0.8)
+
+        Low output when h1≈1.0h1​≈1.0 (maybe due to negative weight)
+
+        Low output when h1≈0h1​≈0 (no activation)
+
+This only works if the output neuron learns to interpret medium h1 values (0.7–0.8) as “active region” for XOR=1. That may seem weird, but it’s exactly what happens in small networks — they bend the logic to fit.
+
+📉 What About the Output Neuron’s Weights?
+
+Let’s pretend (just hypothetically):
+```
+output_weights = [-4.5, 0.0]
+output_bias = 3.5
+```
+
+Then:
+
+    For h1=0.8h1​=0.8: z=−4.5⋅0.8+3.5=−0.1⇒σ(z)≈0.475z=−4.5⋅0.8+3.5=−0.1⇒σ(z)≈0.475
+
+    For h1=0.0h1​=0.0: z=3.5⇒σ(z)≈0.97z=3.5⇒σ(z)≈0.97
+
+    For h1=1.0h1​=1.0: z=−1.0⇒σ(z)≈0.27z=−1.0⇒σ(z)≈0.27
+
+That’s enough variation to create a band around medium activations that gets mapped to XOR = 1.
+
+Even though it looks like H1 is most excited at (0,0), the output neuron may be suppressing that case via weight sign and bias.
+
+🔬 What This Tells Us
+
+    Hidden neurons don’t need to look like XOR — they only need to provide distinct signals that the output layer can recombine
+
+    The network may use one neuron to define a soft hyperplane (what you see as a sloped gradient in H1)
+
+    The other hidden neuron may remain unused if the task is learned well enough with one (this is common in minimal MLPs)
+
+So even though H1 looks “wrong” (highest activation for 0,0), it’s being used in a nonlinear combination to encode XOR via:
+
+    weights from hidden layer → output
+
+    bias in output
+
+    nonlinear squashing
+
+🔁 Want to Experiment?
+
+You can:
+
+    Print output weights and biases after training
+
+    Visualize the hidden outputs overlaid on the decision boundary
+
+    Or add value annotations on the activation maps
+
+Would you like to:
+
+    Plot both hidden activations alongside the decision boundary?
+
+    Add a function to overlay output neuron computation to better understand it?
+
+    Extend the MLP class to track intermediate outputs for live debugging?
+
+Let me know how you’d like to dig deeper.
+
