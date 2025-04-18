@@ -1,9 +1,16 @@
 import argparse
 from perceptron import Perceptron
-import matplotlib.pyplot as plt
+from plot_utils import (
+    plot_learning_curve,
+    plot_weights_and_bias,
+    plot_decision_boundary,
+    animate_decision_boundary,
+    animate_learning_curve,
+    animate_weights_and_bias,
+)
 
 
-def train_and_plot(data, name: str, do_plot: bool):
+def train_and_plot(data, name: str, plots: list[str], gif: bool):
     print(f"\nTraining for {name.upper()}")
     p = Perceptron(2, learning_rate=0.1)
     p.train(data, epochs=10000, log_interval=1000)
@@ -13,66 +20,72 @@ def train_and_plot(data, name: str, do_plot: bool):
         pred = p.predict(inputs)
         print(f"Input: {inputs}, Predicted: {pred}, Target: {target}")
 
-    if not do_plot:
-        return
+    if "learning" in plots:
+        plot_learning_curve(p.loss_history, name)
 
-    # Plot total error
-    plt.figure()
-    plt.plot(p.loss_history)
-    plt.title(f"Learning Curve ({name.upper()})")
-    plt.xlabel("Epoch")
-    plt.ylabel("Total Error")
-    plt.grid(True)
-    plt.show()
+    if "weights" in plots:
+        plot_weights_and_bias(p.weight_history, p.bias_history, name)
 
-    # Plot weight and bias evolution
-    w0 = [w[0] for w in p.weight_history]
-    w1 = [w[1] for w in p.weight_history]
-    b = p.bias_history
+    if "decision-boundary" in plots:
+        plot_decision_boundary(p, data, name)
 
-    plt.figure()
-    plt.plot(w0, label="Weight 0", linewidth=2, linestyle="-")
-    plt.plot(w1, label="Weight 1", linewidth=2, linestyle="--")
-    plt.plot(b, label="Bias", linewidth=2, linestyle="-.")
-    plt.title(f"Weights and Bias Evolution ({name.upper()})")
-    plt.xlabel("Epoch")
-    plt.ylabel("Value")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
+    if gif:
+        animate_decision_boundary(
+            weight_history=p.weight_history,
+            bias_history=p.bias_history,
+            data=data,
+            name=name,
+            interval_epochs=100,
+            save_gif=True,
+        )
 
+        animate_learning_curve(
+            loss_history=p.loss_history,
+            name=name,
+            interval_epochs=100,
+            save_gif=True,
+        )
 
-def train_nand(do_plot: bool):
-    nand_data = [
-        ([0, 0], 1),
-        ([0, 1], 1),
-        ([1, 0], 1),
-        ([1, 1], 0),
-    ]
-    train_and_plot(nand_data, "nand", do_plot)
+        animate_weights_and_bias(
+            weight_history=p.weight_history,
+            bias_history=p.bias_history,
+            name=name,
+            interval_epochs=100,
+            save_gif=True,
+        )
 
 
-def train_xor(do_plot: bool):
-    xor_data = [
-        ([0, 0], 0),
-        ([0, 1], 1),
-        ([1, 0], 1),
-        ([1, 1], 0),
-    ]
-    train_and_plot(xor_data, "xor", do_plot)
-
-
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--plot", action="store_true", help="Enable plotting of training curves"
+        "--plots",
+        nargs="+",
+        default=[],
+        help="Specify which plots to generate: learning, weights, decision-boundary",
     )
+    parser.add_argument("--gif", action="store_true", help="Generate animation as GIF")
     parser.add_argument("--skip-nand", action="store_true", help="Skip NAND training")
     parser.add_argument("--skip-xor", action="store_true", help="Skip XOR training")
     args = parser.parse_args()
 
     if not args.skip_nand:
-        train_nand(args.plot)
+        nand_data = [
+            ([0, 0], 1),
+            ([0, 1], 1),
+            ([1, 0], 1),
+            ([1, 1], 0),
+        ]
+        train_and_plot(nand_data, "nand", args.plots, args.gif)
+
     if not args.skip_xor:
-        train_xor(args.plot)
+        xor_data = [
+            ([0, 0], 0),
+            ([0, 1], 1),
+            ([1, 0], 1),
+            ([1, 1], 0),
+        ]
+        train_and_plot(xor_data, "xor", args.plots, args.gif)
+
+
+if __name__ == "__main__":
+    main()

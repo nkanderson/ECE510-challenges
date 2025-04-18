@@ -530,3 +530,382 @@ Let me know if you want to:
     Compare training error vs test error for more complex inputs
 
 Or just continue tuning what we’ve got!
+
+Prompt: Visualizing decision boundaries sounds like it might be helpful, but I'd also like to understand more about the rules for organizing the input space. Is it the case that each input needs to map to an axis? For example, in the visualization you provided above, the first input seems to correspond to the y-axis (it only changes when moving vertically) and the second input seems to correspond to the x-axis (it changes when moving horizontally). Is this the correct way to think about it?
+
+I'd also like to understand how a MLP with at least one hidden layer allows for something beyond what you described as the "straight line on paper" of a single-layer perceptron. Lastly, to clarify, you said a 2-2-1 network can learn XOR, which has 2 hidden units - is it one or two hidden layers that are required to learn XOR?
+
+Response: These are excellent questions — you're zeroing in on the geometric intuition behind neural networks, which is key to really understanding what makes them tick. Let’s break your questions down and clarify everything step-by-step.
+
+📊 Part 1: Input Space and Axes
+
+    "Is it the case that each input maps to an axis?"
+
+Yes — that’s exactly right.
+
+When visualizing binary inputs (like for logic gates), we’re placing each input on its own axis:
+
+    Input 1 → x-axis
+
+    Input 2 → y-axis
+
+So we visualize a 2D grid like this:
+
+```
+   y
+   ↑
+ 1 | (0,1)  ●──1     (1,1)  ●──0
+   |
+ 0 | (0,0)  ●──0     (1,0)  ●──1
+   +────────────→ x
+     0        1
+```
+
+In this grid:
+
+    Moving horizontally (x-axis) changes input 1
+
+    Moving vertically (y-axis) changes input 2
+
+It’s standard to map:
+
+    x₁ → x-axis
+
+    x₂ → y-axis
+
+This makes decision boundaries easy to interpret as straight lines (in the case of a single-layer perceptron) or curves/piecewise lines (for MLPs).
+
+🧠 Part 2: Why an MLP Can Learn XOR (and a Perceptron Can't)
+🤖 Perceptron (Single Layer)
+
+A perceptron can only learn functions where the output classes are linearly separable — i.e., can be split by a straight line (or hyperplane in higher dimensions).
+
+XOR is not linearly separable, as you've seen:
+
+    There is no line that separates the (0,0) and (1,1) outputs from the (1,0) and (0,1) outputs
+
+🔥 MLP (Multi-Layer Perceptron)
+
+A 2-2-1 network means:
+
+    2 input neurons
+
+    2 hidden neurons (1 hidden layer)
+
+    1 output neuron
+
+Each neuron in the hidden layer computes its own weighted sum and nonlinear activation. This enables the MLP to transform the input space before making a decision.
+Intuition:
+
+    Hidden neurons can create new features or partition space nonlinearly
+
+    The output neuron combines these nonlinear features
+
+So instead of being limited to a single line, the network can form composite decision boundaries like this:
+
+```
+Step 1: Hidden Layer Neuron 1 draws Line A (e.g., separate (0,1) and (1,0) from others)
+Step 2: Hidden Layer Neuron 2 draws Line B (e.g., separates the other region)
+
+Output neuron then "ORs" or "XORs" the two regions.
+```
+
+These intermediate layers allow the network to solve nonlinearly separable problems by chopping the space into smaller linear regions and combining them.
+
+✅ Summary: Can a 2-2-1 Network Learn XOR?
+
+Yes — a single hidden layer with 2 neurons is sufficient. You do not need 2 hidden layers.
+
+So:
+
+    1 hidden layer with ≥ 2 neurons → ✅ XOR can be learned
+
+    1 neuron in hidden layer → 🚫 Not enough capacity
+
+    2 hidden layers → Overkill, but still works
+
+🧭 Where Visualization Helps
+
+If we plot:
+
+    The input space as a grid (with color-coded class labels)
+
+    The decision boundary learned by a network
+
+We can see that:
+
+    A single perceptron can only draw a line
+
+    An MLP draws a piecewise-linear boundary that isolates the XOR class regions
+
+Want me to generate a real visualization of decision boundaries for:
+
+    Single-layer perceptron on XOR (fails)
+
+    MLP on XOR (succeeds)
+
+Let me know if you’d prefer a plot or want to implement and step through it yourself.
+
+Prompt: Ok, I will want to plot the input space as a grid and the decision boundary learned by a network, but I think we need to clean up our plotting functionality. Specifically, we should start creating helper functions for plotting and creating sensible CLI args for different plotting options. Right now, we have the option to plot the learning curve and a separate plot with weights and bias curves. I think we should make it possible to pass in a list of plots that should be generated with options like `learning`, `weights` (which will include the bias), and `decision-boundary`. I will ultimately want to create an animated visualization like a gif, so we should reserve a reasonable way to provide that option as well. For reference, this is the current main.py:
+
+<pasted in main.py>
+
+Response: Great — we can clean this up with a modular, extensible plotting system and a smarter CLI interface. Here's the plan:
+
+✅ Goals for Refactoring
+
+    Modular plotting:
+
+        Separate helper functions for each plot type: learning, weights, decision-boundary
+
+    CLI argument for selecting multiple plots:
+```sh
+--plots learning weights decision-boundary
+```
+
+Future support: Reserve --animate or --gif for animated decision boundary visualization
+
+✅ Step 1: Update CLI
+
+Update the argparse section like this:
+
+<provided code>
+
+✅ Step 2: Refactor train_and_plot with Helpers
+
+Create three new helper functions in main.py (or better, move to a plot_utils.py if you prefer later):
+
+<provided code>
+
+✅ Step 3: Refactor train_and_plot to Use Helpers
+
+<provided code>
+
+✅ Step 4: Update Calls
+
+<provided code>
+
+✅ Example Usages
+
+Plot weights and learning curve:
+```sh
+python main.py --plots learning weights
+```
+
+Plot XOR decision boundary only:
+```sh
+python main.py --plots decision-boundary --skip-nand
+```
+
+Run all, no plots:
+```sh
+python main.py
+```
+
+Would you like me to consolidate the plotting functions into a separate module next (e.g., plot_utils.py) or jump to building the animation capability?
+
+Prompt: Yes, let's put those in a separate module
+
+Response: Great — let's move the plotting helpers to a clean, separate file called plot_utils.py. This will make your main.py easier to manage and set you up nicely for extending things like animations or exportable plots later.
+
+✅ Step 1: Create plot_utils.py
+
+Create a new file plot_utils.py alongside main.py and add this:
+
+<provided code>
+
+✅ Step 2: Update main.py to Use Plot Utils
+
+At the top of main.py, import the new functions:
+
+<provided code>
+
+Now you can remove the old plotting code from main.py.
+
+✅ Benefits of This Refactor
+
+    Clear separation of concerns
+
+    Easy to maintain and expand (e.g., add plot_animation later)
+
+    Cleaner main.py — focused on logic, not plotting
+
+Ready to move on to generating an animated decision boundary GIF as training progresses? We can do that by rendering and saving plots for selected epochs.
+
+Prompt: Could you provide the full main.py? Then we'll go on to plotting decision boundaries
+
+Response: Absolutely — here's your fully updated and cleaned-up main.py, using plot_utils.py for modular plotting.
+
+<provided code>
+
+✅ Next Step
+
+Now that the code is clean and modular, we're in a great place to add animated decision boundary visualization (e.g., for XOR training).
+
+Let me know how you'd like to handle it:
+
+    Save the animation as a GIF or show it live?
+
+    Plot decision boundary every N epochs?
+
+    Animate both XOR and NAND or just one?
+
+Ready to proceed?
+
+Prompt: Can I view the animation live and have the option to save it as a gif, similar to how I can optionally save the plot that opens up?
+
+Are you saying plotting every epoch will be too computationally intensive? If so, yes, we can reduce the frequency
+
+Can we keep in place the existing options to skip either xor or nand to decide which to animate?
+
+Response: Yes — we can absolutely do all of that, cleanly and flexibly:
+
+✅ Goals for Animation
+
+    Live view: Display the animation in a window using matplotlib.animation.FuncAnimation
+
+    Optional GIF save: Use --gif to trigger saving to file
+
+    Custom frequency: e.g., plot every 100 epochs for performance
+
+    Respect --skip-nand and --skip-xor as you already do
+
+    Keep code modular: we'll put the animation logic in plot_utils.py as a new function
+
+✅ Step 1: Add animate_decision_boundary() to plot_utils.py
+
+<provided code for animation function>
+
+✅ Step 2: Update train_and_plot() in main.py
+
+<just updated import in main.py>
+
+Then inside train_and_plot(...):
+
+```python
+    if "decision-boundary" in plots:
+        plot_decision_boundary(p, data, name)
+
+    if gif:
+        animate_decision_boundary(
+            weight_history=p.weight_history,
+            bias_history=p.bias_history,
+            data=data,
+            name=name,
+            interval_epochs=100,
+            save_gif=True,
+        )
+```
+
+You’ll just need to update the function signature to:
+```python
+def train_and_plot(data, name: str, plots: list[str], gif: bool):
+```
+And call it with gif=args.gif.
+
+✅ Step 3: Update main() to Pass args.gif
+
+<basic function call updates>
+
+✅ Example Usage
+
+Show decision boundary live:
+```sh
+python main.py --plots decision-boundary
+```
+
+Show and save XOR decision boundary animation:
+```sh
+python main.py --plots decision-boundary --skip-nand --gif
+```
+
+Full training for both, no animation:
+```sh
+python main.py --plots learning weights
+```
+
+Would you like:
+
+    An option to control --interval (frames per step)?
+
+    To also support saving learning/weights plots to file?
+
+Let me know how polished you want this to get!
+
+Prompt: Would it be possible to have a gif of the decision boundary alongside gifs of the learning curve and weight and bias evolution?
+
+Response: Yes — that's absolutely possible and actually a great idea for a complete visual record of training!
+
+Here's how we’ll approach it:
+
+✅ What We’ll Do
+
+For each of the following plots:
+
+    Decision boundary
+
+    Learning curve
+
+    Weight and bias evolution
+
+We’ll generate:
+
+    An animated version (GIF)
+
+    Optionally, show it live (plt.show())
+
+✅ Strategy Per Plot
+1. Decision Boundary
+
+✅ Already animated using FuncAnimation with snapshots of weights + bias
+2. Learning Curve
+
+📉 We’ll animate the error over time, building up frame-by-frame
+3. Weight/Bias Evolution
+
+📈 We’ll animate line plots of w0, w1, and bias across epochs
+
+✅ Step-by-Step Plan
+
+We'll create two new functions in plot_utils.py:
+🔧 animate_learning_curve()
+
+<provided code>
+
+🔧 animate_weights_and_bias()
+
+<provided code>
+
+✅ Step 2: Update train_and_plot() to Call Animations
+
+Inside train_and_plot(...) in main.py:
+
+<provided code for main.py>
+
+✅ Final Result
+
+When you run:
+
+```sh
+python main.py --plots decision-boundary --gif --skip-nand
+```
+
+You’ll get:
+
+    ✅ Live view of the final plots
+
+    ✅ Saved GIFs:
+
+        xor_decision_boundary.gif
+
+        xor_learning_curve.gif
+
+        xor_weights_bias.gif
+
+Would you like:
+
+    CLI options for setting the epoch interval or frame speed?
+
+    A --save-plots flag for non-animated .png export?
+
+Let me know how you'd like to extend this further!
