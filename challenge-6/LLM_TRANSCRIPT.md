@@ -434,4 +434,99 @@ Let me know if you’d like to also:
 
 Would you like to work on any of those next?
 
+Prompt: Let's fine-tune what we have for a moment before moving on. I like the weights and bias evolution plots, but it's difficult to see when 2 of the values overlap. Are there any adjustments we can make to ensure all lines are visible? I'd also like to better understand why XOR can't converge with a single layer as we have here
 
+Response: Great instincts — let's address both of those points thoroughly.
+
+🔧 Part 1: Improving Visibility of Overlapping Lines in Weight/Bias Plot
+Problem:
+
+Sometimes two lines (e.g., weight and bias) are too close or overlapping, making it hard to distinguish them.
+✅ Solutions:
+
+    Thicker lines + markers: Help visually separate each series
+
+    Distinct line styles (solid, dashed, dotted)
+
+    Color distinction (automatic with matplotlib)
+
+    Plot in separate subplots (optional but cleaner)
+
+🔄 Updated Plot Code (inside train_and_plot):
+
+Replace the second plot section with this:
+
+<updated weight and bias evolution plotting>
+
+This makes the lines:
+
+    Thicker
+
+    Visually distinct
+
+    Still on the same plot for easy comparison
+
+Let me know if you’d prefer separate plots per line for even more clarity.
+
+🧠 Part 2: Why XOR Can’t Converge with a Single-Layer Perceptron
+🚫 Linear Separability: The Core Issue
+
+A single-layer perceptron can only learn functions that are linearly separable — meaning: there’s a straight line (or plane) that can separate the input space into two classes.
+
+Let’s look at XOR:
+
+Input	Output
+(0, 0)	0
+(0, 1)	1
+(1, 0)	1
+(1, 1)	0
+
+Visualizing the outputs in the 2D input space:
+
+```
+(0,0) → 0    (0,1) → 1
+
+(1,0) → 1    (1,1) → 0
+```
+
+You’ll find:
+
+    The 1’s are diagonal
+
+    No straight line can cleanly separate 1’s from 0’s
+
+🔍 This is the textbook example of a non-linearly separable problem.
+
+🤖 What You Need Instead
+
+To learn XOR correctly, you need:
+
+    A nonlinear model
+
+    Specifically, a Multi-Layer Perceptron (MLP) with at least:
+
+        One hidden layer
+
+        Nonlinear activation (e.g. sigmoid, ReLU)
+
+A simple 2-2-1 network can learn XOR:
+
+    2 inputs → 2 hidden units → 1 output
+
+    The hidden layer creates nonlinear boundaries, allowing the network to simulate XOR logic
+
+🔁 Analogy:
+
+Think of a single-layer perceptron as drawing a straight line on paper.
+
+XOR requires drawing a curve or combination of lines. You just can’t do that with a ruler alone.
+
+Let me know if you want to:
+
+    Implement a simple 2-layer neural network for XOR
+
+    Visualize decision boundaries
+
+    Compare training error vs test error for more complex inputs
+
+Or just continue tuning what we’ve got!

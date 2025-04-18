@@ -31,14 +31,15 @@ def train_and_plot(data, name: str, do_plot: bool):
     b = p.bias_history
 
     plt.figure()
-    plt.plot(w0, label="Weight 0")
-    plt.plot(w1, label="Weight 1")
-    plt.plot(b, label="Bias")
+    plt.plot(w0, label="Weight 0", linewidth=2, linestyle="-")
+    plt.plot(w1, label="Weight 1", linewidth=2, linestyle="--")
+    plt.plot(b, label="Bias", linewidth=2, linestyle="-.")
     plt.title(f"Weights and Bias Evolution ({name.upper()})")
     plt.xlabel("Epoch")
     plt.ylabel("Value")
     plt.legend()
     plt.grid(True)
+    plt.tight_layout()
     plt.show()
 
 
