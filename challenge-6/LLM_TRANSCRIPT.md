@@ -909,3 +909,234 @@ Would you like:
     A --save-plots flag for non-animated .png export?
 
 Let me know how you'd like to extend this further!
+
+Prompt: Ok, I think it's time to move on to an MLP implementation, so we can properly train on XOR. I want to be able to visualize what you described as composite decision boundaries - which I think would entail some sort of visualization of the hidden layer.
+
+I'd like to make sure I'm understanding everything so far first. We started with a single perceptron - this is a single layer (not hidden) neuron, and this can only learn functions that are linearly separable. This is because it only has the 2 inputs and a single output, does that make sense? I want to clarify the structure of a 2-2-1 network - there are 2 inputs, 2 hidden neurons in 1 hidden layer, and 1 output neuron? Or 2 input neurons that each have 2 inputs, plus 2 hidden neurons in 1 hidden layer, and 1 output?
+
+I'd like to understand more about an MLP transforming the input space before making a decision, and what it means for hidden neurons to create new features or partition space nonlinearly
+
+Response: You're asking exactly the right questions — you're building toward a strong geometric and architectural understanding of neural networks. Let's make sure everything is crystal clear before we dive into coding an MLP with visualization.
+
+✅ Recap: The Single Perceptron
+
+You're correct:
+
+    A single perceptron:
+
+        Has no hidden layers
+
+        Just a set of inputs directly connected to a single output neuron
+
+        Can only learn linearly separable functions
+
+        Because it can only draw one straight line to separate input space
+
+    “This is because it only has 2 inputs and a single output” — ✅ That's partly why. But the real constraint is that there are no hidden layers to allow for compositional, nonlinear behavior. The inputs can’t be transformed — they're passed straight into a single weighted sum and a sigmoid.
+
+✅ Structure of a 2–2–1 MLP
+
+Let’s clarify this:
+
+    “There are 2 inputs, 2 hidden neurons in 1 hidden layer, and 1 output neuron?”
+
+✅ Yes, exactly.
+
+Let’s break it down:
+🔹 Input Layer (2 units)
+
+These aren’t "neurons" in the traditional sense — they’re just values fed into the network:
+
+    x1x1​
+
+    x2x2​
+
+🔹 Hidden Layer (2 neurons)
+
+Each hidden neuron:
+
+    Takes both inputs
+
+    Applies its own set of weights and bias
+
+    Produces an output via sigmoid (or other activation)
+
+So each hidden neuron looks like:
+hi=σ(wi1x1+wi2x2+bi)
+hi​=σ(wi1​x1​+wi2​x2​+bi​)
+
+There are 2 such hidden neurons, each with:
+
+    2 weights (one per input)
+
+    1 bias
+
+🔹 Output Layer (1 neuron)
+
+Takes:
+
+    Both h1h1​, h2h2​ as inputs
+
+    Produces:
+
+y=σ(wo1h1+wo2h2+bo)
+y=σ(wo1​h1​+wo2​h2​+bo​)
+
+So:
+
+x1 ─┬────┐
+     │    │       output
+x2 ─┘    └─► [h1] ─┐
+             [h2] ─┼─► [output]
+                   │
+               bias/output
+
+✅ What It Means to “Transform the Input Space”
+
+Let’s say we have 2 inputs:
+
+    x1=0x1​=0 or 11
+
+    x2=0x2​=0 or 11
+
+That forms a 2D input space, a square grid of 4 points.
+
+Now imagine one hidden neuron:
+
+    Applies weights to x1,x2x1​,x2​
+
+    Computes a nonlinear transformation
+
+So the hidden neuron's activation output is no longer the raw input — it’s something new like:
+
+    h1=σ(3x1−2x2+0.5)h1​=σ(3x1​−2x2​+0.5)
+
+This is a curved boundary (due to sigmoid), partitioning the input space in a nonlinear way.
+
+The hidden layer is doing what in classical ML you'd call feature engineering — it’s building new intermediate representations (aka learned features) of the input.
+
+✅ Composing Multiple Decision Boundaries
+
+This is the key:
+
+    Each hidden neuron draws its own boundary (like a soft line)
+
+    The output neuron combines these hidden outputs
+
+That lets the MLP build complex regions like:
+
+    One neuron turns on when in the top-left
+
+    One turns on in the bottom-right
+
+    Output neuron learns: “if either is on → output 1”
+
+This compositionality is what makes XOR possible.
+
+    In effect: the hidden layer is warping or tiling the space into learnable chunks — then the output neuron chooses what combination of those chunks to classify as "positive" or "negative".
+
+✅ Visual Analogy
+
+Imagine trying to paint the XOR pattern with a brush:
+
+    You only have a straight brush? That’s the perceptron — can’t do it.
+
+    But now you get two overlapping stencils (the hidden neurons)
+
+    You overlap them just right, and your output neuron "paints" the correct XOR shape
+
+✅ Summary
+
+Component	Role
+Input Layer	Passes raw data, no computation
+Hidden Layer	Applies weights, bias, and nonlinearity
+Output Layer	Combines hidden outputs into final output
+Sigmoid/Tanh/ReLU	Enables non-linear boundaries
+Hidden Units	Create “new axes” or soft partitions
+
+Would you like to:
+
+    Step through a small 2-2-1 MLP by hand?
+
+    Go straight to implementing one?
+
+    Visualize hidden neuron outputs separately (very cool for XOR)?
+
+Let’s build this up however you prefer.
+
+Prompt: Ok, this mostly makes sense, except I want to make sure I understand one last part (though maybe this will become clearer through implementation anyways). Why can a hidden layer neuron output a curved boundary, while the single perceptron can only output linear?
+
+Once I've got that figured out, I'd like to go through those steps one by one: step through a small 2-2-1 MLP by hand, implement one, then visualize hidden neuron outputs separately for XOR
+
+Response: That's a fantastic point to zoom in on — it gets to the heart of what makes neural networks so powerful.
+
+🧠 Why the Perceptron Can Only Create Linear Boundaries
+
+Let’s start with the perceptron:
+
+```python
+output = sigmoid(w1 * x1 + w2 * x2 + b)
+```
+
+This is:
+
+    A linear combination of the inputs: z=w1x1+w2x2+bz=w1​x1​+w2​x2​+b
+
+    Then passed through a sigmoid (or other activation)
+
+But crucially — when drawing a decision boundary, you’re checking when the output is constant, like:
+```python
+sigmoid(w1 * x1 + w2 * x2 + b) = 0.5
+```
+
+That’s equivalent to:
+```python
+w1 * x1 + w2 * x2 + b = 0  # ← linear boundary
+```
+
+This defines a straight line (or hyperplane in higher dimensions).
+
+So even though the sigmoid is nonlinear, the decision boundary (where output = threshold) is linear because it’s just where the weighted sum hits a constant.
+
+✅ Why Hidden Layers Enable Nonlinear Boundaries
+
+Each hidden neuron still has a linear combination of inputs + sigmoid:
+```python
+h1 = sigmoid(w1 * x1 + w2 * x2 + b1)
+h2 = sigmoid(w3 * x1 + w4 * x2 + b2)
+```
+
+```python
+y = sigmoid(w5 * h1 + w6 * h2 + b3)
+```
+Here’s where it gets wild:
+
+    h1 and h2 are nonlinear functions of x1,x2x1​,x2​
+
+    So the final output is a nonlinear combination of nonlinear functions
+
+In math terms, you're composing nonlinear functions:
+y=σ(w5⋅σ(w1x1+w2x2+b1)+w6⋅σ(w3x1+w4x2+b2)+b3)
+y=σ(w5​⋅σ(w1​x1​+w2​x2​+b1​)+w6​⋅σ(w3​x1​+w4​x2​+b2​)+b3​)
+
+That composition is no longer linear in x₁ and x₂ — it allows for curved or piecewise-linear decision boundaries.
+
+    🔁 Hidden neurons are nonlinear functions of linear combinations. Output neurons are nonlinear functions of hidden outputs. Their composition breaks linearity and gives rise to flexible decision surfaces.
+
+📌 Summary
+
+Network Type	Output Computation	Decision Boundary Type
+Perceptron	σ(w1x1+w2x2+b)σ(w1​x1​+w2​x2​+b)	Linear
+MLP (2-2-1)	σ(w5⋅σ(...)+w6⋅σ(...)+b)σ(w5​⋅σ(...)+w6​⋅σ(...)+b)	Nonlinear
+
+Now that the theory is clear — ready to move on to stepping through a 2-2-1 MLP by hand?
+
+I’ll show:
+
+    The weights and biases
+
+    Input → hidden layer → output layer
+
+    Each step of the forward pass
+
+Sound good?
