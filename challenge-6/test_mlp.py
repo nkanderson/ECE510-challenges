@@ -4,6 +4,7 @@ from plot_utils import (
     plot_mlp_decision_boundary,
     visualize_output_neuron_surface,
     visualize_output_neuron_with_hidden_contributions,
+    animate_output_and_hidden_contributions,
 )
 
 
@@ -37,7 +38,7 @@ if __name__ == "__main__":
     # print("Before training:")
     # visualize_hidden_activations(mlp, name="before-training")
 
-    mlp.train(xor_data, epochs=10000, learning_rate=0.5)
+    mlp.train(xor_data, epochs=10000, learning_rate=0.5, interval_epochs=200)
 
     for inputs, target in xor_data:
         output = mlp.forward(*inputs)
@@ -49,3 +50,6 @@ if __name__ == "__main__":
     plot_mlp_decision_boundary(mlp, save_dir="plots")
     # visualize_output_neuron_surface(mlp)
     visualize_output_neuron_with_hidden_contributions(mlp, save_dir="plots")
+    animate_output_and_hidden_contributions(
+        mlp, save_path="xor_output_hidden.gif", resolution=200
+    )

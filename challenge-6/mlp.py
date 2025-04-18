@@ -24,6 +24,8 @@ class MLP:
         self.output_weights = [random.uniform(-1, 1) for _ in range(2)]
         self.output_bias = random.uniform(-1, 1)
 
+        self.snapshots = []  # for animation
+
     def hidden_outputs(self, x1, x2):
         outputs = []
         for i in range(2):
@@ -53,7 +55,14 @@ class MLP:
         y = sigmoid(z_out)
         return y
 
-    def train(self, data, epochs=10000, learning_rate=0.1, log_interval=1000):
+    def train(
+        self,
+        data,
+        epochs=10000,
+        learning_rate=0.1,
+        log_interval=1000,
+        interval_epochs=100,
+    ):
         for epoch in range(epochs):
             total_error = 0
             for (x1, x2), target in data:
@@ -120,3 +129,14 @@ class MLP:
 
             if epoch % log_interval == 0:
                 print(f"Epoch {epoch}: Total Error = {total_error:.4f}")
+
+            if epoch % interval_epochs == 0:
+                self.snapshots.append(
+                    {
+                        "hidden_weights": [w.copy() for w in self.hidden_weights],
+                        "hidden_biases": self.hidden_biases.copy(),
+                        "output_weights": self.output_weights.copy(),
+                        "output_bias": self.output_bias,
+                        "epoch": epoch,
+                    }
+                )

@@ -293,6 +293,103 @@ def animate_learning_curve(loss_history, name, interval_epochs=100, save_gif=Fal
     plt.show()
 
 
+def animate_output_and_hidden_contributions(
+    mlp, save_path="output_hidden_contributions.gif", resolution=100
+):
+    if not mlp.snapshots:
+        print(
+            "No training snapshots available. Be sure to train with snapshot logging enabled."
+        )
+        return
+
+    x_vals = np.linspace(0, 1, resolution)
+    y_vals = np.linspace(0, 1, resolution)
+    xx, yy = np.meshgrid(x_vals, y_vals)
+
+    fig, ax = plt.subplots()
+
+    # Weighted frame list for slow-start effect
+    snapshots = mlp.snapshots
+    frame_indices = []
+    for i in range(len(snapshots)):
+        if i < 6:
+            frame_indices.extend([i] * 7)  # repeat early unstable frames
+        elif i < 9:
+            frame_indices.extend([i] * 4)
+        else:
+            frame_indices.append(i)
+
+    def update(frame_idx):
+        snapshot = snapshots[frame_idx]
+        ax.clear()
+
+        # Restore weights
+        mlp.hidden_weights = [w.copy() for w in snapshot["hidden_weights"]]
+        mlp.hidden_biases = snapshot["hidden_biases"].copy()
+        mlp.output_weights = snapshot["output_weights"].copy()
+        mlp.output_bias = snapshot["output_bias"]
+
+        # Compute surfaces
+        z_out_vals = np.zeros_like(xx)
+        h1_vals = np.zeros_like(xx)
+        h2_vals = np.zeros_like(xx)
+
+        for i in range(resolution):
+            for j in range(resolution):
+                x1 = xx[i, j]
+                x2 = yy[i, j]
+                h1, h2 = mlp.hidden_outputs(x1, x2)
+                h1_vals[i, j] = h1
+                h2_vals[i, j] = h2
+                z_out_vals[i, j] = (
+                    mlp.output_weights[0] * h1
+                    + mlp.output_weights[1] * h2
+                    + mlp.output_bias
+                )
+
+        ax.contourf(xx, yy, z_out_vals, levels=50, cmap="viridis", alpha=0.8)
+
+        c1 = ax.contour(
+            xx,
+            yy,
+            h1_vals,
+            levels=[0.2, 0.5, 0.8],
+            colors="#ff69b4",
+            linestyles="dashed",
+        )
+        ax.clabel(c1, inline=True, fontsize=8, fmt="h1=%.1f")
+        c2 = ax.contour(
+            xx,
+            yy,
+            h2_vals,
+            levels=[0.2, 0.5, 0.8],
+            colors="#39ff14",
+            linestyles="solid",
+        )
+        ax.clabel(c2, inline=True, fontsize=8, fmt="h2=%.1f")
+
+        # XOR inputs
+        for (x1, x2), label in [([0, 0], 0), ([0, 1], 1), ([1, 0], 1), ([1, 1], 0)]:
+            ax.scatter(
+                x1, x2, c="black" if label == 1 else "white", edgecolors="k", s=100
+            )
+
+        ax.set_title(
+            f"Epoch {snapshot['epoch']} — Output & Hidden Neuron Contributions"
+        )
+        ax.set_xlabel("x1")
+        ax.set_ylabel("x2")
+        ax.grid(True)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+
+    # ani = animation.FuncAnimation(fig, update, frames=mlp.snapshots, interval=250)
+    ani = animation.FuncAnimation(fig, update, frames=frame_indices, interval=250)
+    ani.save(save_path, writer="pillow")
+    plt.close()
+    print(f"Saved animation to {save_path}")
+
+
 def animate_weights_and_bias(
     weight_history, bias_history, name, interval_epochs=100, save_gif=False
 ):
