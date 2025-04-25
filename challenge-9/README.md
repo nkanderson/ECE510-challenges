@@ -314,15 +314,17 @@ Line #      Hits         Time  Per Hit   % Time  Line Contents
 
 ### Hardware Execution Time
 
-Estimating communication cost:
+The following estimations are related to Challenge 12. The HW / SW boundary was determined using the above profiling, and the results from interactive visualization with snakeviz. The snakeviz results indicated that the `matvec_mul` operation contributed significantly to the overall execution time. The encapsulating `step` function therefore is a good target, as it represents a slightly higher percentage of the overall execution time than the cumulative `matvec_mul` steps, and also provides a larger discrete functional block to implement in hardware, reducing the communication costs that would be associated with implementing *only* the `matvec_mul` in hardware.
+
+Goals for estimating communication cost:
 - Get baseline for a protocol like PCIe or similar
 - Get estimate of amount of data that would be transferred to hardware
 - The above should provide a basic estimate of communication cost
 - From there, the existing software-only computational bottleneck minus the communication cost (round-trip) should represent a target execution time that the hardware should be faster than
 
-For the `step` function, we can save on communication cost by saving the weights in SRAM. This should be estimated and considered as part of the whole hardware cost.
+### Notes From ChatGPT Estimation
 
-A few specific points from discussion with ChatGPT:
+For the `step` function, we can save on communication cost by saving the weights in SRAM. This should be estimated and considered as part of the whole hardware cost.
 
 Chiplet optimizations that may improve data transfer efficiency:
 - Holds weights (W, U, b) locally in SRAM → no transfer needed
@@ -332,3 +334,30 @@ Chiplet optimizations that may improve data transfer efficiency:
 Best-Case Streamed Input:
 - Just send x per timestep, receive h
 - ~24 × (input_size + hidden_size) × 4 = much smaller
+
+Estimated PCIe transfer latency = ~607 ns per step
+
+Assumes 200MHz clock cycle. This might be fast for an FPGA, but (I think) dedicated hardware should easily meet or surpass this speed.
+
+Assumes PCIe Gen 4 utilizing 4 lanes, estimates 5 GB/s transfer speeds.
+- Assumes latency of 500 ns–1.5 µs
+
+Total latency per step (*with* ballpark for execution time) | ~1.5 µs → 1.6 µs
+Total SRAM needed (to store weights) | ~84 KB
+
+ChatGPT estimated 45,696 step calls; snakeviz indicated there were 26,208.
+
+ChatGPT's total estimated time based on 45K step calls was:
+```
+45,696 × 1.5 µs = 68,544 µs ≈ 68.5 milliseconds total
+```
+
+*Note*: There was some initial confusion in the estimatation, where ChatGPT was including a rough estimate for the execution time in hardware as well as the data transfer time. This was clarified, and the summary numbers below reflect a target execution time for the `step` function based on estimated data transfer times.
+
+### Summary
+- The estimated *per-step* communication cost is ~607ns, based on estimated data transfer size and usage of PCIe gen 4. This assumes the weights are stored in SRAM to reduce data transfer.
+- The estimated *total* communication cost is pessimistically ~27.74 ms. This was based on number of step calls in the training data set. The number of step calls profiled using snakeviz was significantly lower, so we may estimate a lower bound at `26208 * 607ns = 15.91 ms`.
+- Total compute time allowed for all `step` function calls is `2 s - 27.74 ms = ~1972.26 ms`, using pessimistic estimate above
+- The **maximum total target execution time** for our hardware `step` function (using the pessemistic estimate) is `1.972 / 45696 = ~43.15 µs`.
+- An estimated ~84 KB of SRAM will be needed to store the weights.
+- Additional data transfer optimization may be done by implementing on-chip h/c buffering, which would mean we only stream `x` in and `h` out
