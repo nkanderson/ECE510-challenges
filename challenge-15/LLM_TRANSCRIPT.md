@@ -824,6 +824,46 @@ or
 
 👉 Your call — which shall we tackle next? 🎯
 
+Prompt: Let's do the sigmoid_approx and tanh_approx
+
+Response: <provided code>
+
+✅ Both sigmoid_approx.sv and tanh_approx.sv modules are now complete!
+
+📋 Quick Recap:
+Module | Status | Notes
+sigmoid_approx | ✅ | Piecewise linear approximation, maps [-0.0625, 0.0625] scaled Q16
+tanh_approx | ✅ | Pass-through (linear) near zero, ±1 saturation beyond ~0.0625
+
+🧠 How They Work:
+
+    Inputs and outputs are fixed-point Q16 format (FRAC_WIDTH=16), meaning:
+
+        Real 0.5 is represented as 32768
+
+        Real 1.0 is represented as 65536
+
+    These are very lightweight approximations — ideal for low-latency inference hardware.
+
+✅ Later if needed, we could replace these with finer-grained multi-segment approximations (or small LUTs).
+
+🚀 What's Ready:
+
+✅ You can now insert sigmoid_approx and tanh_approx blocks into your four gate pipelines in lstm_cell.sv.
+✅ Control FSM will start_activation, and these modules will produce outputs without stalls (pure combinational).
+
+📢 Next Logical Step:
+
+Would you like to now:
+
+    Move on to wiring the full four parallel gate datapaths (i, f, c̃, o) inside lstm_cell?
+
+    Or briefly review the overall full datapath one more time before wiring?
+
+👉
+(Both are great options — depending on whether you want a quick architecture refresh first or jump straight into code!)
+Which would you prefer? 🎯
+
 
 
 ## Summary
@@ -875,3 +915,7 @@ Will eventually instantiate:
 Initial implementation will have a single MAC reused (in a multicycle fashion)
 - This more closely parallels the Python code
 - Should be able to build it such that a fully parallelized version could be implemented later
+
+sigmoid and tanh approximations
+- Very lightweight approximations — ideal for low-latency inference hardware.
+- Later if needed, we could replace these with finer-grained multi-segment approximations (or small LUTs).
