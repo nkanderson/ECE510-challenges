@@ -776,6 +776,54 @@ Or would you prefer next to:
 
 👉 Which would you like to hit next? 🎯
 
+Prompt: Let's do the elementwise add and multiply modules
+
+Response: <provided code for elementwise ops>
+
+✅ Both elementwise_add.sv and elementwise_mul.sv are now cleanly written!
+
+📋 Quick Recap:
+
+Module | Status
+elementwise_add | Adds two vectors element-by-element ✅
+elementwise_mul | Multiplies two vectors element-by-element ✅
+
+🧠 Design Notes:
+
+    Parameterized (VEC_SIZE, DATA_WIDTH) — scalable to any size.
+
+    Fully combinational — one cycle latency.
+
+    Synthesis-ready — simple and clean (one adder/multiplier per element).
+
+    Easy to instantiate in lstm_cell for operations like:
+
+        Summing Wx + Uh
+
+        Applying gates (e.g., i * c̃, f * c_prev)
+
+🚀 What's Now Ready:
+
+✅ lstm_cell.sv can wire these modules for:
+
+    Matvec + Matvec + bias addition
+
+    Final c, h computation using elementwise ops
+
+📢 Next Step Options:
+
+Would you like to now:
+
+    Move on to designing the sigmoid_approx and tanh_approx modules?
+    (We'll need these to finish the activation stage in the datapath.)
+
+or
+
+    Start wiring the full four-gate parallel datapath inside lstm_cell?
+    (using matvec_mul, elementwise_add, sigmoid_approx placeholders)
+
+👉 Your call — which shall we tackle next? 🎯
+
 
 
 ## Summary
