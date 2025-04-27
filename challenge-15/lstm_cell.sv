@@ -37,38 +37,16 @@ module lstm_cell #(
     logic start_Wx, done_Wx;
     logic start_Uh, done_Uh;
 
-    // Control signals
-    assign done = (state == S_DONE);
-
-    // Internal data wires
+    // Intermediate signals
     logic signed [DATA_WIDTH-1:0] Wx_total[HIDDEN_SIZE*4];
     logic signed [DATA_WIDTH-1:0] Uh_total[HIDDEN_SIZE*4];
     logic signed [DATA_WIDTH-1:0] preact[HIDDEN_SIZE*4];
+
     logic signed [DATA_WIDTH-1:0] gate_i[HIDDEN_SIZE];
     logic signed [DATA_WIDTH-1:0] gate_f[HIDDEN_SIZE];
     logic signed [DATA_WIDTH-1:0] gate_c[HIDDEN_SIZE];
     logic signed [DATA_WIDTH-1:0] gate_o[HIDDEN_SIZE];
-
-    // Matvec instances for Wx and Uh
-    matvec_mul #(.N_ROWS(HIDDEN_SIZE*4), .N_COLS(INPUT_SIZE), .DATA_WIDTH(DATA_WIDTH)) u_matvec_Wx (
-        .clk(clk),
-        .rst_n(rst_n),
-        .start(start_Wx),
-        .done(done_Wx),
-        .matrix(W),
-        .vector(x),
-        .result(Wx_total)
-    );
-
-    matvec_mul #(.N_ROWS(HIDDEN_SIZE*4), .N_COLS(HIDDEN_SIZE), .DATA_WIDTH(DATA_WIDTH)) u_matvec_Uh (
-        .clk(clk),
-        .rst_n(rst_n),
-        .start(start_Uh),
-        .done(done_Uh),
-        .matrix(U),
-        .vector(h_prev),
-        .result(Uh_total)
-    );
+    logic signed [DATA_WIDTH-1:0] tanh_c[HIDDEN_SIZE];
 
     // FSM sequential
     always_ff @(posedge clk or negedge rst_n) begin
@@ -99,13 +77,13 @@ module lstm_cell #(
             end
 
             S_ADD_BIAS:
-                next_state = S_ACT; // combinational
+                next_state = S_ACT;  // purely combinational
 
             S_ACT:
-                next_state = S_UPDATE; // combinational
+                next_state = S_UPDATE;  // purely combinational
 
             S_UPDATE:
-                next_state = S_DONE; // combinational
+                next_state = S_DONE;  // purely combinational
 
             S_DONE:
                 next_state = S_IDLE;
@@ -115,21 +93,59 @@ module lstm_cell #(
         endcase
     end
 
-    // Combinational datapath
+    // Done signal
+    assign done = (state == S_DONE);
+
+    // Instantiate Wx and Uh matvec multipliers
+    matvec_mul #(
+        .VEC_SIZE(INPUT_SIZE),
+        .OUT_SIZE(HIDDEN_SIZE*4),
+        .DATA_WIDTH(DATA_WIDTH)
+    ) u_matvec_Wx (
+        .clk(clk),
+        .rst_n(rst_n),
+        .start(start_Wx),
+        .done(done_Wx),
+        .matrix(W),
+        .vector(x),
+        .result(Wx_total)
+    );
+
+    matvec_mul #(
+        .VEC_SIZE(HIDDEN_SIZE),
+        .OUT_SIZE(HIDDEN_SIZE*4),
+        .DATA_WIDTH(DATA_WIDTH)
+    ) u_matvec_Uh (
+        .clk(clk),
+        .rst_n(rst_n),
+        .start(start_Uh),
+        .done(done_Uh),
+        .matrix(U),
+        .vector(h_prev),
+        .result(Uh_total)
+    );
+
+    // Combinational elementwise add: preact = Wx_total + Uh_total + b
     always_comb begin
         integer i;
         for (i = 0; i < HIDDEN_SIZE*4; i++) begin
             preact[i] = Wx_total[i] + Uh_total[i] + b[i];
         end
-
-        for (i = 0; i < HIDDEN_SIZE; i++) begin
-            gate_i[i] = sigmoid_approx(preact[i]);
-            gate_f[i] = sigmoid_approx(preact[HIDDEN_SIZE+i]);
-            gate_c[i] = tanh_approx(preact[HIDDEN_SIZE*2+i]);
-            gate_o[i] = sigmoid_approx(preact[HIDDEN_SIZE*3+i]);
-        end
     end
 
+    // Instantiate activation functions
+    generate
+        genvar idx;
+        for (idx = 0; idx < HIDDEN_SIZE; idx++) begin
+            sigmoid_approx u_sigmoid_i (.x(preact[idx]),                  .y(gate_i[idx]));
+            sigmoid_approx u_sigmoid_f (.x(preact[HIDDEN_SIZE+idx]),       .y(gate_f[idx]));
+            tanh_approx    u_tanh_c     (.x(preact[HIDDEN_SIZE*2+idx]),    .y(gate_c[idx]));
+            sigmoid_approx u_sigmoid_o (.x(preact[HIDDEN_SIZE*3+idx]),     .y(gate_o[idx]));
+            tanh_approx    u_tanh_c2    (.x(c[idx]),                       .y(tanh_c[idx])); // tanh(c) for output
+        end
+    endgenerate
+
+    // Update h and c
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             foreach (h[i]) h[i] <= 0;
@@ -137,8 +153,8 @@ module lstm_cell #(
         end else if (state == S_UPDATE) begin
             integer i;
             for (i = 0; i < HIDDEN_SIZE; i++) begin
-                c[i] <= gate_f[i] * c_prev[i] + gate_i[i] * gate_c[i];
-                h[i] <= gate_o[i] * tanh_approx(c[i]);
+                c[i] <= (gate_f[i] * c_prev[i]) + (gate_i[i] * gate_c[i]);
+                h[i] <= gate_o[i] * tanh_c[i];
             end
         end
     end

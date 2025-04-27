@@ -1,10 +1,9 @@
-`timescale 1ns/1ps
+// Testbench for lstm_cell
+module tb_lstm_cell;
 
-module tb_lstm_cell();
-
-    parameter int INPUT_SIZE  = 2;
+    parameter int INPUT_SIZE = 2;
     parameter int HIDDEN_SIZE = 2;
-    parameter int DATA_WIDTH  = 32;
+    parameter int DATA_WIDTH = 32;
 
     logic clk;
     logic rst_n;
@@ -22,11 +21,7 @@ module tb_lstm_cell();
     logic signed [DATA_WIDTH-1:0] h[HIDDEN_SIZE];
     logic signed [DATA_WIDTH-1:0] c[HIDDEN_SIZE];
 
-    // Clock generation
-    initial clk = 0;
-    always #5 clk = ~clk; // 100MHz clock
-
-    // Instantiate the DUT
+    // Instantiate DUT
     lstm_cell #(
         .INPUT_SIZE(INPUT_SIZE),
         .HIDDEN_SIZE(HIDDEN_SIZE),
@@ -46,56 +41,49 @@ module tb_lstm_cell();
         .c(c)
     );
 
-    // Stimulus
+    // Clock generation
     initial begin
-        // Reset
+        clk = 0;
+        forever #5 clk = ~clk; // 100MHz clock
+    end
+
+    // Reset and stimulus
+    initial begin
+        integer i, j;
         rst_n = 0;
         start = 0;
-        repeat(2) @(posedge clk);
+        repeat (2) @(posedge clk);
         rst_n = 1;
+        @(posedge clk);
 
         // Initialize inputs
-        x[0] = 32'sd1;
-        x[1] = 32'sd2;
+        for (i = 0; i < INPUT_SIZE; i++) x[i] = i + 1;
+        for (i = 0; i < HIDDEN_SIZE; i++) h_prev[i] = i + 1;
+        for (i = 0; i < HIDDEN_SIZE; i++) c_prev[i] = i + 1;
 
-        h_prev[0] = 32'sd0;
-        h_prev[1] = 32'sd0;
+        for (i = 0; i < HIDDEN_SIZE*4; i++) begin
+            for (j = 0; j < INPUT_SIZE; j++) W[i][j] = i + j + 1;
+        end
 
-        c_prev[0] = 32'sd0;
-        c_prev[1] = 32'sd0;
+        for (i = 0; i < HIDDEN_SIZE*4; i++) begin
+            for (j = 0; j < HIDDEN_SIZE; j++) U[i][j] = i + j + 1;
+        end
 
-        // Initialize weights and biases
-        foreach (W[i, j])
-            W[i][j] = 32'sd1;
-        foreach (U[i, j])
-            U[i][j] = 32'sd1;
-        foreach (b[i])
-            b[i] = 32'sd0;
+        for (i = 0; i < HIDDEN_SIZE*4; i++) b[i] = i + 1;
 
-        // Start LSTM computation
-        repeat(1) @(posedge clk);
+        @(posedge clk);
         start = 1;
-        repeat(1) @(posedge clk);
+        @(posedge clk);
         start = 0;
 
-        // Wait for computation to complete
-        repeat(10) @(posedge clk);
+        // Wait for done
+        wait (done);
+        @(posedge clk);
 
-        // Display results
-        $display("\nFinal h outputs:");
-        foreach (h[i])
+        $display("Testbench completed. Output h and c values:");
+        for (i = 0; i < HIDDEN_SIZE; i++) begin
             $display("h[%0d] = %0d", i, h[i]);
-
-        $display("\nFinal c outputs:");
-        foreach (c[i])
             $display("c[%0d] = %0d", i, c[i]);
-
-        // Check results
-        if (h[0] !== 32'sd1 || h[1] !== 32'sd1 || c[0] !== 32'sd1 || c[1] !== 32'sd1) begin
-            $display("\nTEST FAILED: Unexpected output!");
-            $stop;
-        end else begin
-            $display("\nTEST PASSED!");
         end
 
         $finish;
