@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// lstm_cell.sv - LSTM cell
+// lstm_cell.sv - LSTM Cell Hardware Implementation
 // -----------------------------------------------------------------------------
 module lstm_cell #(
     parameter int INPUT_SIZE  = 6,
@@ -8,113 +8,78 @@ module lstm_cell #(
 )(
     input  logic clk,
     input  logic rst_n,
+    input  logic start,
+    output logic done,
 
-    // Control
-    input  logic input_valid,
-    output logic output_valid,
-
-    // Input vectors
     input  logic signed [DATA_WIDTH-1:0] x[INPUT_SIZE],
     input  logic signed [DATA_WIDTH-1:0] h_prev[HIDDEN_SIZE],
     input  logic signed [DATA_WIDTH-1:0] c_prev[HIDDEN_SIZE],
 
-    // Output vectors
+    input  logic signed [DATA_WIDTH-1:0] W[HIDDEN_SIZE*4][INPUT_SIZE],
+    input  logic signed [DATA_WIDTH-1:0] U[HIDDEN_SIZE*4][HIDDEN_SIZE],
+    input  logic signed [DATA_WIDTH-1:0] b[HIDDEN_SIZE*4],
+
     output logic signed [DATA_WIDTH-1:0] h[HIDDEN_SIZE],
     output logic signed [DATA_WIDTH-1:0] c[HIDDEN_SIZE]
 );
 
-    // -------------------------------------------------------------------------
-    // State Machine
-    typedef enum logic [2:0] {
-        IDLE,
-        LOAD_INPUTS,
-        COMPUTE_Wx_Uh,
-        ACTIVATE_GATES,
-        UPDATE_STATE,
-        OUTPUT_READY
-    } fsm_state_t;
+    // Internal wires for each gate
+    logic signed [DATA_WIDTH-1:0] Wx_i[HIDDEN_SIZE], Wx_f[HIDDEN_SIZE], Wx_c[HIDDEN_SIZE], Wx_o[HIDDEN_SIZE];
+    logic signed [DATA_WIDTH-1:0] Uh_i[HIDDEN_SIZE], Uh_f[HIDDEN_SIZE], Uh_c[HIDDEN_SIZE], Uh_o[HIDDEN_SIZE];
+    logic signed [DATA_WIDTH-1:0] preact_i[HIDDEN_SIZE], preact_f[HIDDEN_SIZE], preact_c[HIDDEN_SIZE], preact_o[HIDDEN_SIZE];
+    logic signed [DATA_WIDTH-1:0] gate_i[HIDDEN_SIZE], gate_f[HIDDEN_SIZE], gate_c[HIDDEN_SIZE], gate_o[HIDDEN_SIZE];
+    logic signed [DATA_WIDTH-1:0] f_cprev[HIDDEN_SIZE], i_cand[HIDDEN_SIZE], c_tanh[HIDDEN_SIZE];
 
-    fsm_state_t state, next_state;
+    // Matrix-vector multiplies for Wx and Uh per gate
+    matvec_mul #(INPUT_SIZE, HIDDEN_SIZE, DATA_WIDTH) matvec_Wx_i (.clk(clk), .rst_n(rst_n), .start(start), .done(), .matrix(W[0:HIDDEN_SIZE-1]), .vector(x), .result(Wx_i));
+    matvec_mul #(HIDDEN_SIZE, HIDDEN_SIZE, DATA_WIDTH) matvec_Uh_i (.clk(clk), .rst_n(rst_n), .start(start), .done(), .matrix(U[0:HIDDEN_SIZE-1]), .vector(h_prev), .result(Uh_i));
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            state <= IDLE;
-        else
-            state <= next_state;
-    end
+    matvec_mul #(INPUT_SIZE, HIDDEN_SIZE, DATA_WIDTH) matvec_Wx_f (.clk(clk), .rst_n(rst_n), .start(start), .done(), .matrix(W[HIDDEN_SIZE:HIDDEN_SIZE*2-1]), .vector(x), .result(Wx_f));
+    matvec_mul #(HIDDEN_SIZE, HIDDEN_SIZE, DATA_WIDTH) matvec_Uh_f (.clk(clk), .rst_n(rst_n), .start(start), .done(), .matrix(U[HIDDEN_SIZE:HIDDEN_SIZE*2-1]), .vector(h_prev), .result(Uh_f));
 
-    // FSM Next State Logic
-    always_comb begin
-        next_state = state;
-        case (state)
-            IDLE: if (input_valid) next_state = LOAD_INPUTS;
-            LOAD_INPUTS: next_state = COMPUTE_Wx_Uh;
-            COMPUTE_Wx_Uh: if (matvec_done) next_state = ACTIVATE_GATES;
-            ACTIVATE_GATES: if (activation_done) next_state = UPDATE_STATE;
-            UPDATE_STATE: if (update_done) next_state = OUTPUT_READY;
-            OUTPUT_READY: if (clear_done) next_state = IDLE;
-            default: next_state = IDLE;
-        endcase
-    end
+    matvec_mul #(INPUT_SIZE, HIDDEN_SIZE, DATA_WIDTH) matvec_Wx_c (.clk(clk), .rst_n(rst_n), .start(start), .done(), .matrix(W[HIDDEN_SIZE*2:HIDDEN_SIZE*3-1]), .vector(x), .result(Wx_c));
+    matvec_mul #(HIDDEN_SIZE, HIDDEN_SIZE, DATA_WIDTH) matvec_Uh_c (.clk(clk), .rst_n(rst_n), .start(start), .done(), .matrix(U[HIDDEN_SIZE*2:HIDDEN_SIZE*3-1]), .vector(h_prev), .result(Uh_c));
 
-    // -------------------------------------------------------------------------
-    // Control Signals
-    logic load_inputs;
-    logic start_matvec, matvec_done;
-    logic start_activation, activation_done;
-    logic start_update, update_done;
-    logic clear_done;
+    matvec_mul #(INPUT_SIZE, HIDDEN_SIZE, DATA_WIDTH) matvec_Wx_o (.clk(clk), .rst_n(rst_n), .start(start), .done(), .matrix(W[HIDDEN_SIZE*3:HIDDEN_SIZE*4-1]), .vector(x), .result(Wx_o));
+    matvec_mul #(HIDDEN_SIZE, HIDDEN_SIZE, DATA_WIDTH) matvec_Uh_o (.clk(clk), .rst_n(rst_n), .start(start), .done(), .matrix(U[HIDDEN_SIZE*3:HIDDEN_SIZE*4-1]), .vector(h_prev), .result(Uh_o));
 
-    assign load_inputs     = (state == LOAD_INPUTS);
-    assign start_matvec    = (state == COMPUTE_Wx_Uh);
-    assign start_activation= (state == ACTIVATE_GATES);
-    assign start_update    = (state == UPDATE_STATE);
-    assign output_valid    = (state == OUTPUT_READY);
+    // Elementwise additions for Wx + Uh + b per gate
+    elementwise_add #(HIDDEN_SIZE, DATA_WIDTH) add_Wx_Uh_i (.a(Wx_i), .b(Uh_i), .result(preact_i));
+    elementwise_add #(HIDDEN_SIZE, DATA_WIDTH) add_Wx_Uh_f (.a(Wx_f), .b(Uh_f), .result(preact_f));
+    elementwise_add #(HIDDEN_SIZE, DATA_WIDTH) add_Wx_Uh_c (.a(Wx_c), .b(Uh_c), .result(preact_c));
+    elementwise_add #(HIDDEN_SIZE, DATA_WIDTH) add_Wx_Uh_o (.a(Wx_o), .b(Uh_o), .result(preact_o));
 
-    // -------------------------------------------------------------------------
-    // Internal Registers (latching inputs)
-    logic signed [DATA_WIDTH-1:0] x_reg[INPUT_SIZE];
-    logic signed [DATA_WIDTH-1:0] h_prev_reg[HIDDEN_SIZE];
-    logic signed [DATA_WIDTH-1:0] c_prev_reg[HIDDEN_SIZE];
+    elementwise_add #(HIDDEN_SIZE, DATA_WIDTH) add_bias_i (.a(preact_i), .b(b[0:HIDDEN_SIZE-1]), .result(preact_i));
+    elementwise_add #(HIDDEN_SIZE, DATA_WIDTH) add_bias_f (.a(preact_f), .b(b[HIDDEN_SIZE:HIDDEN_SIZE*2-1]), .result(preact_f));
+    elementwise_add #(HIDDEN_SIZE, DATA_WIDTH) add_bias_c (.a(preact_c), .b(b[HIDDEN_SIZE*2:HIDDEN_SIZE*3-1]), .result(preact_c));
+    elementwise_add #(HIDDEN_SIZE, DATA_WIDTH) add_bias_o (.a(preact_o), .b(b[HIDDEN_SIZE*3:HIDDEN_SIZE*4-1]), .result(preact_o));
 
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            // Reset registers
-        end else if (load_inputs) begin
-            x_reg <= x;
-            h_prev_reg <= h_prev;
-            c_prev_reg <= c_prev;
+    // Activation functions
+    generate
+        genvar idx;
+        for (idx = 0; idx < HIDDEN_SIZE; idx++) begin
+            sigmoid_approx #(DATA_WIDTH) sigmoid_i_inst (.x(preact_i[idx]), .y(gate_i[idx]));
+            sigmoid_approx #(DATA_WIDTH) sigmoid_f_inst (.x(preact_f[idx]), .y(gate_f[idx]));
+            tanh_approx #(DATA_WIDTH) tanh_c_inst (.x(preact_c[idx]), .y(gate_c[idx]));
+            sigmoid_approx #(DATA_WIDTH) sigmoid_o_inst (.x(preact_o[idx]), .y(gate_o[idx]));
         end
-    end
+    endgenerate
 
-    // -------------------------------------------------------------------------
-    // Placeholder Module Instances (one for each gate)
+    // Cell state and hidden state calculations
+    elementwise_mul #(HIDDEN_SIZE, DATA_WIDTH) mul_f_cprev (.a(gate_f), .b(c_prev), .result(f_cprev));
+    elementwise_mul #(HIDDEN_SIZE, DATA_WIDTH) mul_i_cand (.a(gate_i), .b(gate_c), .result(i_cand));
+    elementwise_add #(HIDDEN_SIZE, DATA_WIDTH) add_cell (.a(f_cprev), .b(i_cand), .result(c));
 
-    // Example: Instantiating one matvec for input gate (i)
-    logic signed [DATA_WIDTH-1:0] Wx_i_out[HIDDEN_SIZE];
+    generate
+        for (idx = 0; idx < HIDDEN_SIZE; idx++) begin
+            tanh_approx #(DATA_WIDTH) tanh_cout (.x(c[idx]), .y(c_tanh[idx]));
+        end
+    endgenerate
 
-    matvec_mul #(
-        .VEC_SIZE(INPUT_SIZE),
-        .OUT_SIZE(HIDDEN_SIZE)
-    ) matvec_Wx_i (
-        .clk(clk),
-        .rst_n(rst_n),
-        .start(start_matvec),
-        .done(matvec_done),
-        .matrix(W_i),
-        .vector(x_reg),
-        .result(Wx_i_out)
-    );
+    elementwise_mul #(HIDDEN_SIZE, DATA_WIDTH) mul_o_ctanh (.a(gate_o), .b(c_tanh), .result(h));
 
-    // TODO: Repeat for Uh_i, Wx_f, Uh_f, Wx_o, Uh_o, Wx_c, Uh_c
-    // TODO: Bias addition modules
-    // TODO: Activation modules (sigmoid/tanh approximators)
-
-    // -------------------------------------------------------------------------
-    // Compute gates i, f, o, and c~ (using activations)
-
-    // Compute new c and new h
-    // (Placeholder logic, to be wired fully with elementwise_mul and elementwise_add)
+    // Done signal (simple - combinational completion)
+    assign done = 1'b1;
 
 endmodule
 // -----------------------------------------------------------------------------
