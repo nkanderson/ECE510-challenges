@@ -99,3 +99,72 @@ Visualization with Snakeviz, along with interpretation of results by ChatGPT con
 
 ![Profiling with snakeviz](./images/snakeviz_q-learning.png)
 *Snakeviz interactive profiling, showing `nxtPosition` contribution to execution time, within `Action`.*
+
+## Optimization for GPU
+
+### Profiling
+
+Original
+```sh
+(venv) ➜  challenge-10 git:(main) ✗ kernprof -l -v q_learning.py
+Wrote profile results to q_learning.py.lprof
+Timer unit: 1e-06 s
+
+Total time: 0.777938 s
+File: q_learning.py
+Function: run_q_learning at line 132
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   132                                           @profile
+   133                                           def run_q_learning(episodes=10000):
+   134         1         43.0     43.0      0.0      ag = Agent()
+   135         1     777894.0 777894.0    100.0      ag.Q_Learning(episodes)
+   136         1          1.0      1.0      0.0      return ag.plot_reward
+```
+
+Optimized for GPU (supposedly)
+```sh
+(venv) ➜  challenge-10 git:(main) ✗ kernprof -l -v pytorch_q_learning.py
+Wrote profile results to pytorch_q_learning.py.lprof
+Timer unit: 1e-06 s
+
+Total time: 2.12775 s
+File: pytorch_q_learning.py
+Function: run_pytorch_q_learning at line 53
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    53                                           @profile
+    54                                           def run_pytorch_q_learning(num_agents=512, max_steps=10000):
+    55                                               global Q  # Reuse Q-table across runs
+    56         1       2149.0   2149.0      0.1      states = START.repeat(num_agents, 1)
+    57         1          1.0      1.0      0.0      rewards_history = []
+    58     10001       3164.0      0.3      0.1      for step in range(max_steps):
+    59     10000      54210.0      5.4      2.5          actions = torch.randint(0, NUM_ACTIONS, (num_agents,), device=device)
+    60     10000     752329.0     75.2     35.4          next_states = compute_next_states(states, actions)
+    61     10000     302740.0     30.3     14.2          rewards = get_reward(next_states)
+    62     10000     820955.0     82.1     38.6          update_q(Q, states, actions, rewards, next_states)
+    63     10000      33690.0      3.4      1.6          rewards_history.append(rewards.sum().item())
+    64     10000      94958.0      9.5      4.5          done = (rewards == 1.0) | (rewards == -5.0)
+    65     10000      63552.0      6.4      3.0          states = torch.where(done.unsqueeze(1), START, next_states)
+    66         1          3.0      3.0      0.0      return rewards_history
+```
+
+Running comparison script, with no plotting:
+```sh
+(venv) ➜  challenge-10 git:(main) ✗ python main.py
+
+--- Running q_learning.py ---
+Execution time for q_learning.py: 0.774 seconds
+
+--- Running pytorch_q_learning.py ---
+Execution time for pytorch_q_learning.py: 3.460 seconds
+
+=== Comparison Summary ===
+Original Runtime: 0.774s
+Optimized Runtime: 3.460s
+Speedup: 0.22x
+```
+
+The supposed GPU-optimized script is significantly slower, and doesn't produce correct results. One very obvious problem is that the computer this was executed on does not have a CUDA-capable GPU. However, there are clearly other issues with the code produced by ChatGPT, as it does not produce correct results.

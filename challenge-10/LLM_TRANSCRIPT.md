@@ -831,3 +831,24 @@ Would you like me to generate the full updated q_learning.py and
 pytorch_q_learning.py content now with all these changes included?
 
 Prompt: Yes, I'd like to have the full files for each
+
+Response: Both q_learning.py (original) and pytorch_q_learning.py (optimized) have now been refactored with:
+
+    A @profile-decorated function (run_q_learning or run_pytorch_q_learning) for focused profiling.
+
+    Proper if __name__ == "__main__" blocks for compatibility with kernprof.
+
+    Guards to prevent @profile errors if not using line_profiler.
+
+You're now ready to run:
+
+```sh
+kernprof -l -v q_learning.py
+kernprof -l -v pytorch_q_learning.py
+```
+
+Or profile both from main.py for timing comparisons.
+
+Would you like help next with setting up CSV or table output for comparing results automatically across multiple runs?
+
+
