@@ -851,4 +851,285 @@ Or profile both from main.py for timing comparisons.
 
 Would you like help next with setting up CSV or table output for comparing results automatically across multiple runs?
 
+Prompt: First we have some other things to work through. Is cuda the only way to use the GPU? This is running on an Apple M1 mac mini, which has an Apple GPU, not nvidia. Second, the plotting indicates that the PyTorch version is not correctly training the model.
+
+Response: You're raising two very important issues — let's address them in turn.
+
+🧠 1. Can PyTorch Use the Apple M1 GPU (non-CUDA)?
+❌ CUDA Limitation:
+
+CUDA is NVIDIA-specific, and Apple Silicon (M1/M2) has a custom Apple GPU — so CUDA won’t work.
+✅ Metal Support (PyTorch for M1 GPU):
+
+Apple has introduced Metal Performance Shaders (MPS) as a backend for GPU acceleration. As of PyTorch 1.12+, you can use it via:
+```python
+device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+```
+
+Replace your existing device = torch.device(...) line in pytorch_q_learning.py with:
+```python
+device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+```
+
+That will enable GPU acceleration on Apple Silicon — assuming your PyTorch is installed with MPS support.
+
+🔧 Installing MPS-Compatible PyTorch
+
+Use:
+
+`pip install torch torchvision torchaudio`
+
+If needed, use the nightly build:
+
+`pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu`
+
+To verify:
+```python
+import torch
+print(torch.backends.mps.is_available())
+```
+
+🧪 2. PyTorch Version Isn’t Learning Correctly
+
+You're right — your PyTorch port isn't converging well because:
+🔍 Core Issue:
+
+You're resetting the state when a reward is observed, but you aren't distinguishing episode boundaries, so:
+
+    The Q-values aren't stabilizing (no proper episodes)
+
+    You're doing thousands of partial updates instead of learning from structured episodes
+
+✅ Fix: Add Proper Episode Tracking
+
+Let’s switch from max_steps to true episode-based training, like in the original code.
+✅ Proposed Fix
+
+Update this part inside run_pytorch_q_learning():
+
+This ensures:
+
+    Each episode continues until all agents reach terminal states.
+
+    You collect meaningful cumulative rewards per episode.
+
+Would you like me to apply these changes directly to your pytorch_q_learning.py in the canvas?
+
+Prompt: I don't think this is quite right yet. In attempting to run the script, it hangs, probably because execution is taking too long
+
+Response: <included updated code>
+
+I've updated the script to:
+
+    Use Apple Silicon's GPU via torch.device("mps") when available.
+
+    Replace the long-running step loop with an episode-based structure, ensuring agents reset only after reaching terminal states.
+
+    Reduce max_episodes to 1000 for faster initial testing.
+
+Let me know if you'd like to add logging, CSV export of episode rewards, or benchmark this version against the original.
+
+Prompt: This is taking quite a while with even 10 `max_episodes`. Something is not quite right here. Let's step through the code. Also, for what it's worth, `print(torch.backends.mps.is_available())` does return `True`, so it seems like this should be taking advantage of the Apple silicon metal performance shaders.
+
+Response: Thanks — and you're right to dig into this carefully.
+
+If the script is slow even with 10 episodes, something is likely going wrong inside the while not done.all() loop. Let’s walk through the logic and identify where things might be hanging.
+
+🔍 Step-by-Step Debug Review
+1. Starting Point
+
+```python
+states = START.repeat(num_agents, 1)
+done = torch.zeros(num_agents, dtype=torch.bool, device=device)
+```
+You correctly initialize all agents at (0, 0) and mark them as not done.
+
+2. Loop Exit Condition
+```python
+while not done.all():
+```
+    The loop is not guaranteed to terminate if some agents never reach WIN or HOLE.
+
+    This can easily happen due to random wandering in a sparse grid.
+
+✅ Diagnosis: Agents can get “stuck” in an infinite loop because there’s no maximum number of steps per episode.
+
+✅ Recommended Fix: Cap the number of steps per episode
+
+Add a max step limit inside the episode loop:
+```python
+MAX_STEPS_PER_EPISODE = 50
+```
+
+Update the inner loop:
+```python
+steps = 0
+while not done.all() and steps < MAX_STEPS_PER_EPISODE:
+    ...
+    steps += 1
+```
+
+🧠 Why This Matters
+
+    Without a step limit, agents that avoid terminal states (accidentally or due to bugs) will loop forever.
+
+    This is especially critical when using random exploration.
+
+    🔧 Patch Summary
+
+Here’s how to modify run_pytorch_q_learning:
+```python
+@profile
+def run_pytorch_q_learning(num_agents=512, max_episodes=1000, max_steps_per_episode=50):
+    global Q
+    Q.zero_()
+    rewards_history = []
+
+    for _ in range(max_episodes):
+        states = START.repeat(num_agents, 1)
+        done = torch.zeros(num_agents, dtype=torch.bool, device=device)
+        episode_rewards = torch.zeros(num_agents, dtype=torch.float32, device=device)
+
+        steps = 0
+        while not done.all() and steps < max_steps_per_episode:
+            actions = torch.randint(0, NUM_ACTIONS, (num_agents,), device=device)
+            next_states = compute_next_states(states, actions)
+            rewards = get_reward(next_states)
+            update_q(Q, states, actions, rewards, next_states)
+
+            episode_rewards += rewards
+            done |= (rewards == 1.0) | (rewards == -5.0)
+            states = torch.where(done.unsqueeze(1), START, next_states)
+            steps += 1
+
+        rewards_history.append(episode_rewards.sum().item())
+
+    return rewards_history
+```
+
+Would you like me to apply this change to the canvas now?
+
+Prompt: Well, that does seem like an important thing to address, but I don't think it accounts for why running with 10 episodes is slow, but does complete. When I force interrupt the script while running, it's interrupted in torch.clamp(next_states, 0, 4) in compute_next_states
+
+Reponse: Thanks — this is a valuable clue. If interrupting the script shows it's stuck at:
+```python
+return torch.clamp(next_states, 0, 4)
+```
+
+then next_states likely contains values that are invalid or causing GPU stalls, especially under MPS (Metal backend on Apple Silicon). MPS is still somewhat experimental, and certain operations like tensor indexing and modification can behave unpredictably or slowly.
+
+🔍 Likely Culprit: In-place modification of next_states
+
+Here's the code in question:
+```python
+next_states = states.clone()
+next_states[actions == 0, 0] -= 1
+next_states[actions == 1, 0] += 1
+next_states[actions == 2, 1] -= 1
+next_states[actions == 3, 1] += 1
+return torch.clamp(next_states, 0, 4)
+```
+
+These in-place masked assignments on GPU tensors are known to sometimes cause performance or stability issues, especially on MPS.
+
+✅ Fix: Avoid masked in-place updates
+
+Refactor to construct the deltas and apply them in one go. This avoids four separate masked updates and is cleaner:
+🔧 Replace compute_next_states with:
+```python
+def compute_next_states(states, actions):
+    # Create delta tensors for row and column updates
+    deltas = torch.zeros_like(states, device=device)
+    deltas[:, 0] = (actions == 1).to(torch.long) - (actions == 0).to(torch.long)  # down - up
+    deltas[:, 1] = (actions == 3).to(torch.long) - (actions == 2).to(torch.long)  # right - left
+    next_states = states + deltas
+    return torch.clamp(next_states, 0, 4)
+```
+
+This avoids indexing overhead and lets the tensor engine (MPS or CUDA) optimize the vectorized operations.
+
+Would you like me to update the compute_next_states function in the canvas with this refactored version?
+
+Prompt: Now I have to force interrupt with just 10 episodes, so it's taking even longer. This is the trackback from when I interrupted:
+```
+python pytorch_q_learning.py
+^CTraceback (most recent call last):
+  File "/Users/nik/Documents/ECE510/ECE510-challenges/challenge-10/pytorch_q_learning.py", line 91, in <module>
+    rewards = run_pytorch_q_learning()
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/nik/Documents/ECE510/ECE510-challenges/challenge-10/pytorch_q_learning.py", line 75, in run_pytorch_q_learning
+    rewards = get_reward(next_states)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/nik/Documents/ECE510/ECE510-challenges/challenge-10/pytorch_q_learning.py", line 31, in get_reward
+    def get_reward(states):
+    
+KeyboardInterrupt
+```
+
+Response: Thanks for that traceback — it’s extremely helpful. The fact that it’s hanging inside get_reward() suggests an inefficient or incompatible indexing pattern when using HOLE_MASK[states[:, 0], states[:, 1]] on the Apple M1 GPU.
+
+🔍 Diagnosis: HOLE_MASK[...] on MPS is Slow or Problematic
+
+The operation:
+```python
+hole_mask = HOLE_MASK[states[:, 0], states[:, 1]]
+```
+is doing fancy indexing with two 1D tensors, which is known to be:
+
+    Slower than expected on CUDA
+
+    Potentially much worse on MPS due to backend immaturity
+
+✅ Solution: Vectorized Comparison Instead of Indexing
+
+Let’s replace the problematic mask lookup with a vectorized equality check:
+
+```python
+def get_reward(states):
+    rewards = torch.full((states.shape[0],), -1.0, device=device)
+
+    is_hole = (states[:, None] == HOLE_STATE).all(dim=2).any(dim=1)
+    is_win = (states == WIN_STATE).all(dim=1)
+
+    rewards[is_hole] = -5.0
+    rewards[is_win] = 1.0
+    return rewards
+```
+
+Explanation:
+
+    states[:, None] makes shape (N, 1, 2) — one state per row.
+
+    HOLE_STATE is shape (4, 2), so broadcasting gives (N, 4, 2).
+
+    (states[:, None] == HOLE_STATE).all(dim=2) gives a (N, 4) mask for equality with each hole.
+
+    .any(dim=1) checks if the state matches any hole.
+
+💡 This removes all fancy indexing and relies entirely on batched tensor math, which works far more reliably across PyTorch backends (including MPS).
+
+Would you like me to apply this fix to the get_reward() function in the canvas now?
+
+Prompt: That's faster than it was, but it still takes far longer than it should with just 10 episodes. This is what I get with a keyboard interrupt now:
+```
+python pytorch_q_learning.py
+^CTraceback (most recent call last):
+  File "/Users/nik/Documents/ECE510/ECE510-challenges/challenge-10/pytorch_q_learning.py", line 93, in <module>
+    rewards = run_pytorch_q_learning()
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/nik/Documents/ECE510/ECE510-challenges/challenge-10/pytorch_q_learning.py", line 78, in run_pytorch_q_learning
+    update_q(Q, states, actions, rewards, next_states)
+  File "/Users/nik/Documents/ECE510/ECE510-challenges/challenge-10/pytorch_q_learning.py", line 55, in update_q
+    def update_q(Q, states, actions, rewards, next_states, alpha=0.5, gamma=0.9):
+    
+KeyboardInterrupt
+```
+`update_q` is the only function we haven't yet updated for MPS
+
+Response: <provided updated code>
+
+I've updated the update_q function to avoid costly advanced indexing operations on MPS by flattening the Q-table and using simple indexing math. This should significantly reduce execution time on Apple Silicon GPUs. I also capped steps per episode to avoid infinite loops and set max_episodes=10 in the main block for faster testing.
+
+Let me know if you'd like to compare CPU vs GPU runtime directly or add performance logging.
+
 
