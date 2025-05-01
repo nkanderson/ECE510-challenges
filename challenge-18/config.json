@@ -1,0 +1,20 @@
+{
+  "DESIGN_NAME": "lstm_cell",
+  "VERILOG_FILES": [
+    "dir::elementwise_add.v",
+    "dir::elementwise_mul.v",
+    "dir::lstm_cell.v",
+    "dir::matvec_mul.v",
+    "dir::sigmoid_approx.v",
+    "dir::tanh_approx.v"
+  ],
+  "CLOCK_PERIOD": 25,
+  "CLOCK_PORT": "clk",
+  "FP_SIZING": "absolute",
+  "DIE_AREA": [
+    0,
+    0,
+    5453.60,
+    5453.60
+  ]
+}
