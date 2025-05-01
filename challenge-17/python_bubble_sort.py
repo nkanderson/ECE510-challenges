@@ -1,6 +1,6 @@
 import threading
+import unittest
 import random
-import time
 
 
 class ProcessingElement(threading.Thread):
@@ -15,18 +15,16 @@ class ProcessingElement(threading.Thread):
 
     def run(self):
         while self.running:
-            self.phase_event.wait()  # Wait for current phase signal
+            self.phase_event.wait()
             self.phase_event.clear()
-            if self.index < len(self.values) - 1:
+            if self.index < len(self.values) - 1 and self.active_phase:
                 with self.lock:
-                    if self.active_phase:
-                        if self.values[self.index] > self.values[self.index + 1]:
-                            # Swap
-                            self.values[self.index], self.values[self.index + 1] = (
-                                self.values[self.index + 1],
-                                self.values[self.index],
-                            )
-            self.next_phase_event.set()  # Signal completion
+                    if self.values[self.index] > self.values[self.index + 1]:
+                        self.values[self.index], self.values[self.index + 1] = (
+                            self.values[self.index + 1],
+                            self.values[self.index],
+                        )
+            self.next_phase_event.set()
 
     def stop(self):
         self.running = False
@@ -44,7 +42,6 @@ def systolic_bubble_sort_threaded(values):
     next_phase_event = threading.Event()
     pes = []
 
-    # Create one PE per comparison pair
     for i in range(n - 1):
         pe = ProcessingElement(i, values, lock, phase_event, next_phase_event)
         pes.append(pe)
@@ -55,7 +52,6 @@ def systolic_bubble_sort_threaded(values):
         for pe in pes:
             pe.set_phase(is_even)
 
-        # Pulse the systolic array
         for _ in range(n - 1):
             next_phase_event.clear()
             phase_event.set()
@@ -66,3 +62,23 @@ def systolic_bubble_sort_threaded(values):
         pe.join()
 
     return values
+
+
+class TestSystolicThreadedSort(unittest.TestCase):
+    def test_sorted_output(self):
+        original = [5, 1, 4, 2, 8]
+        expected = sorted(original)
+        result = systolic_bubble_sort_threaded(original.copy())
+        self.assertEqual(result, expected)
+
+    def test_empty_list(self):
+        result = systolic_bubble_sort_threaded([])
+        self.assertEqual(result, [])
+
+    def test_single_element(self):
+        result = systolic_bubble_sort_threaded([42])
+        self.assertEqual(result, [42])
+
+
+if __name__ == "__main__":
+    unittest.main()
