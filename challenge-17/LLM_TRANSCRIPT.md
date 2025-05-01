@@ -888,3 +888,21 @@ The updated implementation resolves the deadlock by:
     Guarding against single-element and empty inputs early.
 
 Your tests should now pass cleanly without hanging. Let me know if you'd like to add timeout protection or logging for each phase.
+
+Prompt: Ok, yeah, there's still a deadlock. Let's just go back to the simple Python sequential bubble sort, but add some unit tests to it
+
+Response: The file now contains a simple sequential bubble sort implementation (bubble_sort_python) along with unit tests for various edge cases. Let me know if you'd like to profile this version or integrate it into your benchmark chart.
+
+Prompt: Yes, I'd like to integrate this into the benchmark chart in place of the threaded version
+
+Response: The file now includes a benchmark_bubble_sort_python(size) function that you can call from main.py to profile execution time and memory usage. Let me know when you're ready for me to update main.py to integrate this version in place of the threaded one.
+
+<provided code>
+
+Prompt: Ok, yes, ready for main.py
+
+Response: main.py is now updated to benchmark the sequential Python bubble sort in place of the threaded version. It uses the new benchmark_bubble_sort_python function and integrates its timing and memory into the existing chart.
+
+Let me know if you'd like to export the results to CSV or add annotations to the plot.
+
+<provided code>

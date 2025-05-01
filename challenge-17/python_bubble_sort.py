@@ -1,77 +1,56 @@
-import threading
 import unittest
 import random
+import time
+import tracemalloc
 
 
-class ProcessingElement(threading.Thread):
-    def __init__(self, index, values, lock, barrier, exit_event):
-        super().__init__()
-        self.index = index
-        self.values = values
-        self.lock = lock
-        self.barrier = barrier
-        self.exit_event = exit_event
-        self.active_phase = False
-
-    def run(self):
-        while not self.exit_event.is_set():
-            if self.active_phase and self.index < len(self.values) - 1:
-                with self.lock:
-                    if self.values[self.index] > self.values[self.index + 1]:
-                        self.values[self.index], self.values[self.index + 1] = (
-                            self.values[self.index + 1],
-                            self.values[self.index],
-                        )
-            self.barrier.wait()
-
-    def set_phase(self, is_even_phase):
-        self.active_phase = (
-            (self.index % 2 == 0) if is_even_phase else (self.index % 2 == 1)
-        )
+def bubble_sort_python(arr):
+    n = len(arr)
+    for i in range(n):
+        for j in range(n - 1 - i):
+            if arr[j] > arr[j + 1]:
+                arr[j], arr[j + 1] = arr[j + 1], arr[j]
+    return arr
 
 
-def systolic_bubble_sort_threaded(values):
-    n = len(values)
-    if n <= 1:
-        return values
-
-    lock = threading.Lock()
-    barrier = threading.Barrier(n - 1)
-    exit_event = threading.Event()
-    pes = []
-
-    for i in range(n - 1):
-        pe = ProcessingElement(i, values, lock, barrier, exit_event)
-        pes.append(pe)
-        pe.start()
-
-    for phase in range(n):
-        is_even = phase % 2 == 0
-        for pe in pes:
-            pe.set_phase(is_even)
-        barrier.wait()  # Synchronize all PEs per phase
-
-    exit_event.set()
-    for pe in pes:
-        pe.join()
-
-    return values
+def benchmark_bubble_sort_python(size):
+    arr = [random.randint(0, 10000) for _ in range(size)]
+    tracemalloc.start()
+    start = time.perf_counter()
+    bubble_sort_python(arr.copy())
+    end = time.perf_counter()
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    elapsed_time = end - start
+    peak_memory_mb = peak / 1024 / 1024
+    return elapsed_time, peak_memory_mb
 
 
-class TestSystolicThreadedSort(unittest.TestCase):
+class TestBubbleSortPython(unittest.TestCase):
     def test_sorted_output(self):
         original = [5, 1, 4, 2, 8]
         expected = sorted(original)
-        result = systolic_bubble_sort_threaded(original.copy())
+        result = bubble_sort_python(original.copy())
         self.assertEqual(result, expected)
 
     def test_empty_list(self):
-        result = systolic_bubble_sort_threaded([])
+        result = bubble_sort_python([])
         self.assertEqual(result, [])
 
     def test_single_element(self):
-        result = systolic_bubble_sort_threaded([42])
+        result = bubble_sort_python([42])
         self.assertEqual(result, [42])
+
+    def test_already_sorted(self):
+        original = [1, 2, 3, 4, 5]
+        result = bubble_sort_python(original.copy())
+        self.assertEqual(result, original)
+
+    def test_reverse_sorted(self):
+        original = [5, 4, 3, 2, 1]
+        expected = [1, 2, 3, 4, 5]
+        result = bubble_sort_python(original.copy())
+        self.assertEqual(result, expected)
 
 
 if __name__ == "__main__":
