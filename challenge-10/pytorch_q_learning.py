@@ -1,10 +1,9 @@
 import torch
 import matplotlib.pyplot as plt
 
-MAX_STEPS_PER_EPISODE = 50
-
 # Use Metal backend if on Apple Silicon
-device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+# device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+device = torch.device("cpu")
 
 BOARD_ROWS, BOARD_COLS, NUM_ACTIONS = 5, 5, 4
 START = torch.tensor([0, 0], dtype=torch.long, device=device)
@@ -17,9 +16,6 @@ Q = torch.zeros(
     (BOARD_ROWS, BOARD_COLS, NUM_ACTIONS), dtype=torch.float32, device=device
 )
 
-HOLE_MASK = torch.zeros((BOARD_ROWS, BOARD_COLS), dtype=torch.bool, device=device)
-HOLE_MASK[HOLE_STATE[:, 0], HOLE_STATE[:, 1]] = True
-
 try:
     profile
 except NameError:
@@ -30,24 +26,17 @@ except NameError:
 
 def get_reward(states):
     rewards = torch.full((states.shape[0],), -1.0, device=device)
-
     is_hole = (states[:, None] == HOLE_STATE).all(dim=2).any(dim=1)
     is_win = (states == WIN_STATE).all(dim=1)
-
     rewards[is_hole] = -5.0
     rewards[is_win] = 1.0
     return rewards
 
 
 def compute_next_states(states, actions):
-    # Create delta tensors for row and column updates
     deltas = torch.zeros_like(states, device=device)
-    deltas[:, 0] = (actions == 1).to(torch.long) - (actions == 0).to(
-        torch.long
-    )  # down - up
-    deltas[:, 1] = (actions == 3).to(torch.long) - (actions == 2).to(
-        torch.long
-    )  # right - left
+    deltas[:, 0] = (actions == 1).long() - (actions == 0).long()
+    deltas[:, 1] = (actions == 3).long() - (actions == 2).long()
     next_states = states + deltas
     return torch.clamp(next_states, 0, 4)
 
@@ -66,7 +55,7 @@ def update_q(Q, states, actions, rewards, next_states, alpha=0.5, gamma=0.9):
 
 
 @profile
-def run_pytorch_q_learning(num_agents=512, max_episodes=100, max_steps_per_episode=50):
+def run_pytorch_q_learning(num_agents=512, max_episodes=1000, max_steps_per_episode=50):
     global Q
     Q.zero_()
     rewards_history = []
@@ -96,7 +85,7 @@ def run_pytorch_q_learning(num_agents=512, max_episodes=100, max_steps_per_episo
 if __name__ == "__main__":
     # Confirm that Apple silicon metal performance shaders are available
     # print(torch.backends.mps.is_available())
-    rewards = run_pytorch_q_learning()
+    rewards = run_pytorch_q_learning(max_episodes=10000)
     plt.plot(rewards)
     plt.title("Total Rewards (PyTorch)")
     plt.xlabel("Episode")

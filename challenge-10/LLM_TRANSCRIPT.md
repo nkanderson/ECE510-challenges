@@ -1132,4 +1132,71 @@ I've updated the update_q function to avoid costly advanced indexing operations 
 
 Let me know if you'd like to compare CPU vs GPU runtime directly or add performance logging.
 
+Prompt: The performance is still quite terrible. And it's not even clear if it's learning correctly, though it's somewhat difficult to tell being unable to run more than 100 episodes.
+
+Response: Thanks — this confirms we’ve optimized many parts of the pipeline, but the MPS backend is still underperforming. On Apple Silicon (especially with Metal), the PyTorch GPU backend (MPS) is still not comparable to CUDA in speed or stability, especially for workloads like this that involve lots of dynamic indexing and small tensor operations.
+
+🔍 Summary of Key Issues
+
+    MPS inefficiency:
+
+        Metal support in PyTorch is functional but still slower than CPU for small or control-heavy workloads.
+
+        torch.where, indexing, and .view() can trigger performance stalls in MPS.
+
+    Learning instability:
+
+        Q-table is reset every run (via Q.zero_()), so we can't evaluate convergence over many episodes.
+
+        No actual signal that the agent is learning (e.g., via value inspection or policy output).
+
+✅ Short-Term Fix: Run on CPU (which is fast and stable on M1)
+
+Try forcing CPU execution:
+
+```python
+device = torch.device("cpu")
+```
+
+You’ll likely see much faster performance with the same code — and it’ll be easier to scale to 1000+ episodes.
+
+✅ Medium-Term Fix: Validate Learning Progress
+
+Add a quick diagnostic inside the main loop:
+```python
+if (_ + 1) % 100 == 0:
+    print(f"Episode {_+1}: avg reward = {episode_rewards.mean().item():.2f}")
+```
+
+And after training:
+```python
+print("Max Q values by state:")
+for i in range(BOARD_ROWS):
+    row = []
+    for j in range(BOARD_COLS):
+        row.append(f"{Q[i, j].max().item():.2f}")
+    print(" ".join(row))
+```
+
+✅ Optional: Reduce Agent Count
+
+Reduce num_agents=512 → num_agents=64 or 32 — you’ll still get parallelism benefits without overloading the M1 memory pipeline.
+
+🧠 Recommendation
+
+You are better off running this on CPU for now. Once PyTorch MPS matures and better supports advanced tensor ops, it may become viable. Until then:
+
+Platform	Status	Notes
+CPU	✅ Stable & fast	Best for current code
+CUDA	✅ Fastest	For NVIDIA only
+MPS	⚠️ Slow	Experimental, best for large batched models
+
+Would you like me to make the following adjustments in the canvas?
+
+    Switch to CPU only
+
+    Reduce num_agents to 64
+
+    Add basic diagnostics to show Q-values and average reward progress
+
 
