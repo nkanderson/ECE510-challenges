@@ -1,6 +1,5 @@
-# systolic_bubble_sort.py
-
 import torch
+import unittest
 
 
 def systolic_bubble_sort(input_tensor, device="mps"):
@@ -23,3 +22,16 @@ def systolic_bubble_sort(input_tensor, device="mps"):
         x[idx2] = max_vals
 
     return x
+
+
+class TestSystolicBubbleSort(unittest.TestCase):
+    def test_sorted_output(self):
+        for device in ["cpu"] + (["mps"] if torch.backends.mps.is_available() else []):
+            original = torch.tensor([5, 1, 4, 2, 8], dtype=torch.float32)
+            expected = torch.sort(original).values
+            result = systolic_bubble_sort(original, device=device).cpu()
+            self.assertTrue(torch.equal(result, expected), f"Failed on device {device}")
+
+
+if __name__ == "__main__":
+    unittest.main()

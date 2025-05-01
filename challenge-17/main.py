@@ -1,8 +1,10 @@
 import torch
 import time
-import matplotlib.pyplot as plt
 import tracemalloc
+import matplotlib.pyplot as plt
 from systolic_bubble_sort import systolic_bubble_sort
+from python_bubble_sort import systolic_bubble_sort_threaded
+import random
 
 
 def estimate_total_memory(tensor: torch.Tensor) -> float:
@@ -16,13 +18,14 @@ def run_benchmark():
     sizes = [10, 100, 1000, 10000]
     mps_times = []
     mps_memories = []
-    cpu_times = []
-    cpu_memories = []
+    thread_times = []
+    thread_memories = []
 
     print("Starting benchmark...\n")
 
     for size in sizes:
         print(f"Running for size: {size}")
+
         # --- MPS ---
         if torch.backends.mps.is_available():
             device = "mps"
@@ -39,22 +42,22 @@ def run_benchmark():
             mps_times.append(0)
             mps_memories.append(0)
 
-        # --- CPU ---
-        device = "cpu"
-        input_tensor = torch.randint(0, 10000, (size,), dtype=torch.float32)
-
+        # --- Simulated Systolic Array with Threads ---
+        arr = [random.randint(0, 10000) for _ in range(size)]
         tracemalloc.start()
         start = time.perf_counter()
-        _ = systolic_bubble_sort(input_tensor, device=device)
+        _ = systolic_bubble_sort_threaded(arr.copy())
         end = time.perf_counter()
         _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
-        cpu_times.append(end - start)
-        cpu_memories.append(peak / 1024 / 1024)  # MB
+        thread_times.append(end - start)
+        thread_memories.append(peak / 1024 / 1024)  # MB
 
         print(f"  MPS: {mps_times[-1]:.6f}s, ~{mps_memories[-1]:.3f} MB (est)")
-        print(f"  CPU: {cpu_times[-1]:.6f}s, {cpu_memories[-1]:.3f} MB (actual)\n")
+        print(
+            f"  Threaded: {thread_times[-1]:.6f}s, {thread_memories[-1]:.3f} MB (actual)\n"
+        )
 
     # --- Plotting ---
     fig, ax1 = plt.subplots(figsize=(12, 6))
@@ -62,11 +65,8 @@ def run_benchmark():
 
     x = range(len(sizes))
     width = 0.2
+    offset = [-width, 0, width, 2 * width]
 
-    # Offset bars
-    offset = [-1.5 * width, -0.5 * width, 0.5 * width, 1.5 * width]
-
-    # Bars
     bars1 = ax1.bar(
         [i + offset[0] for i in x],
         mps_times,
@@ -83,16 +83,16 @@ def run_benchmark():
     )
     bars3 = ax1.bar(
         [i + offset[2] for i in x],
-        cpu_times,
+        thread_times,
         width=width,
-        label="CPU Time (s)",
+        label="Threaded Time (s)",
         color="darkblue",
     )
     bars4 = ax2.bar(
         [i + offset[3] for i in x],
-        cpu_memories,
+        thread_memories,
         width=width,
-        label="CPU Memory (MB)",
+        label="Threaded Memory (MB)",
         color="lightblue",
     )
 
@@ -101,9 +101,8 @@ def run_benchmark():
     ax2.set_ylabel("Memory Usage (MB)")
     ax1.set_xticks(x)
     ax1.set_xticklabels(sizes)
-    ax1.set_title("Systolic Bubble Sort: MPS vs CPU Execution")
+    ax1.set_title("Systolic Bubble Sort: MPS vs Simulated Threaded Execution")
 
-    # Legend
     lines = [bars1, bars2, bars3, bars4]
     labels = [bar.get_label() for bar in lines]
     ax1.legend(lines, labels, loc="upper left")
