@@ -4,17 +4,17 @@ import random
 
 
 class ProcessingElement(threading.Thread):
-    def __init__(self, index, values, lock, barrier):
+    def __init__(self, index, values, lock, barrier, exit_event):
         super().__init__()
         self.index = index
         self.values = values
         self.lock = lock
         self.barrier = barrier
+        self.exit_event = exit_event
         self.active_phase = False
-        self.running = True
 
     def run(self):
-        while self.running:
+        while not self.exit_event.is_set():
             if self.active_phase and self.index < len(self.values) - 1:
                 with self.lock:
                     if self.values[self.index] > self.values[self.index + 1]:
@@ -24,9 +24,6 @@ class ProcessingElement(threading.Thread):
                         )
             self.barrier.wait()
 
-    def stop(self):
-        self.running = False
-
     def set_phase(self, is_even_phase):
         self.active_phase = (
             (self.index % 2 == 0) if is_even_phase else (self.index % 2 == 1)
@@ -35,12 +32,16 @@ class ProcessingElement(threading.Thread):
 
 def systolic_bubble_sort_threaded(values):
     n = len(values)
+    if n <= 1:
+        return values
+
     lock = threading.Lock()
-    barrier = threading.Barrier(n)  # Synchronize all threads per phase
+    barrier = threading.Barrier(n - 1)
+    exit_event = threading.Event()
     pes = []
 
-    for i in range(n):
-        pe = ProcessingElement(i, values, lock, barrier)
+    for i in range(n - 1):
+        pe = ProcessingElement(i, values, lock, barrier, exit_event)
         pes.append(pe)
         pe.start()
 
@@ -48,10 +49,10 @@ def systolic_bubble_sort_threaded(values):
         is_even = phase % 2 == 0
         for pe in pes:
             pe.set_phase(is_even)
-        barrier.wait()  # Wait for all PEs to complete the phase
+        barrier.wait()  # Synchronize all PEs per phase
 
+    exit_event.set()
     for pe in pes:
-        pe.stop()
         pe.join()
 
     return values
