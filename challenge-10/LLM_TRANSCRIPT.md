@@ -1244,4 +1244,62 @@ MPS	~4–8 seconds (3–5× faster)
 
 Would you like me to drop this benchmarking script into your canvas for testing?
 
+Prompt: Would it be possible to have the script first run with an MPS torch device, then CPU, and print the comparison? And if there are any other interesting stats we can get from the comparison or a visualization, that would be nice.
 
+Response: <provided a changed pytorch q learning script>
+
+The script now benchmarks performance on both the MPS (Apple GPU) and CPU backends:
+
+    It runs the same learning workload on each device.
+
+    Measures and prints execution time.
+
+    Plots cumulative rewards with runtime in the legend.
+
+Let me know if you'd like to include memory usage, per-step timing, or matrix multiplication as a separate GPU benchmark.
+
+Prompt: Canvas isn't showing the right thing, I'm just seeing the pytorch q learning script
+
+Response: You're absolutely right — what you're seeing is still the PyTorch Q-learning benchmark, not a pure matrix multiplication comparison.
+
+Let's add a standalone benchmark that clearly compares matmul performance on MPS vs CPU — this is a much better fit to show off MPS acceleration (if it exists).
+
+✅ Plan: Add run_matmul_benchmark() Function
+
+This will:
+
+    Allocate two large matrices on the selected device.
+
+    Multiply them multiple times.
+
+    Time the operation.
+
+    Compare MPS vs CPU performance directly.
+
+Would you like me to:
+
+    Add the run_matmul_benchmark() function and call it in __main__, alongside the Q-learning comparison?
+
+    Or create a separate file just for the matrix multiplication comparison?
+
+Let me know your preference, and I’ll apply it right away.
+
+Prompt: Separate file
+
+Response: <provided a new file for the comparison>
+
+✅ I've created a new standalone file matmul_benchmark.py that:
+
+    Benchmarks matrix multiplication speed on both MPS and CPU.
+
+    Reports execution time and computes speedup.
+
+    Skips MPS gracefully if unavailable.
+
+You can run it with:
+
+```bash
+python matmul_benchmark.py
+```
+
+Let me know if you'd like to include GPU memory usage, add plots, or compare with different matrix sizes.

@@ -1,26 +1,50 @@
 import torch
 import time
 
-# Try both "cpu" and "mps"
-# device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-device = torch.device("cpu")
-print(f"Using device: {device}")
+# Benchmark parameters
+MATRIX_SIZE = 8192
+NUM_RUNS = 10
 
-# Dimensions: large enough to stress the backend
-N = 8192
 
-# Allocate two large matrices
-a = torch.randn((N, N), device=device)
-b = torch.randn((N, N), device=device)
+def benchmark_matmul(device):
+    print(f"Running on device: {device}")
+    a = torch.randn((MATRIX_SIZE, MATRIX_SIZE), device=device)
+    b = torch.randn((MATRIX_SIZE, MATRIX_SIZE), device=device)
 
-# Warm-up (important for fair timing)
-_ = a @ b
+    # Warm-up
+    _ = torch.matmul(a, b)
 
-# Benchmark
-start = time.time()
-for _ in range(10):
-    c = a @ b
-torch.cuda.synchronize() if device.type == "cuda" else None
-end = time.time()
+    # Timed runs
+    torch.cuda.synchronize() if device.type == "cuda" else None
+    start = time.time()
+    for _ in range(NUM_RUNS):
+        c = torch.matmul(a, b)
+    torch.cuda.synchronize() if device.type == "cuda" else None
+    end = time.time()
 
-print(f"Time for 10 matmul operations: {end - start:.3f} seconds")
+    elapsed = end - start
+    print(f"{device} - Time for {NUM_RUNS} matmul operations: {elapsed:.3f} seconds\n")
+    return elapsed
+
+
+def main():
+    devices = [("MPS", torch.device("mps")), ("CPU", torch.device("cpu"))]
+    results = {}
+
+    for label, dev in devices:
+        if label == "MPS" and not torch.backends.mps.is_available():
+            print("MPS not available, skipping.\n")
+            continue
+        elapsed = benchmark_matmul(dev)
+        results[label] = elapsed
+
+    print("\n=== Summary ===")
+    for label, time_taken in results.items():
+        print(f"{label}: {time_taken:.3f} seconds")
+    if "CPU" in results and "MPS" in results:
+        speedup = results["CPU"] / results["MPS"]
+        print(f"Speedup (CPU / MPS): {speedup:.2f}x")
+
+
+if __name__ == "__main__":
+    main()

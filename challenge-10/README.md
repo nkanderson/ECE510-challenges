@@ -168,3 +168,18 @@ Speedup: 0.22x
 ```
 
 The supposed GPU-optimized script is significantly slower, and doesn't produce correct results. One very obvious problem is that the computer this was executed on does not have a CUDA-capable GPU. However, there are clearly other issues with the code produced by ChatGPT, as it does not produce correct results.
+
+### MPS
+
+Notes from ChatGPT:
+🧪 Things That Work Well on MPS
+    Dense matrix multiplications (@, mm)
+    Batched matrix operations
+    CNNs and fully-connected layers in inference or training
+    Activation functions (ReLU, GELU, etc.)
+
+🛑 Still Weak on MPS
+    Sparse tensor operations
+    Frequent index-based updates (scatter, gather, where)
+    Dynamic control flow (loops per-sample)
+    Small batched operations (not enough parallelism to saturate GPU)
