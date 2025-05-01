@@ -1415,3 +1415,161 @@ So yes, it's executing native code under the hood — the Python call is just a 
 
 Would you like to see how to directly check what backend PyTorch is using under the hood, or trace kernel execution times on MPS?
 
+Prompt: Tracing execution times on MPS would be interesting. I'd also like to get a brief overview of MPS
+
+Response: Great — here’s a brief overview of MPS (Metal Performance Shaders) and how to trace kernel execution times on MPS using PyTorch.
+
+🍎 What is MPS?
+
+MPS (Metal Performance Shaders) is Apple’s GPU-accelerated framework for high-performance compute and graphics tasks on macOS/iOS hardware. It's part of the Metal ecosystem and includes highly optimized GPU kernels for:
+
+    Matrix multiplications
+
+    Convolutions (CNNs)
+
+    Activation functions
+
+    Reductions, element-wise ops
+
+🔧 How PyTorch Uses MPS
+
+Since PyTorch 1.12, Apple and Meta collaborated to provide native support for MPS through a PyTorch backend. When you do:
+
+```python
+torch.device("mps")
+```
+
+PyTorch dispatches operations to MPS kernels (compiled GPU shaders), just as it uses cuBLAS/cuDNN for CUDA.
+
+🔍 How to Trace Execution Time on MPS
+
+You can’t directly time individual kernel launches in Python with MPS like you can with CUDA's cudaEventRecord. But you have two good options:
+
+✅ 1. Use Apple’s Instruments Tool (recommended)
+
+Instruments → Metal System Trace lets you:
+
+    View shader launches
+
+    See GPU occupancy
+
+    Time individual MPS kernels
+
+    Identify pipeline stalls
+
+How:
+
+    Open Instruments (Cmd+Space, type "Instruments").
+
+    Select “Metal System Trace”.
+
+    Start recording.
+
+    Run your PyTorch script with MPS device.
+
+    Stop recording and inspect shader timings.
+
+✅ 2. Use PyTorch's torch.utils.benchmark (coarse timing)
+
+PyTorch provides a benchmarking utility that works for CPU/MPS, although it doesn’t break down kernel-level timing:
+```python
+from torch.utils import benchmark
+
+a = torch.randn((2048, 2048), device="mps")
+b = torch.randn((2048, 2048), device="mps")
+
+t = benchmark.Timer(stmt="torch.matmul(a, b)", globals={"a": a, "b": b})
+result = t.timeit(100)
+print(result)
+```
+
+Output:
+```
+<torch.utils.benchmark.utils.common.Measurement object at ...>
+matmul: 36.25 ms
+```
+This is useful for relative performance comparisons, but not for understanding GPU kernel launches.
+
+📦 Would you like:
+
+    A version of your matmul_benchmark.py script that integrates torch.utils.benchmark for deeper timing?
+
+    A step-by-step screenshot-based guide to using Instruments?
+
+Let me know how far you want to go with GPU profiling!
+
+Prompt: I want to try Apple's Instruments tool. I have it open, but there is more to select than just starting a recording once I've selected "Metal System Trace". Specifically, there are recorder settings and metal application. I can also select GPU and display. I'd like to be able to see just my script and not everything else going on on my computer.
+
+Response: Perfect — you're right at the stage where Instruments can give you detailed insight, but the defaults are too noisy. Here's how to narrow the focus to just your Python script in Instruments when using the Metal System Trace template.
+
+🎯 Goal
+
+You want to trace just the Metal activity of your PyTorch script, minimizing all background processes.
+
+✅ Step-by-Step Instructions (Metal System Trace in Instruments)
+1. Open Instruments and Choose "Metal System Trace"
+
+    Launch Instruments.app (via Spotlight or /Applications/Xcode.app/Contents/Applications/).
+
+    Select Metal System Trace.
+
+    Click Choose.
+
+2. Set Up Filters
+🔧 In the Recording Settings (before hitting "Record"):
+
+    In the sidebar, under “Target”, select:
+
+        Choose Target → Choose by Process
+
+        Then click “Launch Executable...”
+
+        Navigate to your Python interpreter (e.g., /opt/homebrew/bin/python3.11 or whatever which python3 gives).
+
+        Then pass your script manually as an argument:
+
+        ```sh
+        /path/to/python3 your_script.py
+        ```
+
+        You can also use matmul_benchmark.py directly if launched with python.
+
+🧹 Optional but helpful:
+
+    Under Recording Options → GPU, deselect Display if you only want compute (reduces clutter).
+
+    You may also reduce sampling interval to increase resolution.
+
+3. Record
+
+    Hit Record. This will now launch just your Python script under observation.
+
+    Let it run — you’ll see activity in the GPU Command Encoder and Metal Kernel Timeline views.
+
+    When done, hit Stop.
+
+4. Inspect Kernel Activity
+
+    In the “GPU Command Encoder” section:
+
+        Expand the trace to see Metal compute pipelines being dispatched by PyTorch via MPS.
+
+        You’ll see timeline segments for matmul, including their duration and queue times.
+
+    You can also right-click rows and add columns like:
+
+        GPU Start/End Time
+
+        Duration
+
+        Pipeline Name
+
+This shows you how long each kernel took and how well the MPS backend is scheduling work.
+
+🧠 Bonus Tips
+
+    Use “System Trace” template instead of “Metal System Trace” if you want to trace CPU+GPU+memory together.
+
+    Instruments will sometimes label Metal kernels as metal::matmul or metal::gemm — that’s what you're looking for.
+
+Would you like me to tweak your benchmark so it accepts arguments or adds artificial delays to make traces easier to interpret?
