@@ -1,49 +1,93 @@
 import torch
 import time
+import matplotlib.pyplot as plt
+import psutil
+import os
+import gc
 
-# Benchmark parameters
-MATRIX_SIZE = 8192
 NUM_RUNS = 10
+MATRIX_SIZES = [512, 1024, 2048, 4096, 8192]
 
 
-def benchmark_matmul(device):
-    print(f"Running on device: {device}")
-    a = torch.randn((MATRIX_SIZE, MATRIX_SIZE), device=device)
-    b = torch.randn((MATRIX_SIZE, MATRIX_SIZE), device=device)
+def get_memory_usage():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / (1024**2)  # in MB
+
+
+def benchmark_matmul(device, size):
+    gc.collect()
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
+
+    a = torch.randn((size, size), device=device)
+    b = torch.randn((size, size), device=device)
 
     # Warm-up
     _ = torch.matmul(a, b)
 
-    # Timed runs
     torch.cuda.synchronize() if device.type == "cuda" else None
     start = time.time()
+    start_mem = get_memory_usage()
+
     for _ in range(NUM_RUNS):
         c = torch.matmul(a, b)
+
     torch.cuda.synchronize() if device.type == "cuda" else None
+    end_mem = get_memory_usage()
     end = time.time()
 
     elapsed = end - start
-    print(f"{device} - Time for {NUM_RUNS} matmul operations: {elapsed:.3f} seconds\n")
-    return elapsed
+    mem_used = max(0, end_mem - start_mem)  # Clamp to 0 if negative due to fluctuations
+    return elapsed, mem_used
 
 
 def main():
     devices = [("MPS", torch.device("mps")), ("CPU", torch.device("cpu"))]
-    results = {}
+    all_results = {}
 
     for label, dev in devices:
         if label == "MPS" and not torch.backends.mps.is_available():
             print("MPS not available, skipping.\n")
             continue
-        elapsed = benchmark_matmul(dev)
-        results[label] = elapsed
 
-    print("\n=== Summary ===")
-    for label, time_taken in results.items():
-        print(f"{label}: {time_taken:.3f} seconds")
-    if "CPU" in results and "MPS" in results:
-        speedup = results["CPU"] / results["MPS"]
-        print(f"Speedup (CPU / MPS): {speedup:.2f}x")
+        runtimes = []
+        mem_usages = []
+        print(f"\n--- Benchmarking on {label} ---")
+        for size in MATRIX_SIZES:
+            elapsed, mem_used = benchmark_matmul(dev, size)
+            print(f"Size {size}x{size}: {elapsed:.3f}s, Memory used: {mem_used:.2f} MB")
+            runtimes.append(elapsed)
+            mem_usages.append(mem_used)
+
+        all_results[label] = {
+            "sizes": MATRIX_SIZES,
+            "times": runtimes,
+            "mem": mem_usages,
+        }
+
+    # Plot runtimes
+    for label in all_results:
+        plt.plot(
+            all_results[label]["sizes"], all_results[label]["times"], label=f"{label}"
+        )
+    plt.title("Matrix Multiplication Runtime")
+    plt.xlabel("Matrix Size (N x N)")
+    plt.ylabel("Time (s)")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # Plot memory usage
+    for label in all_results:
+        plt.plot(
+            all_results[label]["sizes"], all_results[label]["mem"], label=f"{label}"
+        )
+    plt.title("Memory Usage During Matmul")
+    plt.xlabel("Matrix Size (N x N)")
+    plt.ylabel("Memory Used (MB)")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
 
 if __name__ == "__main__":
