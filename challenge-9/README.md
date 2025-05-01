@@ -1,5 +1,9 @@
 # Bootstrapping the Main Project
 
+## Overview
+
+Full LLM transcripts found in [LLM_TRANSCRIPT.md](./docs/LLM_TRANSCRIPT.md).
+
 ## Heilmeier Questions
 
 Questions from [the Heilmeier Catechism](https://www.darpa.mil/about/heilmeier-catechism):
@@ -8,41 +12,41 @@ Questions from [the Heilmeier Catechism](https://www.darpa.mil/about/heilmeier-c
 
 I want to create a hardware accelerator for anomaly detection in weather data. Specifically, with this hardware accelerator, it should be possible to run AI workloads on sensor data in remote locations. Results could then be transmitted within the region to allow for timely response to changing conditions or critical weather events.
 
-1. How is it done today, and what are the limits of current practice? 
+2. How is it done today, and what are the limits of current practice? 
 
 Typically, this is currently done at a centralized compute location, after data has been transferred and aggregated. One of the main limitations is the significant data transfer involved. The data transfer and subsequent centralized analysis leads to latency in communicating the dangers of critical weather events.
 
-1. What is new in your approach and why do you think it will be successful? 
+3. What is new in your approach and why do you think it will be successful? 
 
 In my approach, it should be possible to deploy remote inference stations that would be near to sensors collecting weather data. These stations could collect data from a handful of nearby sensors and perform inference after being trained on region-specific data. Rather than transmitting all sensor data back to a centralized location, these stations could transmit the model output locally, indicating whether conditions for a critical weather event (for example, a wildfire) have been detected.
 
-1. Who cares? If you are successful, what difference will it make? 
+4. Who cares? If you are successful, what difference will it make? 
 
 If successful, this could open the door to having better early-warning systems for critical weather events. This could reduce the negative impacts of such events, allowing for greater planning and protection of people and property, and evacuation if necessary. It could help in resource management for such events by providing accurate information on which regions are most immediately at risk.
 
-1. What are the risks? 
+5. What are the risks? 
 
 One of the risks is that the accelerator may not meet the efficiency requirements for low-power environments. Some environmental sensor stations are extremely power-limited (for example, a [Pico Balloon(https://en.wikipedia.org/wiki/High-altitude_balloon#Amateur_radio_high-altitude_ballooning)]), and it may be difficult to reduce power consumption enough to meet requirements, even using a hardware accelerator. However, there are other types of weather stations that may accommodate slightly greater power needs.
 
 Another risk is in development of accurate prediction models for a given region, and the use of available sensor network data. To train such models, regional data needs to be available, along with appropriate interpretation from subject-matter experts. Though the algorithm I'm looking at using leverages unsupervised training, verification of results should be possible prior to deployment. In addition, these models will ideally be able to use currently-available sensor data, rather than requiring new or more expensive types of sensor data.
 
-1. How much will it cost? 
+6. How much will it cost? 
 
 Initial proof-of-concept work will be fairly limited in cost, but may require significant time commitment. Later in development, it may be possible to reduce costs by piggybacking onto other weather or environmental sensor projects by providing an extension to the existing functionality, instead of attempting to create a new sensor network from scratch dedicated to this project.
 
 If initial development shows promise, wide-scale deployment would incur costs related to the hardware manufacturing for the hardware accelerator. In addition, there would be costs related to software development and integration of the new hardware into existing or new sensor network projects.
 
-1. How long will it take? 
+7. How long will it take? 
 
 Exploratory work has already been done in identifying the bottlenecks for anomaly detection in weather data using the Long Short-Term Memory (LSTM) autoencoder algorithm written in Python. Estimation of communication costs and development of a target execution time are currently in progress. From here, creating basic hardware modules for the necessary components in SystemVerilog may be done over the next week or two. After that, 4-6 weeks should be reserved for iteration and refinement of the hardware, with the goal of creating a synthesizable design by week 8.
 
-1. What are the mid-term and final “exams” to check for success? 
+8. What are the mid-term and final “exams” to check for success? 
 
 A mid-term checkpoint should contain a basic hardware simulation using SystemVerilog. At that point, algorithm bottlenecks will have been identified, and communication costs associated with the use of the hardware accelerator as a co-processor will be estimated. This will provide a target execution time for the hardware, based on the maximum execution time it may take while providing an improvement over the software-only approach.
 
 A final exam would ideally result in a synthesizable chiplet providing hardware acceleration for the specific parts of the chosen algorithm designated as a bottleneck. Estimated execution time, including communication costs, should be less than the execution time of the software alone.
 
-## LSTM Model
+## Challenge 9: LSTM Model
 
 ### Training
 
@@ -310,7 +314,7 @@ Line #      Hits         Time  Per Hit   % Time  Line Contents
    154       273        182.0      0.7      0.0          return output_seq
 ```
 
-## Hardware Acceleration
+## Challenge 12: Hardware Acceleration
 
 ### Hardware Execution Time
 
