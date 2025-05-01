@@ -1,6 +1,5 @@
 import torch
 import time
-import tracemalloc
 import matplotlib.pyplot as plt
 from systolic_bubble_sort import systolic_bubble_sort
 from python_bubble_sort import benchmark_bubble_sort_python
@@ -14,7 +13,7 @@ def estimate_total_memory(tensor: torch.Tensor) -> float:
 
 
 def run_benchmark():
-    sizes = [10, 100, 1000, 10000]
+    sizes = [10, 100, 1000, 2500, 5000, 7500, 10000]
     mps_times = []
     mps_memories = []
     python_times = []
@@ -52,7 +51,7 @@ def run_benchmark():
         )
 
     # --- Plotting ---
-    fig, ax1 = plt.subplots(figsize=(12, 6))
+    fig, ax1 = plt.subplots(figsize=(12, 10))
     ax2 = ax1.twinx()
 
     x = range(len(sizes))
@@ -67,14 +66,14 @@ def run_benchmark():
         color="darkgreen",
     )
     bars2 = ax2.bar(
-        [i + offset[1] for i in x],
+        [i + offset[2] for i in x],
         mps_memories,
         width=width,
         label="MPS Memory (MB)",
         color="lightgreen",
     )
     bars3 = ax1.bar(
-        [i + offset[2] for i in x],
+        [i + offset[1] for i in x],
         python_times,
         width=width,
         label="Python Time (s)",
@@ -84,18 +83,20 @@ def run_benchmark():
         [i + offset[3] for i in x],
         python_memories,
         width=width,
-        label="Python Memory (MB)",
+        label="Python Memory Usage (MB)",
         color="lightblue",
     )
 
-    ax1.set_xlabel("Array Size")
+    ax1.set_xlabel("Array Input Size")
     ax1.set_ylabel("Execution Time (s)")
     ax2.set_ylabel("Memory Usage (MB)")
     ax1.set_xticks(x)
     ax1.set_xticklabels(sizes)
-    ax1.set_title("Systolic Bubble Sort: MPS vs Python Execution")
+    ax1.set_title(
+        "Systolic Bubble Sort: Apple Metal Performance Shaders (MPS) vs Python Execution"
+    )
 
-    lines = [bars1, bars2, bars3, bars4]
+    lines = [bars1, bars3, bars2, bars4]
     labels = [bar.get_label() for bar in lines]
     ax1.legend(lines, labels, loc="upper left")
 
