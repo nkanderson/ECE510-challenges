@@ -1199,4 +1199,49 @@ Would you like me to make the following adjustments in the canvas?
 
     Add basic diagnostics to show Q-values and average reward progress
 
+Prompt: No, that's ok. It is definitely faster on the CPU. I am curious about whether there are workloads that MPS and PyTorch work well for. Do you have any example where we can compare MPS vs CPU and hopefully see significant improvement for MPS? It doesn't have to be related to Q learning at all.
+
+Response: Great — yes, while Q-learning with small per-step updates isn't a great fit for MPS, there are workloads where Apple's M1/M2 GPU via MPS can give real speedups. The best candidates are large, dense, and batch-friendly tensor ops, similar to deep learning inference or training.
+
+✅ Good Candidate: Matrix Multiplication Benchmark
+Why?
+
+    Large matrix multiplications use dense linear algebra, which MPS is optimized for.
+
+    PyTorch offloads to Metal’s BLAS backend (metalPerformanceShadersGEMM) for this.
+
+🔬 Benchmark Example: Matrix Multiplication
+
+You can compare CPU vs MPS using this script:
+<provided code saved in mps_compare.py>
+
+✅ Expected Results (on M1):
+Backend	Time (10x 8192x8192 matmul)
+CPU	~15–25 seconds
+MPS	~4–8 seconds (3–5× faster)
+
+    ⚠️ Note: If you try N = 4096, you’ll still see a speedup, but it’ll be less dramatic.
+
+🧪 Things That Work Well on MPS
+
+    Dense matrix multiplications (@, mm)
+
+    Batched matrix operations
+
+    CNNs and fully-connected layers in inference or training
+
+    Activation functions (ReLU, GELU, etc.)
+
+🛑 Still Weak on MPS
+
+    Sparse tensor operations
+
+    Frequent index-based updates (scatter, gather, where)
+
+    Dynamic control flow (loops per-sample)
+
+    Small batched operations (not enough parallelism to saturate GPU)
+
+Would you like me to drop this benchmarking script into your canvas for testing?
+
 
