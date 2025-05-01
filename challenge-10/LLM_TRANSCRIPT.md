@@ -1370,3 +1370,48 @@ Would you like me to update the script so:
 
 This will give you a much more realistic picture of how memory scales.
 
+Prompt: Yes - though to clarify, I still want the timing start-end delta, it's just that we should swap out the memory start-end delta
+
+Response: <provided updated code>
+
+The benchmark now tracks and reports peak memory usage during each matmul loop instead of using a memory delta. This should give you more accurate insight into the memory footprint, especially when fluctuations or background cleanup affect the RSS.
+
+Let me know if you’d like to log additional stats like CPU utilization or save results to a CSV for long-term comparisons.
+
+Prompt: Does `torch.matmul(a, b)` delegate to C, like numpy would?
+
+Response: Yes, torch.matmul(a, b) in PyTorch delegates the actual matrix multiplication to highly optimized backend libraries written in C/C++, depending on the device and installation.
+🔧 Here's what happens under the hood:
+🧠 On CPU:
+
+    PyTorch delegates to MKL (Intel) or OpenBLAS depending on how it was built.
+
+    The actual computation is handled by native C/C++ routines, just like NumPy when linked to BLAS/LAPACK.
+
+🚀 On MPS (Apple Silicon GPU):
+
+    PyTorch uses Apple’s Metal Performance Shaders (MPS) backend.
+
+    torch.matmul() calls are converted into MPS kernels, which are compiled and executed by the Metal driver.
+
+    These are again written in low-level GPU metal shaders, not Python.
+
+⚡ On CUDA:
+
+    PyTorch uses cuBLAS, NVIDIA's BLAS library for GPU.
+
+    Backed by highly optimized CUDA C/C++ code.
+
+✅ Summary
+
+Just like NumPy offloads to C-backed BLAS routines, PyTorch’s matmul:
+
+Backend	Underlying Implementation
+CPU	MKL / OpenBLAS / ATen
+CUDA	cuBLAS (via ATen + TH)
+MPS	Metal Performance Shaders
+
+So yes, it's executing native code under the hood — the Python call is just a wrapper around a much faster compiled routine.
+
+Would you like to see how to directly check what backend PyTorch is using under the hood, or trace kernel execution times on MPS?
+

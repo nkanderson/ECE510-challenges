@@ -183,3 +183,22 @@ Notes from ChatGPT:
     Frequent index-based updates (scatter, gather, where)
     Dynamic control flow (loops per-sample)
     Small batched operations (not enough parallelism to saturate GPU)
+
+Results of comparison script:
+```sh
+(venv) ➜  challenge-10 git:(main) python mps_compare.py                              
+
+--- Benchmarking on MPS ---
+Size 512x512: 0.001s, Peak Memory: 206.20 MB
+Size 1024x1024: 0.001s, Peak Memory: 208.03 MB
+Size 2048x2048: 0.001s, Peak Memory: 209.70 MB
+Size 4096x4096: 0.002s, Peak Memory: 209.20 MB
+Size 8192x8192: 0.003s, Peak Memory: 212.75 MB
+
+--- Benchmarking on CPU ---
+Size 512x512: 0.008s, Peak Memory: 188.56 MB
+Size 1024x1024: 0.060s, Peak Memory: 189.14 MB
+Size 2048x2048: 0.295s, Peak Memory: 281.31 MB
+Size 4096x4096: 2.398s, Peak Memory: 454.61 MB
+Size 8192x8192: 16.972s, Peak Memory: 835.95 MB
+```

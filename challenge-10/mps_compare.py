@@ -27,18 +27,19 @@ def benchmark_matmul(device, size):
 
     torch.cuda.synchronize() if device.type == "cuda" else None
     start = time.time()
-    start_mem = get_memory_usage()
+    peak_mem = get_memory_usage()
 
     for _ in range(NUM_RUNS):
         c = torch.matmul(a, b)
+        current_mem = get_memory_usage()
+        if current_mem > peak_mem:
+            peak_mem = current_mem
 
     torch.cuda.synchronize() if device.type == "cuda" else None
-    end_mem = get_memory_usage()
     end = time.time()
 
     elapsed = end - start
-    mem_used = max(0, end_mem - start_mem)  # Clamp to 0 if negative due to fluctuations
-    return elapsed, mem_used
+    return elapsed, peak_mem
 
 
 def main():
@@ -55,7 +56,7 @@ def main():
         print(f"\n--- Benchmarking on {label} ---")
         for size in MATRIX_SIZES:
             elapsed, mem_used = benchmark_matmul(dev, size)
-            print(f"Size {size}x{size}: {elapsed:.3f}s, Memory used: {mem_used:.2f} MB")
+            print(f"Size {size}x{size}: {elapsed:.3f}s, Peak Memory: {mem_used:.2f} MB")
             runtimes.append(elapsed)
             mem_usages.append(mem_used)
 
@@ -82,9 +83,9 @@ def main():
         plt.plot(
             all_results[label]["sizes"], all_results[label]["mem"], label=f"{label}"
         )
-    plt.title("Memory Usage During Matmul")
+    plt.title("Peak Memory Usage During Matmul")
     plt.xlabel("Matrix Size (N x N)")
-    plt.ylabel("Memory Used (MB)")
+    plt.ylabel("Peak Memory (MB)")
     plt.legend()
     plt.grid(True)
     plt.show()
