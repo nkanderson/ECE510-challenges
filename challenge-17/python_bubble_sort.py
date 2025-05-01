@@ -4,27 +4,25 @@ import random
 
 
 class ProcessingElement(threading.Thread):
-    def __init__(self, index, values, lock, phase_event, next_phase_event):
+    def __init__(self, index, values, lock, barrier):
         super().__init__()
         self.index = index
         self.values = values
         self.lock = lock
-        self.phase_event = phase_event
-        self.next_phase_event = next_phase_event
+        self.barrier = barrier
+        self.active_phase = False
         self.running = True
 
     def run(self):
         while self.running:
-            self.phase_event.wait()
-            self.phase_event.clear()
-            if self.index < len(self.values) - 1 and self.active_phase:
+            if self.active_phase and self.index < len(self.values) - 1:
                 with self.lock:
                     if self.values[self.index] > self.values[self.index + 1]:
                         self.values[self.index], self.values[self.index + 1] = (
                             self.values[self.index + 1],
                             self.values[self.index],
                         )
-            self.next_phase_event.set()
+            self.barrier.wait()
 
     def stop(self):
         self.running = False
@@ -38,12 +36,11 @@ class ProcessingElement(threading.Thread):
 def systolic_bubble_sort_threaded(values):
     n = len(values)
     lock = threading.Lock()
-    phase_event = threading.Event()
-    next_phase_event = threading.Event()
+    barrier = threading.Barrier(n)  # Synchronize all threads per phase
     pes = []
 
-    for i in range(n - 1):
-        pe = ProcessingElement(i, values, lock, phase_event, next_phase_event)
+    for i in range(n):
+        pe = ProcessingElement(i, values, lock, barrier)
         pes.append(pe)
         pe.start()
 
@@ -51,11 +48,7 @@ def systolic_bubble_sort_threaded(values):
         is_even = phase % 2 == 0
         for pe in pes:
             pe.set_phase(is_even)
-
-        for _ in range(n - 1):
-            next_phase_event.clear()
-            phase_event.set()
-            next_phase_event.wait()
+        barrier.wait()  # Wait for all PEs to complete the phase
 
     for pe in pes:
         pe.stop()
