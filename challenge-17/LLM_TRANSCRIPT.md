@@ -1145,3 +1145,175 @@ Export plot to a file:
     plt.savefig('systolic_sort_benchmark.png', dpi=300)
 
 Would you like help implementing any of those improvements next?
+
+Prompt: Alright, let's go way back to the systemverilog implementation we discussed. I'd like to create that and have a basic testbench that runs it with the different input sizes
+
+Response: Great — let's walk through what we need for a SystemVerilog implementation of a systolic array performing bubble sort, and how we can structure a testbench that runs it on different input sizes.
+
+✅ Step 1: Systolic Bubble Sort Design in SystemVerilog
+
+We’ll create a 1D array of processing elements (PEs):
+
+    Each PE holds one value.
+
+    In each clock cycle:
+
+        Odd/even-indexed PEs compare with their neighbor and possibly swap.
+
+    We alternate between even and odd phases for n cycles.
+
+📦 Basic PE Module
+
+<provided code for pe.sv>
+
+✅ Step 2: Top-Level Systolic Sorter
+
+We’ll instantiate N registers and N-1 PEs and toggle phases.
+✅ Step 3: Testbench for Multiple Sizes
+
+We can't change module array size dynamically in Verilog, so:
+
+    Create separate modules for sizes like 4, 8, and 16.
+
+    Or, create a parameterized testbench that reuses a generate loop based on a macro.
+
+Testbench will:
+
+    Load input values.
+
+    Apply clock pulses for n cycles.
+
+    Check if output is sorted.
+
+Would you like me to generate the full SystemVerilog files for:
+
+    PE.sv
+
+    systolic_sorter.sv (top-level wrapper)
+
+    tb_systolic_sorter.sv (testbench for multiple sizes)
+
+?
+
+Prompt: Yes, that all sounds good
+
+Response: <provided code>
+
+The SystemVerilog systolic sorter module and a testbench have been created with:
+
+    PE.sv: logic for one compare-and-swap unit (can be reused for expanded designs).
+
+    systolic_sorter.sv: simplified top-level sorter using internal logic, parameterized by N.
+
+    tb_systolic_sorter.sv: testbench for N=8 with sample data, toggled clock, and printed output.
+
+Would you like to:
+
+    Expand support for variable-size test cases (e.g. N=4, N=16)?
+
+    Move to a waveform-driven simulation using VCD or GTKWave?
+
+    Replace internal swap logic with explicit PE instantiation for realism?
+
+Prompt: Are pe.sv and systolic_sorter.sv going to be synthesizable?
+
+Response: Great question. Let’s evaluate whether the provided PE.sv and systolic_sorter.sv are synthesizable.
+
+✅ PE.sv: Yes, synthesizable
+
+This module:
+
+always_ff @(posedge clk or posedge rst)
+
+    Uses standard synchronous logic.
+
+    Compares and conditionally swaps two 32-bit inputs.
+
+    Has no delays, file I/O, or non-synthesizable constructs.
+
+Conclusion:
+✅ Fully synthesizable as-is.
+
+⚠️ systolic_sorter.sv: Partially synthesizable with caveats
+
+While it’s mostly fine, there are two key issues:
+❌ 1. Array-of-logic ports (input logic [31:0] in_data [N])
+
+    Not synthesizable in many tools (e.g. Xilinx Vivado, Intel Quartus).
+
+    Flattening is required: either use 2D packed arrays or interface-style handshaking.
+
+📌 Fix suggestion: Use a single flat bus:
+```systemverilog
+input  logic [N*32-1:0] in_data_flat,
+output logic [N*32-1:0] out_data_flat
+```
+
+Then slice internally.
+⚠️ 2. for-loop array assignments with values[i] <= values[i+1]; values[i+1] <= values[i];
+
+    This causes incorrect behavior because both assignments use the same values[i] before it has been updated.
+
+    Issue: The second assignment depends on the first, but in hardware, they are evaluated concurrently.
+
+📌 Fix suggestion: Introduce temporary variables:
+```systemverilog
+logic [31:0] temp_values [N];
+
+for (int i = 0; i < N; i++) temp_values[i] = values[i];
+
+for (int i = 0; i < N-1; i += 2) begin
+    if (phase == 0 && i % 2 == 0) begin
+        if (temp_values[i] > temp_values[i+1]) begin
+            values[i]   <= temp_values[i+1];
+            values[i+1] <= temp_values[i];
+        end else begin
+            values[i]   <= temp_values[i];
+            values[i+1] <= temp_values[i+1];
+        end
+    end
+    ...
+end
+```
+
+✅ Summary
+Module	Synthesizable?	Notes
+PE.sv	✅ Yes	Ready for synthesis
+systolic_sorter	⚠️ Partially	Needs array flattening and careful swap logic
+Would you like me to rewrite systolic_sorter.sv to be cleanly synthesizable with packed inputs and safe swapping?
+
+Prompt: Yes
+
+Response: <provided updated code>
+
+systolic_sorter.sv has been rewritten to be fully synthesizable:
+
+    Replaced unpacked array ports with packed flat vectors.
+
+    Added safe compare-swap logic using temporary buffers.
+
+    Preserves phase-based bubble sort logic.
+
+Let me know if you’d like the testbench updated to match this flattened interface.
+
+Prompt: Yes, I do need an updated testbench
+
+Response: <provided updated tb code>
+
+The testbench has been updated to match the flattened input/output format of the synthesizable systolic_sorter.sv. It initializes the array in descending order and prints the sorted result after sufficient clock cycles.
+
+Let me know if you'd like to add multiple test cases, waveform output, or assertions to validate sorting correctness automatically.
+
+Prompt: Yes, let's add a couple more test cases to the testbench, and set this up to be self-checking
+
+Response: <provided updated tb code>
+
+The testbench now includes three distinct test cases and is self-checking:
+
+    Verifies the output is sorted after each test.
+
+    Prints "PASS" or "FAIL" along with the label.
+
+    Outputs values if the test fails.
+
+Let me know if you’d like to add randomized tests or include assertion failures to integrate with simulators like Questa or Verilator.
