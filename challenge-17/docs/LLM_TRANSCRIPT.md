@@ -1549,3 +1549,185 @@ Would you like to:
     Log the results to a file with time/memory/ratios?
 
     Plot a speedup graph (e.g., NumPy / Python, MPS / Python, etc.)?
+
+Prompt: Let's plot a speedup graph
+
+Response: Great — let’s add a speedup graph that compares:
+
+    NumPy speedup over Python
+
+    MPS speedup over Python
+
+These will be computed as:
+```python
+numpy_speedup = [py / np for py, np in zip(python_times, numpy_times)]
+mps_speedup = [py / mps if mps > 0 else 0 for py, mps in zip(python_times, mps_times)]
+```
+
+The graph will have:
+
+    X-axis: array sizes
+
+    Y-axis: speedup factor (log scale optional)
+
+    Two lines/bars: NumPy vs Python (orange), MPS vs Python (green)
+
+Would you like this:
+
+    As a separate plot below the main chart?
+
+    Or as a separate figure (different window)?
+
+Also, prefer line plot or bar chart?
+
+Prompt: I think a line plot is better for this, and let's do a separate figure
+
+Response: <provided updated code>
+
+The main.py script now includes a second figure that plots NumPy and MPS speedup over the Python version using a line graph. Let me know if you'd like to add logarithmic scaling or annotate crossover points.
+
+Prompt: Let's talk about the `tracemalloc` peak memory usage estimate. Why would the numpy implementation have such higher memory usage than the basic Python implementation?
+
+Response: Great question. Let's unpack why tracemalloc might show higher peak memory usage for the NumPy version compared to the basic Python version, even though both are sorting the same size data.
+
+🧠 Why is NumPy’s peak memory usage higher?
+1. Vectorized operations allocate temporary arrays
+
+In your NumPy implementation:
+```python
+min_vals = np.minimum(vals1, vals2)
+max_vals = np.maximum(vals1, vals2)
+```
+
+Each of these:
+
+    Allocates a new array in memory (not in-place).
+
+    Happens every iteration of the outer loop.
+
+Also:
+```python
+vals1 = x[idx1]
+```
+
+    This creates views, but some indexing patterns may cause implicit copies (especially with non-contiguous or overlapping regions).
+
+2. tracemalloc includes all memory allocated temporarily
+
+tracemalloc tracks:
+
+    Every object allocation that happens under the hood, including:
+
+        Temporary arrays
+
+        Intermediate results in ufuncs
+
+        Python overhead in managing slices/indexes
+
+Even though most of those temporaries are short-lived, the peak memory is recorded at the highest point before garbage collection.
+
+3. Python list sorting avoids vectorization, uses less peak memory
+
+Basic Python bubble sort uses:
+```python
+for i in range(n - 1):
+    if data[i] > data[i+1]:
+        data[i], data[i+1] = data[i+1], data[i]
+```
+
+These swaps are in-place.
+
+No intermediate arrays are created.
+
+Peak memory stays close to the list size + minor overhead.
+
+📈 Why does this matter?
+
+    NumPy’s performance gain comes from vectorization — but at the cost of temporary allocations.
+
+    The difference is small (~2–3× the input size), but tracemalloc makes it visible.
+
+    MPS memory is estimated, so it doesn’t show these peaks.
+
+✅ TL;DR
+
+Factor	Python Bubble Sort	NumPy Systolic Sort
+Memory allocation pattern	In-place swaps	Allocates temporaries
+Peak memory	Low	Higher due to intermediates
+Performance	Poor	Much faster
+Accuracy of measurement	Actual	Actual
+
+Would you like to quantify how much of the NumPy memory usage is just from temporary buffers (e.g., by using memory_profiler or logging allocations manually)?
+
+Prompt: Not now. I'd like to better understand tracemalloc and what it measures. I believe you mentioned it may not track memory usage associated with code delegated to c/c++, is that correct? What does it measure, and what does it not measure, particularly with regard to the 2 different implementations running on the CPU (Python-only vs NumPy vectorized)?
+
+Response: Great — let’s clarify exactly what tracemalloc tracks and what it doesn’t, especially for your two CPU-based implementations: the pure Python version and the NumPy vectorized version.
+
+✅ What tracemalloc Measures
+
+tracemalloc is a standard Python module that:
+
+    Tracks memory allocations done by the Python interpreter.
+
+    Records:
+
+        Python object allocations (e.g. lists, dicts, tuples)
+
+        NumPy array wrappers (not the C-level buffers)
+
+        Temporaries in Python operations (e.g. results of x + y)
+
+    Reports:
+
+        Current memory usage
+
+        Peak memory usage since tracemalloc.start()
+
+It samples the memory allocated and tracked by Python's internal memory manager, not what is allocated by C libraries directly.
+
+❌ What tracemalloc Does Not Measure
+
+It does not track memory allocated:
+
+    Inside native C extensions (e.g., NumPy’s core computation engine)
+
+    By external libraries written in C/C++ (e.g., BLAS, LAPACK)
+
+    On the GPU or via mmap, malloc, or custom allocators bypassing Python’s memory hooks
+
+This means:
+
+Operation	Tracked by tracemalloc?
+list.append() in Python	✅ Yes
+NumPy np.zeros() buffer	❌ No (array buffer in C)
+PyTorch tensor.to()	❌ No
+Intermediate Python expressions	✅ Yes
+
+🧠 What This Means for You
+✅ Pure Python version
+
+    All memory allocations are done via native Python (lists, ints, etc.)
+
+    tracemalloc gives an accurate reflection of memory used.
+
+⚠️ NumPy version
+
+    Arrays themselves (e.g. x, min_vals, max_vals) allocate memory in C, outside Python.
+
+    Only the Python-side wrapper and temporary Python objects are tracked.
+
+    Thus, tracemalloc underreports total memory used in NumPy, but still captures the Python-visible peaks (e.g. from Python-layer temporaries created per loop iteration).
+
+🧪 Bottom Line
+
+Your NumPy implementation:
+
+    Appears to use more peak memory in tracemalloc because of frequent short-lived Python temporaries (e.g. indexing views, copies).
+
+    But it’s still an underestimate of true memory usage — the C-level array buffers are not included.
+
+Your Python version:
+
+    Uses minimal memory, and it's all Python-managed — so tracemalloc gives a more complete picture.
+
+Would you like to augment your memory measurements with psutil or memory_profiler for a deeper look at actual process-level memory, including C allocations?

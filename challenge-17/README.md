@@ -65,5 +65,9 @@ Memory Usage
 - MPS memory is a rough estimate (based on 12 × n float bytes).
 - Python memory is very efficient due to native list usage — though tracemalloc may under-report memory used by internal structures (e.g., temporaries).
 
+TODO: Add more analysis including NumPy
+- The NumPy implementation uses more temporary values than the Python version, which modifies the array in-place, resulting in higher memory usage.
+- `tracemalloc` does not capture memory allocated inside native C extensions, the peak memory reported for the Python version is probably fairly accurate, and the useage for the NumPy version is probably underreporting usage
+
 Future work
 - It would be interesting to go back and fix the threaded Python version and benchmark that instead of the basic sequential Python bubble sort

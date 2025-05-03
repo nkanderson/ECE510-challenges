@@ -128,6 +128,24 @@ def run_benchmark():
     plt.tight_layout()
     plt.show()
 
+    # --- Speedup Plot ---
+    numpy_speedup = [py / np for py, np in zip(python_times, numpy_times)]
+    mps_speedup = [
+        py / mps if mps > 0 else 0 for py, mps in zip(python_times, mps_times)
+    ]
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(sizes, numpy_speedup, marker="o", color="orange", label="NumPy vs Python")
+    plt.plot(sizes, mps_speedup, marker="o", color="green", label="MPS vs Python")
+
+    plt.xlabel("Array Input Size")
+    plt.ylabel("Speedup Factor")
+    plt.title("Speedup Over Python Sequential Bubble Sort")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
 
 if __name__ == "__main__":
     run_benchmark()
