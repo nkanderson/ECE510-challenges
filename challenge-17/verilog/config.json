@@ -1,0 +1,16 @@
+{
+  "DESIGN_NAME": "systolic_sorter",
+  "VERILOG_FILES": [
+    "dir::pe.v",
+    "dir::systolic_sorter.v"
+  ],
+  "CLOCK_PERIOD": 25,
+  "CLOCK_PORT": "clk",
+  "FP_SIZING": "absolute",
+  "DIE_AREA": [
+    0,
+    0,
+    1751.00,
+    1751.00
+  ]
+}

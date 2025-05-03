@@ -1,4 +1,4 @@
-module PE (
+module pe (
     input  logic clk,
     input  logic rst,
     input  logic [31:0] in_left,

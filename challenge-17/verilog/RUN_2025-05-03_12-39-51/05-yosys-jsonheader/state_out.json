@@ -1,0 +1,27 @@
+{
+    "nl": null,
+    "pnl": null,
+    "pnl-sdf-friendly": null,
+    "pnl-npc": null,
+    "def": null,
+    "lef": null,
+    "openroad-lef": null,
+    "odb": null,
+    "sdc": null,
+    "sdf": null,
+    "spef": null,
+    "lib": null,
+    "spice": null,
+    "mag": null,
+    "gds": null,
+    "mag_gds": null,
+    "klayout_gds": null,
+    "json_h": "/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/05-yosys-jsonheader/systolic_sorter.h.json",
+    "vh": null,
+    "metrics": {
+        "design__lint_error__count": 0,
+        "design__lint_timing_construct__count": 0,
+        "design__lint_warning__count": 441,
+        "design__inferred_latch__count": 0
+    }
+}

@@ -1,0 +1,141 @@
+Reading timing models for corner nom_tt_025C_1v80…
+Reading timing library for the 'nom_tt_025C_1v80' corner at '/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib'…
+Reading timing models for corner nom_ff_n40C_1v95…
+Reading timing library for the 'nom_ff_n40C_1v95' corner at '/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__ff_n40C_1v95.lib'…
+Reading timing models for corner nom_ss_100C_1v60…
+Reading timing library for the 'nom_ss_100C_1v60' corner at '/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__ss_100C_1v60.lib'…
+Reading OpenROAD database at '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/33-openroad-detailedplacement/systolic_sorter.odb'…
+Reading design constraints file at '/nix/store/ss2cw3sxbrwwx9jl0rrppbw4kgcmgi2n-python3-3.11.9-env/lib/python3.11/site-packages/openlane/scripts/base.sdc'…
+[INFO] Using clock clk…
+[INFO] Setting output delay to: 5
+[INFO] Setting input delay to: 5
+[INFO] Setting load to: 0.033442
+[INFO] Setting clock uncertainty to: 0.25
+[INFO] Setting clock transition to: 0.1499999999999999944488848768742172978818416595458984375
+[INFO] Setting timing derate to: 5%
+[INFO] Setting RC values…
+[INFO] Configuring cts characterization…
+[INFO] Performing clock tree synthesis…
+[INFO] Looking for the following net(s): clk
+[INFO] Running Clock Tree Synthesis…
+[INFO CTS-0050] Root buffer is sky130_fd_sc_hd__clkbuf_16.
+[INFO CTS-0051] Sink buffer is sky130_fd_sc_hd__clkbuf_8.
+[INFO CTS-0052] The following clock buffers will be used for CTS:
+                    sky130_fd_sc_hd__clkbuf_2
+                    sky130_fd_sc_hd__clkbuf_4
+                    sky130_fd_sc_hd__clkbuf_8
+[INFO CTS-0049] Characterization buffer is sky130_fd_sc_hd__clkbuf_8.
+[INFO CTS-0007] Net "clk" found for clock "clk".
+[INFO CTS-0010]  Clock net "clk" has 705 sinks.
+[INFO CTS-0008] TritonCTS found 1 clock nets.
+[INFO CTS-0097] Characterization used 3 buffer(s) types.
+[INFO CTS-0200] 0 placement blockages have been identified.
+[INFO CTS-0201] 0 placed hard macros will be treated like blockages.
+[INFO CTS-0027] Generating H-Tree topology for net clk.
+[INFO CTS-0028]  Total number of sinks: 705.
+[INFO CTS-0029]  Sinks will be clustered in groups of up to 25 and with maximum cluster diameter of 50.0 um.
+[INFO CTS-0030]  Number of static layers: 0.
+[INFO CTS-0020]  Wire segment unit: 13600  dbu (13 um).
+[INFO CTS-0204] A clustering solution was found from clustering size of 25 and clustering diameter of 50.
+[INFO CTS-0205] Better solution may be possible if either -sink_clustering_size, -sink_clustering_max_diameter, or both options are omitted to enable automatic clustering.
+[INFO CTS-0019]  Total number of sinks after clustering: 234.
+[INFO CTS-0024]  Normalized sink region: [(0.695956, 1.62265), (127.162, 126.648)].
+[INFO CTS-0025]     Width:  126.4662.
+[INFO CTS-0026]     Height: 125.0251.
+ Level 1
+    Direction: Horizontal
+    Sinks per sub-region: 117
+    Sub-region size: 63.2331 X 125.0251
+[INFO CTS-0034]     Segment length (rounded): 32.
+ Level 2
+    Direction: Vertical
+    Sinks per sub-region: 59
+    Sub-region size: 63.2331 X 62.5126
+[INFO CTS-0034]     Segment length (rounded): 32.
+ Level 3
+    Direction: Horizontal
+    Sinks per sub-region: 30
+    Sub-region size: 31.6165 X 62.5126
+[INFO CTS-0034]     Segment length (rounded): 16.
+ Level 4
+    Direction: Vertical
+    Sinks per sub-region: 15
+    Sub-region size: 31.6165 X 31.2563
+[INFO CTS-0034]     Segment length (rounded): 16.
+ Level 5
+    Direction: Horizontal
+    Sinks per sub-region: 8
+    Sub-region size: 15.8083 X 31.2563
+[INFO CTS-0034]     Segment length (rounded): 8.
+[INFO CTS-0032]  Stop criterion found. Max number of sinks is 15.
+[INFO CTS-0035]  Number of sinks covered: 234.
+[INFO CTS-0018]     Created 258 clock buffers.
+[INFO CTS-0012]     Minimum number of buffers in the clock path: 5.
+[INFO CTS-0013]     Maximum number of buffers in the clock path: 6.
+[INFO CTS-0015]     Created 258 clock nets.
+[INFO CTS-0016]     Fanout distribution for the current clock = 2:56, 3:61, 4:59, 5:28, 6:13, 7:4, 8:5, 9:4, 10:2, 11:1, 12:2..
+[INFO CTS-0017]     Max level of the clock tree: 5.
+[INFO CTS-0098] Clock net "clk"
+[INFO CTS-0099]  Sinks 884
+[INFO CTS-0100]  Leaf buffers 203
+[INFO CTS-0101]  Average sink wire length 2381.42 um
+[INFO CTS-0102]  Path depth 5 - 6
+[INFO CTS-0207]  Leaf load cells 179
+[INFO] Repairing long wires on clock nets…
+[INFO RSZ-0058] Using max wire length 6335um.
+Setting global connections for newly added cells…
+[INFO] Setting global connections...
+Updating metrics…
+Cell type report:                       Count       Area
+  Fill cell                              1270    4767.07
+  Tap cell                              42679   53399.96
+  Clock buffer                            387    5235.02
+  Timing Repair Buffer                    812    5441.47
+  Inverter                                843    3239.36
+  Clock inverter                           50     391.63
+  Sequential cell                         705   18493.99
+  Multi-Input combinational cell         1528   14415.08
+  Total                                 48274  105383.57
+Writing OpenROAD database to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/34-openroad-cts/systolic_sorter.odb'…
+Writing netlist to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/34-openroad-cts/systolic_sorter.nl.v'…
+Writing powered netlist to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/34-openroad-cts/systolic_sorter.pnl.v'…
+Writing layout to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/34-openroad-cts/systolic_sorter.def'…
+Writing timing constraints to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/34-openroad-cts/systolic_sorter.sdc'…
+[INFO] Legalizing…
+Placement Analysis
+---------------------------------
+total displacement       1084.6 u
+average displacement        0.0 u
+max displacement            9.8 u
+original HPWL          377059.0 u
+legalized HPWL         380614.6 u
+delta HPWL                    1 %
+
+[INFO DPL-0020] Mirrored 1777 instances
+[INFO DPL-0021] HPWL before          380614.6 u
+[INFO DPL-0022] HPWL after           376740.0 u
+[INFO DPL-0023] HPWL delta               -1.0 %
+Setting global connections for newly added cells…
+[INFO] Setting global connections...
+Updating metrics…
+Cell type report:                       Count       Area
+  Fill cell                              1270    4767.07
+  Tap cell                              42679   53399.96
+  Clock buffer                            387    5235.02
+  Timing Repair Buffer                    812    5441.47
+  Inverter                                843    3239.36
+  Clock inverter                           50     391.63
+  Sequential cell                         705   18493.99
+  Multi-Input combinational cell         1528   14415.08
+  Total                                 48274  105383.57
+Writing OpenROAD database to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/34-openroad-cts/systolic_sorter.odb'…
+Writing netlist to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/34-openroad-cts/systolic_sorter.nl.v'…
+Writing powered netlist to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/34-openroad-cts/systolic_sorter.pnl.v'…
+Writing layout to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/34-openroad-cts/systolic_sorter.def'…
+Writing timing constraints to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/34-openroad-cts/systolic_sorter.sdc'…
+%OL_CREATE_REPORT cts.rpt
+[INFO CTS-0003] Total number of Clock Roots: 1.
+[INFO CTS-0004] Total number of Buffers Inserted: 258.
+[INFO CTS-0005] Total number of Clock Subnets: 258.
+[INFO CTS-0006] Total number of Sinks: 705.
+%OL_END_REPORT

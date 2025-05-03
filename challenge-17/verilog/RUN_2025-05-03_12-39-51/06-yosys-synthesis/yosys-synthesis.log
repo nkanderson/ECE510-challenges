@@ -1,0 +1,1383 @@
+
+ /----------------------------------------------------------------------------\
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |  Copyright (C) 2012 - 2024  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |  Distributed under an ISC-like license, type "license" to see terms        |
+ \----------------------------------------------------------------------------/
+ Yosys 0.46 (git sha1 e97731b9dda91fa5fa53ed87df7c34163ba59a41, clang++ 17.0.6 -fPIC -O3)
+Loaded SDC plugin
+
+1. Executing Liberty frontend: /home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib
+Imported 428 cell types from liberty file.
+[INFO] Using SDC file '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/06-yosys-synthesis/synthesis.abc.sdc' for ABC…
+
+2. Executing Verilog-2005 frontend: /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v
+Parsing SystemVerilog input from `/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v' to AST representation.
+Storing AST representation for module `$abstract\pe'.
+Successfully finished Verilog frontend.
+
+3. Executing Verilog-2005 frontend: /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v
+Parsing SystemVerilog input from `/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v' to AST representation.
+Storing AST representation for module `$abstract\systolic_sorter'.
+Successfully finished Verilog frontend.
+
+4. Executing HIERARCHY pass (managing design hierarchy).
+
+5. Executing AST frontend in derive mode using pre-parsed AST for module `\systolic_sorter'.
+Generating RTLIL representation for module `\systolic_sorter'.
+Warning: Replacing memory \pe_outputs with list of registers. See /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:79
+Warning: Replacing memory \pe_inputs with list of registers. See /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:38
+Warning: Replacing memory \unpacked_input with list of registers. See /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:30
+
+5.1. Analyzing design hierarchy..
+Top module:  \systolic_sorter
+
+5.2. Executing AST frontend in derive mode using pre-parsed AST for module `\pe'.
+Generating RTLIL representation for module `\pe'.
+Reprocessing module systolic_sorter because instantiated module pe has become available.
+Generating RTLIL representation for module `\systolic_sorter'.
+Warning: Replacing memory \pe_outputs with list of registers. See /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:79
+Warning: Replacing memory \pe_inputs with list of registers. See /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:38
+Warning: Replacing memory \unpacked_input with list of registers. See /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:30
+
+5.3. Analyzing design hierarchy..
+Top module:  \systolic_sorter
+Used module:     \pe
+
+5.4. Analyzing design hierarchy..
+Top module:  \systolic_sorter
+Used module:     \pe
+Removing unused module `$abstract\systolic_sorter'.
+Removing unused module `$abstract\pe'.
+Removed 2 unused modules.
+Renaming module systolic_sorter to systolic_sorter.
+
+6. Generating Graphviz representation of design.
+Writing dot description to `/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/06-yosys-synthesis/hierarchy.dot'.
+Dumping module systolic_sorter to page 1.
+
+7. Executing TRIBUF pass.
+
+8. Executing HIERARCHY pass (managing design hierarchy).
+
+8.1. Analyzing design hierarchy..
+Top module:  \systolic_sorter
+Used module:     \pe
+
+8.2. Analyzing design hierarchy..
+Top module:  \systolic_sorter
+Used module:     \pe
+Removed 0 unused modules.
+
+9. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Found and cleaned up 1 empty switch in `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:90$160'.
+Found and cleaned up 1 empty switch in `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+Found and cleaned up 1 empty switch in `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+Cleaned up 3 empty switches.
+
+10. Executing PROC_RMDEAD pass (remove dead branches from decision trees).
+Marked 7 switch rules as full_case in process $proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124 in module systolic_sorter.
+Marked 2 switch rules as full_case in process $proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122 in module systolic_sorter.
+Marked 3 switch rules as full_case in process $proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:20$84 in module pe.
+Removed a total of 0 dead cases.
+
+11. Executing PROC_PRUNE pass (remove redundant assignments in processes).
+Removed 11 redundant assignments.
+Promoted 46 assignments to connections.
+
+12. Executing PROC_INIT pass (extract init attributes).
+
+13. Executing PROC_ARST pass (detect async resets in processes).
+Found async reset \rst in `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+Found async reset \rst in `\pe.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:20$84'.
+
+14. Executing PROC_ROM pass (convert switches to ROMs).
+Converted 0 switches.
+<suppressed ~10 debug messages>
+
+15. Executing PROC_MUX pass (convert decision trees to multiplexers).
+Creating decoders for process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$197'.
+Creating decoders for process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+Creating decoders for process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:90$160'.
+Creating decoders for process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+     1/14: $1\pe_outputs[7][31:0]
+     2/14: $2\pe_outputs[6][31:0]
+     3/14: $1\pe_outputs[6][31:0]
+     4/14: $2\pe_outputs[5][31:0]
+     5/14: $1\pe_outputs[5][31:0]
+     6/14: $2\pe_outputs[4][31:0]
+     7/14: $1\pe_outputs[4][31:0]
+     8/14: $2\pe_outputs[3][31:0]
+     9/14: $1\pe_outputs[3][31:0]
+    10/14: $2\pe_outputs[2][31:0]
+    11/14: $1\pe_outputs[2][31:0]
+    12/14: $2\pe_outputs[1][31:0]
+    13/14: $1\pe_outputs[1][31:0]
+    14/14: $1\pe_outputs[0][31:0]
+Creating decoders for process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+     1/14: $0\phase[0:0]
+     2/14: $2\sv2v_autoblock_3.i[31:0]
+     3/14: $0\pe_inputs[7][31:0]
+     4/14: $0\pe_inputs[6][31:0]
+     5/14: $0\pe_inputs[5][31:0]
+     6/14: $0\pe_inputs[4][31:0]
+     7/14: $0\pe_inputs[3][31:0]
+     8/14: $0\pe_inputs[2][31:0]
+     9/14: $0\pe_inputs[1][31:0]
+    10/14: $0\pe_inputs[0][31:0]
+    11/14: $2\sv2v_autoblock_4.i[31:0]
+    12/14: $1\sv2v_autoblock_4.i[31:0]
+    13/14: $1\sv2v_autoblock_3.i[31:0]
+    14/14: $1\sv2v_autoblock_2.i[31:0]
+Creating decoders for process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+Creating decoders for process `\pe.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:20$84'.
+     1/2: $0\out_right[31:0]
+     2/2: $0\out_left[31:0]
+
+16. Executing PROC_DLATCH pass (convert process syncs to latches).
+No latch inferred for signal `\systolic_sorter.\_sv2v_0' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$197'.
+No latch inferred for signal `\systolic_sorter.\gen_left[0]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_left[1]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_left[2]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_left[3]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_left[4]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_left[5]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_left[6]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_right[0]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_right[1]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_right[2]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_right[3]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_right[4]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_right[5]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\gen_right[6]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+No latch inferred for signal `\systolic_sorter.\out_data_flat' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:90$160'.
+No latch inferred for signal `\systolic_sorter.\sv2v_autoblock_7.i' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:90$160'.
+No latch inferred for signal `\systolic_sorter.\sv2v_autoblock_5.i' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+No latch inferred for signal `\systolic_sorter.\sv2v_autoblock_6.i' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+No latch inferred for signal `\systolic_sorter.\pe_outputs[0]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+No latch inferred for signal `\systolic_sorter.\pe_outputs[1]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+No latch inferred for signal `\systolic_sorter.\pe_outputs[2]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+No latch inferred for signal `\systolic_sorter.\pe_outputs[3]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+No latch inferred for signal `\systolic_sorter.\pe_outputs[4]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+No latch inferred for signal `\systolic_sorter.\pe_outputs[5]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+No latch inferred for signal `\systolic_sorter.\pe_outputs[6]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+No latch inferred for signal `\systolic_sorter.\pe_outputs[7]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+No latch inferred for signal `\systolic_sorter.\sv2v_autoblock_1.i' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+No latch inferred for signal `\systolic_sorter.\unpacked_input[0]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+No latch inferred for signal `\systolic_sorter.\unpacked_input[1]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+No latch inferred for signal `\systolic_sorter.\unpacked_input[2]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+No latch inferred for signal `\systolic_sorter.\unpacked_input[3]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+No latch inferred for signal `\systolic_sorter.\unpacked_input[4]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+No latch inferred for signal `\systolic_sorter.\unpacked_input[5]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+No latch inferred for signal `\systolic_sorter.\unpacked_input[6]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+No latch inferred for signal `\systolic_sorter.\unpacked_input[7]' from process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+
+17. Executing PROC_DFF pass (convert process syncs to FFs).
+Creating register for signal `\systolic_sorter.\phase' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $adff cell `$procdff$287' with positive edge clock and positive level reset.
+Creating register for signal `\systolic_sorter.\sv2v_autoblock_2.i' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $adff cell `$procdff$290' with positive edge clock and positive level reset.
+Creating register for signal `\systolic_sorter.\sv2v_autoblock_3.i' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $dff cell `$procdff$295' with positive edge clock.
+Creating register for signal `\systolic_sorter.\sv2v_autoblock_4.i' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $dff cell `$procdff$300' with positive edge clock.
+Creating register for signal `\systolic_sorter.\pe_inputs[0]' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $adff cell `$procdff$303' with positive edge clock and positive level reset.
+Creating register for signal `\systolic_sorter.\pe_inputs[1]' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $adff cell `$procdff$306' with positive edge clock and positive level reset.
+Creating register for signal `\systolic_sorter.\pe_inputs[2]' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $adff cell `$procdff$309' with positive edge clock and positive level reset.
+Creating register for signal `\systolic_sorter.\pe_inputs[3]' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $adff cell `$procdff$312' with positive edge clock and positive level reset.
+Creating register for signal `\systolic_sorter.\pe_inputs[4]' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $adff cell `$procdff$315' with positive edge clock and positive level reset.
+Creating register for signal `\systolic_sorter.\pe_inputs[5]' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $adff cell `$procdff$318' with positive edge clock and positive level reset.
+Creating register for signal `\systolic_sorter.\pe_inputs[6]' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $adff cell `$procdff$321' with positive edge clock and positive level reset.
+Creating register for signal `\systolic_sorter.\pe_inputs[7]' using process `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+  created $adff cell `$procdff$324' with positive edge clock and positive level reset.
+Creating register for signal `\pe.\out_left' using process `\pe.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:20$84'.
+  created $adff cell `$procdff$327' with positive edge clock and positive level reset.
+Creating register for signal `\pe.\out_right' using process `\pe.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:20$84'.
+  created $adff cell `$procdff$330' with positive edge clock and positive level reset.
+
+18. Executing PROC_MEMWR pass (convert process memory writes to cells).
+
+19. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Removing empty process `systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$197'.
+Removing empty process `systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:0$196'.
+Removing empty process `systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:90$160'.
+Found and cleaned up 7 empty switches in `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+Removing empty process `systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:73$124'.
+Found and cleaned up 1 empty switch in `\systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+Removing empty process `systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:33$122'.
+Removing empty process `systolic_sorter.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/systolic_sorter.v:24$121'.
+Found and cleaned up 2 empty switches in `\pe.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:20$84'.
+Removing empty process `pe.$proc$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:20$84'.
+Cleaned up 10 empty switches.
+
+20. Executing CHECK pass (checking for obvious problems).
+Checking module systolic_sorter...
+Checking module pe...
+Found and reported 0 problems.
+
+21. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+<suppressed ~90 debug messages>
+Optimizing module pe.
+<suppressed ~2 debug messages>
+
+22. Executing FLATTEN pass (flatten design).
+Deleting now unused module pe.
+<suppressed ~7 debug messages>
+
+23. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+<suppressed ~8 debug messages>
+
+24. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+Removed 21 unused cells and 284 unused wires.
+<suppressed ~29 debug messages>
+
+25. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+26. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+27. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \systolic_sorter..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+    dead port 2/2 on $mux $procmux$205.
+    dead port 1/2 on $mux $procmux$211.
+    dead port 2/2 on $mux $procmux$217.
+    dead port 1/2 on $mux $procmux$223.
+    dead port 2/2 on $mux $procmux$229.
+    dead port 1/2 on $mux $procmux$235.
+Removed 6 multiplexer ports.
+<suppressed ~23 debug messages>
+
+28. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \systolic_sorter.
+Performed a total of 0 changes.
+
+29. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+30. Executing OPT_DFF pass (perform DFF optimizations).
+
+31. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+Removed 0 unused cells and 6 unused wires.
+<suppressed ~1 debug messages>
+
+32. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+33. Rerunning OPT passes. (Maybe there is more to do…)
+
+34. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \systolic_sorter..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~23 debug messages>
+
+35. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \systolic_sorter.
+Performed a total of 0 changes.
+
+36. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+37. Executing OPT_DFF pass (perform DFF optimizations).
+
+38. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+39. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+40. Executing FSM pass (extract and optimize FSM).
+
+40.1. Executing FSM_DETECT pass (finding FSMs in design).
+
+40.2. Executing FSM_EXTRACT pass (extracting FSM from design).
+
+40.3. Executing FSM_OPT pass (simple optimizations of FSMs).
+
+40.4. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+40.5. Executing FSM_OPT pass (simple optimizations of FSMs).
+
+40.6. Executing FSM_RECODE pass (re-assigning FSM state encoding).
+
+40.7. Executing FSM_INFO pass (dumping all available information on FSM cells).
+
+40.8. Executing FSM_MAP pass (mapping FSMs to basic logic).
+
+41. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+42. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+43. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \systolic_sorter..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~23 debug messages>
+
+44. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \systolic_sorter.
+Performed a total of 0 changes.
+
+45. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+46. Executing OPT_DFF pass (perform DFF optimizations).
+Adding EN signal on $procdff$324 ($adff) from module systolic_sorter (D = $0\pe_inputs[7][31:0], Q = \pe_inputs[7]).
+Adding EN signal on $procdff$303 ($adff) from module systolic_sorter (D = $0\pe_inputs[0][31:0], Q = \pe_inputs[0]).
+
+47. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+48. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+49. Rerunning OPT passes. (Maybe there is more to do…)
+
+50. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \systolic_sorter..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~23 debug messages>
+
+51. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \systolic_sorter.
+Performed a total of 0 changes.
+
+52. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+<suppressed ~3 debug messages>
+Removed a total of 1 cells.
+
+53. Executing OPT_DFF pass (perform DFF optimizations).
+
+54. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+Removed 0 unused cells and 1 unused wires.
+<suppressed ~1 debug messages>
+
+55. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+56. Rerunning OPT passes. (Maybe there is more to do…)
+
+57. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \systolic_sorter..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~23 debug messages>
+
+58. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \systolic_sorter.
+Performed a total of 0 changes.
+
+59. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+60. Executing OPT_DFF pass (perform DFF optimizations).
+
+61. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+62. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+63. Executing WREDUCE pass (reducing word size of cells).
+
+64. Executing PEEPOPT pass (run peephole optimizers).
+
+65. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+66. Executing ALUMACC pass (create $alu and $macc cells).
+Extracting $alu and $macc cells in module systolic_sorter:
+  creating $alu model for $flatten\gen_pe[0].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85 ($gt): new $alu
+  creating $alu model for $flatten\gen_pe[1].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85 ($gt): new $alu
+  creating $alu model for $flatten\gen_pe[2].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85 ($gt): new $alu
+  creating $alu model for $flatten\gen_pe[3].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85 ($gt): new $alu
+  creating $alu model for $flatten\gen_pe[4].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85 ($gt): new $alu
+  creating $alu model for $flatten\gen_pe[5].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85 ($gt): new $alu
+  creating $alu model for $flatten\gen_pe[6].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85 ($gt): new $alu
+  creating $alu cell for $flatten\gen_pe[6].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85: $auto$alumacc.cc:485:replace_alu$351
+  creating $alu cell for $flatten\gen_pe[5].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85: $auto$alumacc.cc:485:replace_alu$356
+  creating $alu cell for $flatten\gen_pe[4].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85: $auto$alumacc.cc:485:replace_alu$361
+  creating $alu cell for $flatten\gen_pe[3].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85: $auto$alumacc.cc:485:replace_alu$372
+  creating $alu cell for $flatten\gen_pe[2].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85: $auto$alumacc.cc:485:replace_alu$377
+  creating $alu cell for $flatten\gen_pe[1].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85: $auto$alumacc.cc:485:replace_alu$388
+  creating $alu cell for $flatten\gen_pe[0].pe_inst.$gt$/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/pe.v:26$85: $auto$alumacc.cc:485:replace_alu$393
+  created 7 $alu and 0 $macc cells.
+
+67. Executing SHARE pass (SAT-based resource sharing).
+
+68. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+<suppressed ~14 debug messages>
+
+69. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+70. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \systolic_sorter..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~23 debug messages>
+
+71. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \systolic_sorter.
+Performed a total of 0 changes.
+
+72. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+73. Executing OPT_DFF pass (perform DFF optimizations).
+
+74. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+Removed 7 unused cells and 14 unused wires.
+<suppressed ~8 debug messages>
+
+75. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+76. Rerunning OPT passes. (Maybe there is more to do…)
+
+77. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \systolic_sorter..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~23 debug messages>
+
+78. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \systolic_sorter.
+Performed a total of 0 changes.
+
+79. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+80. Executing OPT_DFF pass (perform DFF optimizations).
+
+81. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+82. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+83. Executing MEMORY pass.
+
+83.1. Executing OPT_MEM pass (optimize memories).
+Performed a total of 0 transformations.
+
+83.2. Executing OPT_MEM_PRIORITY pass (removing unnecessary memory write priority relations).
+Performed a total of 0 transformations.
+
+83.3. Executing OPT_MEM_FEEDBACK pass (finding memory read-to-write feedback paths).
+
+83.4. Executing MEMORY_BMUX2ROM pass (converting muxes to ROMs).
+
+83.5. Executing MEMORY_DFF pass (merging $dff cells to $memrd).
+
+83.6. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+83.7. Executing MEMORY_SHARE pass (consolidating $memrd/$memwr cells).
+
+83.8. Executing OPT_MEM_WIDEN pass (optimize memories where all ports are wide).
+Performed a total of 0 transformations.
+
+83.9. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+83.10. Executing MEMORY_COLLECT pass (generating $mem cells).
+
+84. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+85. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+<suppressed ~2 debug messages>
+
+86. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+87. Executing OPT_DFF pass (perform DFF optimizations).
+
+88. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+89. Executing MEMORY_MAP pass (converting memories to logic and flip-flops).
+
+90. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+91. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+92. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \systolic_sorter..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~23 debug messages>
+
+93. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \systolic_sorter.
+Performed a total of 0 changes.
+
+94. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+95. Executing OPT_SHARE pass.
+
+96. Executing OPT_DFF pass (perform DFF optimizations).
+
+97. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+98. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+99. Executing TECHMAP pass (map to technology primitives).
+
+99.1. Executing Verilog-2005 frontend: /nix/store/9r0bh7sp051dpm8km8bqlb028anpd3v3-yosys/bin/../share/yosys/techmap.v
+Parsing Verilog input from `/nix/store/9r0bh7sp051dpm8km8bqlb028anpd3v3-yosys/bin/../share/yosys/techmap.v' to AST representation.
+Generating RTLIL representation for module `\_90_simplemap_bool_ops'.
+Generating RTLIL representation for module `\_90_simplemap_reduce_ops'.
+Generating RTLIL representation for module `\_90_simplemap_logic_ops'.
+Generating RTLIL representation for module `\_90_simplemap_compare_ops'.
+Generating RTLIL representation for module `\_90_simplemap_various'.
+Generating RTLIL representation for module `\_90_simplemap_registers'.
+Generating RTLIL representation for module `\_90_shift_ops_shr_shl_sshl_sshr'.
+Generating RTLIL representation for module `\_90_shift_shiftx'.
+Generating RTLIL representation for module `\_90_fa'.
+Generating RTLIL representation for module `\_90_lcu_brent_kung'.
+Generating RTLIL representation for module `\_90_alu'.
+Generating RTLIL representation for module `\_90_macc'.
+Generating RTLIL representation for module `\_90_alumacc'.
+Generating RTLIL representation for module `\$__div_mod_u'.
+Generating RTLIL representation for module `\$__div_mod_trunc'.
+Generating RTLIL representation for module `\_90_div'.
+Generating RTLIL representation for module `\_90_mod'.
+Generating RTLIL representation for module `\$__div_mod_floor'.
+Generating RTLIL representation for module `\_90_divfloor'.
+Generating RTLIL representation for module `\_90_modfloor'.
+Generating RTLIL representation for module `\_90_pow'.
+Generating RTLIL representation for module `\_90_pmux'.
+Generating RTLIL representation for module `\_90_demux'.
+Generating RTLIL representation for module `\_90_lut'.
+Successfully finished Verilog frontend.
+
+99.2. Continuing TECHMAP pass.
+Using template $paramod$fbc7873bff55778c0b3173955b7e4bce1d9d6834\_90_alu for cells of type $alu.
+Using extmapper simplemap for cells of type $mux.
+Using extmapper simplemap for cells of type $adff.
+Using extmapper simplemap for cells of type $adffe.
+Using extmapper simplemap for cells of type $ne.
+Using extmapper simplemap for cells of type $not.
+Using extmapper simplemap for cells of type $or.
+Using extmapper simplemap for cells of type $reduce_and.
+Using extmapper simplemap for cells of type $pos.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000100000 for cells of type $lcu.
+Using extmapper simplemap for cells of type $and.
+Using extmapper simplemap for cells of type $xor.
+No more expansions possible.
+<suppressed ~1363 debug messages>
+
+100. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+<suppressed ~247 debug messages>
+
+101. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+<suppressed ~525 debug messages>
+Removed a total of 175 cells.
+
+102. Executing OPT_DFF pass (perform DFF optimizations).
+
+103. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+Removed 588 unused cells and 451 unused wires.
+<suppressed ~589 debug messages>
+
+104. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+105. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+106. Executing OPT_DFF pass (perform DFF optimizations).
+
+107. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+108. Executing ABC pass (technology mapping using ABC).
+
+108.1. Extracting gate netlist of module `\systolic_sorter' to `<abc-temp-dir>/input.blif'..
+Extracted 2567 gates and 3530 wires to a netlist network with 962 inputs and 706 outputs.
+
+108.1.1. Executing ABC.
+Running ABC command: "/nix/store/6l3aj1gi4lja8z5s4lan2k2cfz9mqkrz-yosys-abc/bin/abc" -s -f <abc-temp-dir>/abc.script 2>&1
+ABC: ABC command line: "source <abc-temp-dir>/abc.script".
+ABC: 
+ABC: + read_blif <abc-temp-dir>/input.blif 
+ABC: + read_library <abc-temp-dir>/stdcells.genlib 
+ABC: Entered genlib library with 13 gates from file "<abc-temp-dir>/stdcells.genlib".
+ABC: + strash 
+ABC: + dretime 
+ABC: + map 
+ABC: + write_blif <abc-temp-dir>/output.blif 
+
+108.1.2. Re-integrating ABC results.
+ABC RESULTS:               NOT cells:        1
+ABC RESULTS:               NOR cells:        8
+ABC RESULTS:               AND cells:       21
+ABC RESULTS:              NAND cells:       15
+ABC RESULTS:                OR cells:       53
+ABC RESULTS:               XOR cells:      130
+ABC RESULTS:              XNOR cells:       90
+ABC RESULTS:            ANDNOT cells:      554
+ABC RESULTS:             ORNOT cells:      216
+ABC RESULTS:               MUX cells:     1344
+ABC RESULTS:        internal signals:     1862
+ABC RESULTS:           input signals:      962
+ABC RESULTS:          output signals:      706
+Removing temp directory.
+
+109. Executing OPT pass (performing simple optimizations).
+
+109.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+<suppressed ~192 debug messages>
+
+109.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+109.3. Executing OPT_DFF pass (perform DFF optimizations).
+
+109.4. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+Removed 1 unused cells and 1805 unused wires.
+<suppressed ~8 debug messages>
+
+109.5. Finished fast OPT passes.
+
+110. Executing HIERARCHY pass (managing design hierarchy).
+
+110.1. Analyzing design hierarchy..
+Top module:  \systolic_sorter
+
+110.2. Analyzing design hierarchy..
+Top module:  \systolic_sorter
+Removed 0 unused modules.
+
+111. Executing CHECK pass (checking for obvious problems).
+Checking module systolic_sorter...
+Found and reported 0 problems.
+
+112. Printing statistics.
+
+=== systolic_sorter ===
+
+   Number of wires:               2271
+   Number of wire bits:           5013
+   Number of public wires:          88
+   Number of public wire bits:    2582
+   Number of ports:                  5
+   Number of port bits:            515
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:               3143
+     $_ANDNOT_                     554
+     $_AND_                         21
+     $_DFFE_PP0P_                   64
+     $_DFF_PP0_                    641
+     $_MUX_                       1344
+     $_NAND_                        15
+     $_NOR_                          8
+     $_ORNOT_                      216
+     $_OR_                          53
+     $_XNOR_                        90
+     $_XOR_                        130
+     $scopeinfo                      7
+
+113. Generating Graphviz representation of design.
+Writing dot description to `/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/06-yosys-synthesis/primitive_techmap.dot'.
+Dumping module systolic_sorter to page 1.
+
+114. Executing OPT pass (performing simple optimizations).
+
+114.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+114.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+114.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \systolic_sorter..
+  Creating internal representation of mux trees.
+  No muxes found in this module.
+Removed 0 multiplexer ports.
+
+114.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \systolic_sorter.
+Performed a total of 0 changes.
+
+114.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\systolic_sorter'.
+Removed a total of 0 cells.
+
+114.6. Executing OPT_DFF pass (perform DFF optimizations).
+
+114.7. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+
+114.8. Executing OPT_EXPR pass (perform const folding).
+Optimizing module systolic_sorter.
+
+114.9. Finished OPT passes. (There is nothing left to do.)
+
+115. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+Removed 7 unused cells and 68 unused wires.
+<suppressed ~75 debug messages>
+{
+   "creator": "Yosys 0.46 (git sha1 e97731b9dda91fa5fa53ed87df7c34163ba59a41, clang++ 17.0.6 -fPIC -O3)",
+   "invocation": "stat -json -liberty /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/tmp/7faad101a7044a30a37fb4b7666f3058.lib ",
+   "modules": {
+      "\\systolic_sorter": {
+         "num_wires":         2203,
+         "num_wire_bits":     3395,
+         "num_pub_wires":     20,
+         "num_pub_wire_bits": 964,
+         "num_ports":         5,
+         "num_port_bits":     515,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         3136,
+         "num_cells_by_type": {
+            "$_ANDNOT_": 554,
+            "$_AND_": 21,
+            "$_DFFE_PP0P_": 64,
+            "$_DFF_PP0_": 641,
+            "$_MUX_": 1344,
+            "$_NAND_": 15,
+            "$_NOR_": 8,
+            "$_ORNOT_": 216,
+            "$_OR_": 53,
+            "$_XNOR_": 90,
+            "$_XOR_": 130
+         }
+      }
+   },
+      "design": {
+         "num_wires":         2203,
+         "num_wire_bits":     3395,
+         "num_pub_wires":     20,
+         "num_pub_wire_bits": 964,
+         "num_ports":         5,
+         "num_port_bits":     515,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         3136,
+         "num_cells_by_type": {
+            "$_ANDNOT_": 554,
+            "$_AND_": 21,
+            "$_DFFE_PP0P_": 64,
+            "$_DFF_PP0_": 641,
+            "$_MUX_": 1344,
+            "$_NAND_": 15,
+            "$_NOR_": 8,
+            "$_ORNOT_": 216,
+            "$_OR_": 53,
+            "$_XNOR_": 90,
+            "$_XOR_": 130
+         }
+      }
+}
+
+116. Printing statistics.
+
+=== systolic_sorter ===
+
+   Number of wires:               2203
+   Number of wire bits:           3395
+   Number of public wires:          20
+   Number of public wire bits:     964
+   Number of ports:                  5
+   Number of port bits:            515
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:               3136
+     $_ANDNOT_                     554
+     $_AND_                         21
+     $_DFFE_PP0P_                   64
+     $_DFF_PP0_                    641
+     $_MUX_                       1344
+     $_NAND_                        15
+     $_NOR_                          8
+     $_ORNOT_                      216
+     $_OR_                          53
+     $_XNOR_                        90
+     $_XOR_                        130
+
+   Area for cell type $_AND_ is unknown!
+   Area for cell type $_NAND_ is unknown!
+   Area for cell type $_OR_ is unknown!
+   Area for cell type $_NOR_ is unknown!
+   Area for cell type $_XOR_ is unknown!
+   Area for cell type $_XNOR_ is unknown!
+   Area for cell type $_ANDNOT_ is unknown!
+   Area for cell type $_ORNOT_ is unknown!
+   Area for cell type $_MUX_ is unknown!
+   Area for cell type $_DFF_PP0_ is unknown!
+   Area for cell type $_DFFE_PP0P_ is unknown!
+
+[INFO] Applying tri-state buffer mapping from '/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.tech/openlane/sky130_fd_sc_hd/tribuff_map.v'…
+
+117. Executing TECHMAP pass (map to technology primitives).
+
+117.1. Executing Verilog-2005 frontend: /home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.tech/openlane/sky130_fd_sc_hd/tribuff_map.v
+Parsing Verilog input from `/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.tech/openlane/sky130_fd_sc_hd/tribuff_map.v' to AST representation.
+Generating RTLIL representation for module `\$_TBUF_'.
+Successfully finished Verilog frontend.
+
+117.2. Continuing TECHMAP pass.
+No more expansions possible.
+<suppressed ~3 debug messages>
+
+118. Executing SIMPLEMAP pass (map simple cells to gate primitives).
+[INFO] Applying latch mapping from '/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.tech/openlane/sky130_fd_sc_hd/latch_map.v'…
+
+119. Executing TECHMAP pass (map to technology primitives).
+
+119.1. Executing Verilog-2005 frontend: /home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.tech/openlane/sky130_fd_sc_hd/latch_map.v
+Parsing Verilog input from `/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.tech/openlane/sky130_fd_sc_hd/latch_map.v' to AST representation.
+Generating RTLIL representation for module `\$_DLATCH_P_'.
+Generating RTLIL representation for module `\$_DLATCH_N_'.
+Successfully finished Verilog frontend.
+
+119.2. Continuing TECHMAP pass.
+No more expansions possible.
+<suppressed ~4 debug messages>
+
+120. Executing SIMPLEMAP pass (map simple cells to gate primitives).
+
+121. Executing DFFLIBMAP pass (mapping DFF cells to sequential cells from liberty file).
+  cell sky130_fd_sc_hd__dfxtp_2 (noninv, pins=3, area=21.27) is a direct match for cell type $_DFF_P_.
+  cell sky130_fd_sc_hd__dfrtp_2 (noninv, pins=4, area=26.28) is a direct match for cell type $_DFF_PN0_.
+  cell sky130_fd_sc_hd__dfstp_2 (noninv, pins=4, area=26.28) is a direct match for cell type $_DFF_PN1_.
+  cell sky130_fd_sc_hd__dfbbn_2 (noninv, pins=6, area=35.03) is a direct match for cell type $_DFFSR_NNN_.
+  final dff cell mappings:
+    unmapped dff cell: $_DFF_N_
+    \sky130_fd_sc_hd__dfxtp_2 _DFF_P_ (.CLK( C), .D( D), .Q( Q));
+    unmapped dff cell: $_DFF_NN0_
+    unmapped dff cell: $_DFF_NN1_
+    unmapped dff cell: $_DFF_NP0_
+    unmapped dff cell: $_DFF_NP1_
+    \sky130_fd_sc_hd__dfrtp_2 _DFF_PN0_ (.CLK( C), .D( D), .Q( Q), .RESET_B( R));
+    \sky130_fd_sc_hd__dfstp_2 _DFF_PN1_ (.CLK( C), .D( D), .Q( Q), .SET_B( R));
+    unmapped dff cell: $_DFF_PP0_
+    unmapped dff cell: $_DFF_PP1_
+    \sky130_fd_sc_hd__dfbbn_2 _DFFSR_NNN_ (.CLK_N( C), .D( D), .Q( Q), .Q_N(~Q), .RESET_B( R), .SET_B( S));
+    unmapped dff cell: $_DFFSR_NNP_
+    unmapped dff cell: $_DFFSR_NPN_
+    unmapped dff cell: $_DFFSR_NPP_
+    unmapped dff cell: $_DFFSR_PNN_
+    unmapped dff cell: $_DFFSR_PNP_
+    unmapped dff cell: $_DFFSR_PPN_
+    unmapped dff cell: $_DFFSR_PPP_
+
+121.1. Executing DFFLEGALIZE pass (convert FFs to types supported by the target).
+Mapping DFF cells in module `\systolic_sorter':
+  mapped 705 $_DFF_PN0_ cells to \sky130_fd_sc_hd__dfrtp_2 cells.
+{
+   "creator": "Yosys 0.46 (git sha1 e97731b9dda91fa5fa53ed87df7c34163ba59a41, clang++ 17.0.6 -fPIC -O3)",
+   "invocation": "stat -json -liberty /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/tmp/7faad101a7044a30a37fb4b7666f3058.lib ",
+   "modules": {
+      "\\systolic_sorter": {
+         "num_wires":         2972,
+         "num_wire_bits":     4164,
+         "num_pub_wires":     20,
+         "num_pub_wire_bits": 964,
+         "num_ports":         5,
+         "num_port_bits":     515,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         3905,
+         "area":              18524.016000,
+         "num_cells_by_type": {
+            "$_ANDNOT_": 554,
+            "$_AND_": 21,
+            "$_MUX_": 1408,
+            "$_NAND_": 15,
+            "$_NOR_": 8,
+            "$_NOT_": 705,
+            "$_ORNOT_": 216,
+            "$_OR_": 53,
+            "$_XNOR_": 90,
+            "$_XOR_": 130,
+            "sky130_fd_sc_hd__dfrtp_2": 705
+         }
+      }
+   },
+      "design": {
+         "num_wires":         2972,
+         "num_wire_bits":     4164,
+         "num_pub_wires":     20,
+         "num_pub_wire_bits": 964,
+         "num_ports":         5,
+         "num_port_bits":     515,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         3905,
+         "area":              18524.016000,
+         "num_cells_by_type": {
+            "$_ANDNOT_": 554,
+            "$_AND_": 21,
+            "$_MUX_": 1408,
+            "$_NAND_": 15,
+            "$_NOR_": 8,
+            "$_NOT_": 705,
+            "$_ORNOT_": 216,
+            "$_OR_": 53,
+            "$_XNOR_": 90,
+            "$_XOR_": 130,
+            "sky130_fd_sc_hd__dfrtp_2": 705
+         }
+      }
+}
+
+122. Printing statistics.
+
+=== systolic_sorter ===
+
+   Number of wires:               2972
+   Number of wire bits:           4164
+   Number of public wires:          20
+   Number of public wire bits:     964
+   Number of ports:                  5
+   Number of port bits:            515
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:               3905
+     $_ANDNOT_                     554
+     $_AND_                         21
+     $_MUX_                       1408
+     $_NAND_                        15
+     $_NOR_                          8
+     $_NOT_                        705
+     $_ORNOT_                      216
+     $_OR_                          53
+     $_XNOR_                        90
+     $_XOR_                        130
+     sky130_fd_sc_hd__dfrtp_2      705
+
+   Area for cell type $_NOT_ is unknown!
+   Area for cell type $_AND_ is unknown!
+   Area for cell type $_NAND_ is unknown!
+   Area for cell type $_OR_ is unknown!
+   Area for cell type $_NOR_ is unknown!
+   Area for cell type $_XOR_ is unknown!
+   Area for cell type $_XNOR_ is unknown!
+   Area for cell type $_ANDNOT_ is unknown!
+   Area for cell type $_ORNOT_ is unknown!
+   Area for cell type $_MUX_ is unknown!
+
+   Chip area for module '\systolic_sorter': 18524.016000
+     of which used for sequential elements: 18524.016000 (100.00%)
+
+[INFO] Using generated ABC script '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/06-yosys-synthesis/AREA_0.abc'…
+
+123. Executing ABC pass (technology mapping using ABC).
+
+123.1. Extracting gate netlist of module `\systolic_sorter' to `/tmp/yosys-abc-Kip7R4/input.blif'..
+Extracted 3200 gates and 4163 wires to a netlist network with 963 inputs and 1410 outputs.
+
+123.1.1. Executing ABC.
+Running ABC command: "/nix/store/6l3aj1gi4lja8z5s4lan2k2cfz9mqkrz-yosys-abc/bin/abc" -s -f /tmp/yosys-abc-Kip7R4/abc.script 2>&1
+ABC: ABC command line: "source /tmp/yosys-abc-Kip7R4/abc.script".
+ABC: 
+ABC: + read_blif /tmp/yosys-abc-Kip7R4/input.blif 
+ABC: + read_lib -w /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/tmp/7faad101a7044a30a37fb4b7666f3058.lib 
+ABC: Parsing finished successfully.  Parsing time =     0.03 sec
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dfbbn_2".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dfrbp_2".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dfrtp_2".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dfrtp_4".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dfsbp_2".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dfstp_2".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dfstp_4".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dfxbp_2".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dfxtp_2".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dfxtp_4".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dlxtn_1".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dlxtn_2".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dlxtn_4".
+ABC: Scl_LibertyReadGenlib() skipped sequential cell "sky130_fd_sc_hd__dlxtp_1".
+ABC: Scl_LibertyReadGenlib() skipped three-state cell "sky130_fd_sc_hd__ebufn_2".
+ABC: Scl_LibertyReadGenlib() skipped three-state cell "sky130_fd_sc_hd__ebufn_4".
+ABC: Scl_LibertyReadGenlib() skipped three-state cell "sky130_fd_sc_hd__ebufn_8".
+ABC: Library "sky130_fd_sc_hd__tt_025C_1v80" from "/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/tmp/7faad101a7044a30a37fb4b7666f3058.lib" has 175 cells (17 skipped: 14 seq; 3 tri-state; 0 no func; 0 dont_use).  Time =     0.04 sec
+ABC: Memory =    9.54 MB. Time =     0.04 sec
+ABC: Warning: Detected 2 multi-output gates (for example, "sky130_fd_sc_hd__fa_1").
+ABC: + read_constr -v /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/06-yosys-synthesis/synthesis.abc.sdc 
+ABC: Setting driving cell to be "sky130_fd_sc_hd__inv_2/Y".
+ABC: Setting output load to be 33.442001.
+ABC: + source /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/06-yosys-synthesis/AREA_0.abc 
+ABC: Error: The network is combinational.
+ABC: Cannot find the default PI driving cell (sky130_fd_sc_hd__inv_2/Y) in the library.
+ABC: WireLoad = "none"  Gates =   2371 ( 35.6 %)   Cap = 18.8 ff ( 10.0 %)   Area =    18373.87 ( 44.2 %)   Delay =  5974.92 ps  ( 20.4 %)               
+ABC: Path  0 --      65 : 0  258 pi                       A =   0.00  Df =   0.0   -0.0 ps  S =   0.0 ps  Cin =  0.0 ff  Cout = 602.4 ff  Cmax =   0.0 ff  G =    0  
+ABC: Path  1 --    2508 : 2  257 sky130_fd_sc_hd__nor2_2  A =   6.26  Df =5013.2-4036.1 ps  S =6889.6 ps  Cin =  4.4 ff  Cout = 674.4 ff  Cmax = 141.9 ff  G =14424  
+ABC: Path  2 --    3672 : 5    1 sky130_fd_sc_hd__a221o_2 A =  11.26  Df =5974.9-4131.8 ps  S = 234.5 ps  Cin =  2.3 ff  Cout =  33.4 ff  Cmax = 299.4 ff  G = 1437  
+ABC: Start-point = pi64 (\load).  End-point = po520 ($0\pe_inputs[1][31:0] [7]).
+ABC: netlist                       : i/o =  963/ 1410  lat =    0  nd =  2371  edge =   5765  area =18371.75  delay = 8.00  lev = 8
+ABC: + write_blif /tmp/yosys-abc-Kip7R4/output.blif 
+
+123.1.2. Re-integrating ABC results.
+ABC RESULTS:   sky130_fd_sc_hd__nand4_2 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__a32oi_2 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__a41o_2 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__and4bb_2 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__o221ai_2 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__o21ba_2 cells:        3
+ABC RESULTS:   sky130_fd_sc_hd__o21bai_2 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__o311a_2 cells:        3
+ABC RESULTS:   sky130_fd_sc_hd__nand3b_2 cells:        3
+ABC RESULTS:   sky130_fd_sc_hd__and4b_2 cells:        3
+ABC RESULTS:   sky130_fd_sc_hd__and3b_2 cells:        6
+ABC RESULTS:   sky130_fd_sc_hd__a21bo_2 cells:        8
+ABC RESULTS:   sky130_fd_sc_hd__a32o_2 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__or4_2 cells:       12
+ABC RESULTS:   sky130_fd_sc_hd__o22ai_2 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__a2bb2o_2 cells:        9
+ABC RESULTS:   sky130_fd_sc_hd__xor2_2 cells:       16
+ABC RESULTS:   sky130_fd_sc_hd__a311o_2 cells:        5
+ABC RESULTS:   sky130_fd_sc_hd__or3_2 cells:       17
+ABC RESULTS:   sky130_fd_sc_hd__or3b_2 cells:       21
+ABC RESULTS:   sky130_fd_sc_hd__nor4_2 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__a211o_2 cells:       10
+ABC RESULTS:   sky130_fd_sc_hd__xnor2_2 cells:        5
+ABC RESULTS:   sky130_fd_sc_hd__nand2b_2 cells:       46
+ABC RESULTS:   sky130_fd_sc_hd__o2111a_2 cells:        6
+ABC RESULTS:   sky130_fd_sc_hd__nand3_2 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__o21ai_2 cells:       11
+ABC RESULTS:   sky130_fd_sc_hd__and2b_2 cells:       65
+ABC RESULTS:   sky130_fd_sc_hd__a2111o_2 cells:        9
+ABC RESULTS:   sky130_fd_sc_hd__a22oi_2 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__or2_2 cells:       14
+ABC RESULTS:   sky130_fd_sc_hd__o2bb2a_2 cells:        8
+ABC RESULTS:   sky130_fd_sc_hd__nor2_2 cells:       35
+ABC RESULTS:   sky130_fd_sc_hd__o31a_2 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__o211a_2 cells:       16
+ABC RESULTS:   sky130_fd_sc_hd__o22a_2 cells:       36
+ABC RESULTS:   sky130_fd_sc_hd__or4bb_2 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__o211ai_2 cells:        3
+ABC RESULTS:   sky130_fd_sc_hd__or4b_2 cells:       15
+ABC RESULTS:   sky130_fd_sc_hd__o32a_2 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__o221a_2 cells:       14
+ABC RESULTS:   sky130_fd_sc_hd__nand2_2 cells:       16
+ABC RESULTS:   sky130_fd_sc_hd__a31o_2 cells:       11
+ABC RESULTS:   sky130_fd_sc_hd__and3_2 cells:        5
+ABC RESULTS:   sky130_fd_sc_hd__o21a_2 cells:       15
+ABC RESULTS:   sky130_fd_sc_hd__and4_2 cells:        9
+ABC RESULTS:   sky130_fd_sc_hd__a21oi_2 cells:       16
+ABC RESULTS:   sky130_fd_sc_hd__mux2_1 cells:      433
+ABC RESULTS:   sky130_fd_sc_hd__and2_2 cells:       47
+ABC RESULTS:   sky130_fd_sc_hd__a221o_2 cells:       40
+ABC RESULTS:   sky130_fd_sc_hd__a22o_2 cells:      260
+ABC RESULTS:   sky130_fd_sc_hd__a21o_2 cells:      245
+ABC RESULTS:   sky130_fd_sc_hd__inv_2 cells:      843
+ABC RESULTS:        internal signals:     1790
+ABC RESULTS:           input signals:      963
+ABC RESULTS:          output signals:     1410
+Removing temp directory.
+
+124. Executing SETUNDEF pass (replace undef values with defined constants).
+
+125. Executing HILOMAP pass (mapping to constant drivers).
+
+126. Executing SPLITNETS pass (splitting up multi-bit signals).
+
+127. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \systolic_sorter..
+Removed 0 unused cells and 4163 unused wires.
+<suppressed ~1 debug messages>
+
+128. Executing INSBUF pass (insert buffer cells for connected wires).
+
+129. Executing CHECK pass (checking for obvious problems).
+Checking module systolic_sorter...
+Found and reported 0 problems.
+{
+   "creator": "Yosys 0.46 (git sha1 e97731b9dda91fa5fa53ed87df7c34163ba59a41, clang++ 17.0.6 -fPIC -O3)",
+   "invocation": "stat -json -liberty /home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/tmp/7faad101a7044a30a37fb4b7666f3058.lib ",
+   "modules": {
+      "\\systolic_sorter": {
+         "num_wires":         2825,
+         "num_wire_bits":     3335,
+         "num_pub_wires":     454,
+         "num_pub_wire_bits": 964,
+         "num_ports":         5,
+         "num_port_bits":     515,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         3076,
+         "area":              36897.888000,
+         "num_cells_by_type": {
+            "sky130_fd_sc_hd__a2111o_2": 9,
+            "sky130_fd_sc_hd__a211o_2": 10,
+            "sky130_fd_sc_hd__a21bo_2": 8,
+            "sky130_fd_sc_hd__a21o_2": 245,
+            "sky130_fd_sc_hd__a21oi_2": 16,
+            "sky130_fd_sc_hd__a221o_2": 40,
+            "sky130_fd_sc_hd__a22o_2": 260,
+            "sky130_fd_sc_hd__a22oi_2": 4,
+            "sky130_fd_sc_hd__a2bb2o_2": 9,
+            "sky130_fd_sc_hd__a311o_2": 5,
+            "sky130_fd_sc_hd__a31o_2": 11,
+            "sky130_fd_sc_hd__a32o_2": 2,
+            "sky130_fd_sc_hd__a32oi_2": 1,
+            "sky130_fd_sc_hd__a41o_2": 1,
+            "sky130_fd_sc_hd__and2_2": 47,
+            "sky130_fd_sc_hd__and2b_2": 65,
+            "sky130_fd_sc_hd__and3_2": 5,
+            "sky130_fd_sc_hd__and3b_2": 6,
+            "sky130_fd_sc_hd__and4_2": 9,
+            "sky130_fd_sc_hd__and4b_2": 3,
+            "sky130_fd_sc_hd__and4bb_2": 2,
+            "sky130_fd_sc_hd__dfrtp_2": 705,
+            "sky130_fd_sc_hd__inv_2": 843,
+            "sky130_fd_sc_hd__mux2_1": 433,
+            "sky130_fd_sc_hd__nand2_2": 16,
+            "sky130_fd_sc_hd__nand2b_2": 46,
+            "sky130_fd_sc_hd__nand3_2": 1,
+            "sky130_fd_sc_hd__nand3b_2": 3,
+            "sky130_fd_sc_hd__nand4_2": 1,
+            "sky130_fd_sc_hd__nor2_2": 35,
+            "sky130_fd_sc_hd__nor4_2": 1,
+            "sky130_fd_sc_hd__o2111a_2": 6,
+            "sky130_fd_sc_hd__o211a_2": 16,
+            "sky130_fd_sc_hd__o211ai_2": 3,
+            "sky130_fd_sc_hd__o21a_2": 15,
+            "sky130_fd_sc_hd__o21ai_2": 11,
+            "sky130_fd_sc_hd__o21ba_2": 3,
+            "sky130_fd_sc_hd__o21bai_2": 4,
+            "sky130_fd_sc_hd__o221a_2": 14,
+            "sky130_fd_sc_hd__o221ai_2": 1,
+            "sky130_fd_sc_hd__o22a_2": 36,
+            "sky130_fd_sc_hd__o22ai_2": 2,
+            "sky130_fd_sc_hd__o2bb2a_2": 8,
+            "sky130_fd_sc_hd__o311a_2": 3,
+            "sky130_fd_sc_hd__o31a_2": 4,
+            "sky130_fd_sc_hd__o32a_2": 4,
+            "sky130_fd_sc_hd__or2_2": 14,
+            "sky130_fd_sc_hd__or3_2": 17,
+            "sky130_fd_sc_hd__or3b_2": 21,
+            "sky130_fd_sc_hd__or4_2": 12,
+            "sky130_fd_sc_hd__or4b_2": 15,
+            "sky130_fd_sc_hd__or4bb_2": 4,
+            "sky130_fd_sc_hd__xnor2_2": 5,
+            "sky130_fd_sc_hd__xor2_2": 16
+         }
+      }
+   },
+      "design": {
+         "num_wires":         2825,
+         "num_wire_bits":     3335,
+         "num_pub_wires":     454,
+         "num_pub_wire_bits": 964,
+         "num_ports":         5,
+         "num_port_bits":     515,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         3076,
+         "area":              36897.888000,
+         "num_cells_by_type": {
+            "sky130_fd_sc_hd__a2111o_2": 9,
+            "sky130_fd_sc_hd__a211o_2": 10,
+            "sky130_fd_sc_hd__a21bo_2": 8,
+            "sky130_fd_sc_hd__a21o_2": 245,
+            "sky130_fd_sc_hd__a21oi_2": 16,
+            "sky130_fd_sc_hd__a221o_2": 40,
+            "sky130_fd_sc_hd__a22o_2": 260,
+            "sky130_fd_sc_hd__a22oi_2": 4,
+            "sky130_fd_sc_hd__a2bb2o_2": 9,
+            "sky130_fd_sc_hd__a311o_2": 5,
+            "sky130_fd_sc_hd__a31o_2": 11,
+            "sky130_fd_sc_hd__a32o_2": 2,
+            "sky130_fd_sc_hd__a32oi_2": 1,
+            "sky130_fd_sc_hd__a41o_2": 1,
+            "sky130_fd_sc_hd__and2_2": 47,
+            "sky130_fd_sc_hd__and2b_2": 65,
+            "sky130_fd_sc_hd__and3_2": 5,
+            "sky130_fd_sc_hd__and3b_2": 6,
+            "sky130_fd_sc_hd__and4_2": 9,
+            "sky130_fd_sc_hd__and4b_2": 3,
+            "sky130_fd_sc_hd__and4bb_2": 2,
+            "sky130_fd_sc_hd__dfrtp_2": 705,
+            "sky130_fd_sc_hd__inv_2": 843,
+            "sky130_fd_sc_hd__mux2_1": 433,
+            "sky130_fd_sc_hd__nand2_2": 16,
+            "sky130_fd_sc_hd__nand2b_2": 46,
+            "sky130_fd_sc_hd__nand3_2": 1,
+            "sky130_fd_sc_hd__nand3b_2": 3,
+            "sky130_fd_sc_hd__nand4_2": 1,
+            "sky130_fd_sc_hd__nor2_2": 35,
+            "sky130_fd_sc_hd__nor4_2": 1,
+            "sky130_fd_sc_hd__o2111a_2": 6,
+            "sky130_fd_sc_hd__o211a_2": 16,
+            "sky130_fd_sc_hd__o211ai_2": 3,
+            "sky130_fd_sc_hd__o21a_2": 15,
+            "sky130_fd_sc_hd__o21ai_2": 11,
+            "sky130_fd_sc_hd__o21ba_2": 3,
+            "sky130_fd_sc_hd__o21bai_2": 4,
+            "sky130_fd_sc_hd__o221a_2": 14,
+            "sky130_fd_sc_hd__o221ai_2": 1,
+            "sky130_fd_sc_hd__o22a_2": 36,
+            "sky130_fd_sc_hd__o22ai_2": 2,
+            "sky130_fd_sc_hd__o2bb2a_2": 8,
+            "sky130_fd_sc_hd__o311a_2": 3,
+            "sky130_fd_sc_hd__o31a_2": 4,
+            "sky130_fd_sc_hd__o32a_2": 4,
+            "sky130_fd_sc_hd__or2_2": 14,
+            "sky130_fd_sc_hd__or3_2": 17,
+            "sky130_fd_sc_hd__or3b_2": 21,
+            "sky130_fd_sc_hd__or4_2": 12,
+            "sky130_fd_sc_hd__or4b_2": 15,
+            "sky130_fd_sc_hd__or4bb_2": 4,
+            "sky130_fd_sc_hd__xnor2_2": 5,
+            "sky130_fd_sc_hd__xor2_2": 16
+         }
+      }
+}
+
+130. Printing statistics.
+
+=== systolic_sorter ===
+
+   Number of wires:               2825
+   Number of wire bits:           3335
+   Number of public wires:         454
+   Number of public wire bits:     964
+   Number of ports:                  5
+   Number of port bits:            515
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:               3076
+     sky130_fd_sc_hd__a2111o_2       9
+     sky130_fd_sc_hd__a211o_2       10
+     sky130_fd_sc_hd__a21bo_2        8
+     sky130_fd_sc_hd__a21o_2       245
+     sky130_fd_sc_hd__a21oi_2       16
+     sky130_fd_sc_hd__a221o_2       40
+     sky130_fd_sc_hd__a22o_2       260
+     sky130_fd_sc_hd__a22oi_2        4
+     sky130_fd_sc_hd__a2bb2o_2       9
+     sky130_fd_sc_hd__a311o_2        5
+     sky130_fd_sc_hd__a31o_2        11
+     sky130_fd_sc_hd__a32o_2         2
+     sky130_fd_sc_hd__a32oi_2        1
+     sky130_fd_sc_hd__a41o_2         1
+     sky130_fd_sc_hd__and2_2        47
+     sky130_fd_sc_hd__and2b_2       65
+     sky130_fd_sc_hd__and3_2         5
+     sky130_fd_sc_hd__and3b_2        6
+     sky130_fd_sc_hd__and4_2         9
+     sky130_fd_sc_hd__and4b_2        3
+     sky130_fd_sc_hd__and4bb_2       2
+     sky130_fd_sc_hd__dfrtp_2      705
+     sky130_fd_sc_hd__inv_2        843
+     sky130_fd_sc_hd__mux2_1       433
+     sky130_fd_sc_hd__nand2_2       16
+     sky130_fd_sc_hd__nand2b_2      46
+     sky130_fd_sc_hd__nand3_2        1
+     sky130_fd_sc_hd__nand3b_2       3
+     sky130_fd_sc_hd__nand4_2        1
+     sky130_fd_sc_hd__nor2_2        35
+     sky130_fd_sc_hd__nor4_2         1
+     sky130_fd_sc_hd__o2111a_2       6
+     sky130_fd_sc_hd__o211a_2       16
+     sky130_fd_sc_hd__o211ai_2       3
+     sky130_fd_sc_hd__o21a_2        15
+     sky130_fd_sc_hd__o21ai_2       11
+     sky130_fd_sc_hd__o21ba_2        3
+     sky130_fd_sc_hd__o21bai_2       4
+     sky130_fd_sc_hd__o221a_2       14
+     sky130_fd_sc_hd__o221ai_2       1
+     sky130_fd_sc_hd__o22a_2        36
+     sky130_fd_sc_hd__o22ai_2        2
+     sky130_fd_sc_hd__o2bb2a_2       8
+     sky130_fd_sc_hd__o311a_2        3
+     sky130_fd_sc_hd__o31a_2         4
+     sky130_fd_sc_hd__o32a_2         4
+     sky130_fd_sc_hd__or2_2         14
+     sky130_fd_sc_hd__or3_2         17
+     sky130_fd_sc_hd__or3b_2        21
+     sky130_fd_sc_hd__or4_2         12
+     sky130_fd_sc_hd__or4b_2        15
+     sky130_fd_sc_hd__or4bb_2        4
+     sky130_fd_sc_hd__xnor2_2        5
+     sky130_fd_sc_hd__xor2_2        16
+
+   Chip area for module '\systolic_sorter': 36897.888000
+     of which used for sequential elements: 18524.016000 (50.20%)
+
+131. Executing Verilog backend.
+Dumping module `\systolic_sorter'.
+
+132. Executing JSON backend.

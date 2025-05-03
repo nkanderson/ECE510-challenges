@@ -1,0 +1,38 @@
+116. Printing statistics.
+
+=== systolic_sorter ===
+
+   Number of wires:               2203
+   Number of wire bits:           3395
+   Number of public wires:          20
+   Number of public wire bits:     964
+   Number of ports:                  5
+   Number of port bits:            515
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:               3136
+     $_ANDNOT_                     554
+     $_AND_                         21
+     $_DFFE_PP0P_                   64
+     $_DFF_PP0_                    641
+     $_MUX_                       1344
+     $_NAND_                        15
+     $_NOR_                          8
+     $_ORNOT_                      216
+     $_OR_                          53
+     $_XNOR_                        90
+     $_XOR_                        130
+
+   Area for cell type $_AND_ is unknown!
+   Area for cell type $_NAND_ is unknown!
+   Area for cell type $_OR_ is unknown!
+   Area for cell type $_NOR_ is unknown!
+   Area for cell type $_XOR_ is unknown!
+   Area for cell type $_XNOR_ is unknown!
+   Area for cell type $_ANDNOT_ is unknown!
+   Area for cell type $_ORNOT_ is unknown!
+   Area for cell type $_MUX_ is unknown!
+   Area for cell type $_DFF_PP0_ is unknown!
+   Area for cell type $_DFFE_PP0P_ is unknown!
+

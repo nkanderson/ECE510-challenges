@@ -1,0 +1,165 @@
+Reading OpenROAD database at '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/38-openroad-globalrouting/systolic_sorter.odb'…
+Reading library file at '/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib'…
+Reading design constraints file at '/nix/store/ss2cw3sxbrwwx9jl0rrppbw4kgcmgi2n-python3-3.11.9-env/lib/python3.11/site-packages/openlane/scripts/base.sdc'…
+[INFO] Using clock clk…
+[INFO] Setting output delay to: 5
+[INFO] Setting input delay to: 5
+[INFO] Setting load to: 0.033442
+[INFO] Setting clock uncertainty to: 0.25
+[INFO] Setting clock transition to: 0.1499999999999999944488848768742172978818416595458984375
+[INFO] Setting timing derate to: 5%
+[INFO] Setting signal min routing layer to: met1 and clock min routing layer to met1. 
+[INFO] Setting signal max routing layer to: met5 and clock max routing layer to met5. 
+-congestion_iterations 50 -verbose
+[INFO GRT-0020] Min routing layer: met1
+[INFO GRT-0021] Max routing layer: met5
+[INFO GRT-0022] Global adjustment: 30%
+[INFO GRT-0023] Grid origin: (0, 0)
+[INFO GRT-0043] No OR_DEFAULT vias defined.
+[INFO GRT-0088] Layer li1     Track-Pitch = 0.4600  line-2-Via Pitch: 0.3400
+[INFO GRT-0088] Layer met1    Track-Pitch = 0.3400  line-2-Via Pitch: 0.3400
+[INFO GRT-0088] Layer met2    Track-Pitch = 0.4600  line-2-Via Pitch: 0.3500
+[INFO GRT-0088] Layer met3    Track-Pitch = 0.6800  line-2-Via Pitch: 0.6150
+[INFO GRT-0088] Layer met4    Track-Pitch = 0.9200  line-2-Via Pitch: 1.0400
+[INFO GRT-0088] Layer met5    Track-Pitch = 3.4000  line-2-Via Pitch: 3.1100
+[INFO GRT-0019] Found 259 clock nets.
+[INFO GRT-0001] Minimum degree: 2
+[INFO GRT-0002] Maximum degree: 13
+[INFO GRT-0003] Macros: 0
+[INFO GRT-0043] No OR_DEFAULT vias defined.
+[INFO GRT-0004] Blockages: 9965
+
+[INFO GRT-0053] Routing resources analysis:
+          Routing      Original      Derated      Resource
+Layer     Direction    Resources     Resources    Reduction (%)
+---------------------------------------------------------------
+li1        Vertical            0             0          0.00%
+met1       Horizontal    1283975        631302          50.83%
+met2       Vertical       962918        638334          33.71%
+met3       Horizontal     641861        445299          30.62%
+met4       Vertical       385825        245534          36.36%
+met5       Horizontal     128271         61488          52.06%
+---------------------------------------------------------------
+
+[INFO GRT-0197] Via related to pin nodes: 24257
+[INFO GRT-0198] Via related Steiner nodes: 929
+[INFO GRT-0199] Via filling finished.
+[INFO GRT-0111] Final number of vias: 31666
+[INFO GRT-0112] Final usage 3D: 153595
+
+[INFO GRT-0096] Final congestion report:
+Layer         Resource        Demand        Usage (%)    Max H / Max V / Total Overflow
+---------------------------------------------------------------------------------------
+li1                  0             0            0.00%             0 /  0 /  0
+met1            631302         27107            4.29%             0 /  0 /  0
+met2            638334         30279            4.74%             0 /  0 /  0
+met3            445299           664            0.15%             0 /  0 /  0
+met4            245534           547            0.22%             0 /  0 /  0
+met5             61488             0            0.00%             0 /  0 /  0
+---------------------------------------------------------------------------------------
+Total          2021957         58597            2.90%             0 /  0 /  0
+
+[INFO GRT-0018] Total wirelength: 487064 um
+[INFO GRT-0014] Routed nets: 4854
+[INFO GRT-0006] Repairing antennas, iteration 1.
+[INFO GRT-0043] No OR_DEFAULT vias defined.
+[INFO GRT-0012] Found 133 antenna violations.
+[INFO GRT-0015] Inserted 300 diodes.
+[INFO GRT-0009] rerouting 1531 nets.
+[INFO GRT-0001] Minimum degree: 2
+[INFO GRT-0002] Maximum degree: 18
+[INFO GRT-0006] Repairing antennas, iteration 2.
+[INFO GRT-0043] No OR_DEFAULT vias defined.
+[INFO GRT-0012] Found 19 antenna violations.
+[INFO GRT-0015] Inserted 48 diodes.
+[INFO GRT-0009] rerouting 114 nets.
+[INFO GRT-0001] Minimum degree: 2
+[INFO GRT-0002] Maximum degree: 18
+[INFO GRT-0006] Repairing antennas, iteration 3.
+[INFO GRT-0043] No OR_DEFAULT vias defined.
+[INFO GRT-0012] Found 3 antenna violations.
+[INFO GRT-0015] Inserted 3 diodes.
+[INFO GRT-0009] rerouting 10 nets.
+[INFO GRT-0001] Minimum degree: 2
+[INFO GRT-0002] Maximum degree: 14
+Placement Analysis
+---------------------------------
+total displacement          0.0 u
+average displacement        0.0 u
+max displacement            0.0 u
+original HPWL          383771.1 u
+legalized HPWL         383776.1 u
+delta HPWL                    0 %
+
+[INFO DPL-0020] Mirrored 2183 instances
+[INFO DPL-0021] HPWL before          383776.1 u
+[INFO DPL-0022] HPWL after           378988.7 u
+[INFO DPL-0023] HPWL delta               -1.2 %
+-congestion_iterations 50 -verbose
+[INFO GRT-0020] Min routing layer: met1
+[INFO GRT-0021] Max routing layer: met5
+[INFO GRT-0022] Global adjustment: 30%
+[INFO GRT-0023] Grid origin: (0, 0)
+[INFO GRT-0043] No OR_DEFAULT vias defined.
+[INFO GRT-0088] Layer li1     Track-Pitch = 0.4600  line-2-Via Pitch: 0.3400
+[INFO GRT-0088] Layer met1    Track-Pitch = 0.3400  line-2-Via Pitch: 0.3400
+[INFO GRT-0088] Layer met2    Track-Pitch = 0.4600  line-2-Via Pitch: 0.3500
+[INFO GRT-0088] Layer met3    Track-Pitch = 0.6800  line-2-Via Pitch: 0.6150
+[INFO GRT-0088] Layer met4    Track-Pitch = 0.9200  line-2-Via Pitch: 1.0400
+[INFO GRT-0088] Layer met5    Track-Pitch = 3.4000  line-2-Via Pitch: 3.1100
+[INFO GRT-0019] Found 259 clock nets.
+[INFO GRT-0001] Minimum degree: 2
+[INFO GRT-0002] Maximum degree: 18
+[INFO GRT-0003] Macros: 0
+[INFO GRT-0043] No OR_DEFAULT vias defined.
+[INFO GRT-0004] Blockages: 9965
+
+[INFO GRT-0053] Routing resources analysis:
+          Routing      Original      Derated      Resource
+Layer     Direction    Resources     Resources    Reduction (%)
+---------------------------------------------------------------
+li1        Vertical            0             0          0.00%
+met1       Horizontal    1283975        631302          50.83%
+met2       Vertical       962918        638334          33.71%
+met3       Horizontal     641861        445299          30.62%
+met4       Vertical       385825        245534          36.36%
+met5       Horizontal     128271         61488          52.06%
+---------------------------------------------------------------
+
+[INFO GRT-0197] Via related to pin nodes: 24502
+[INFO GRT-0198] Via related Steiner nodes: 923
+[INFO GRT-0199] Via filling finished.
+[INFO GRT-0111] Final number of vias: 31936
+[INFO GRT-0112] Final usage 3D: 154468
+
+[INFO GRT-0096] Final congestion report:
+Layer         Resource        Demand        Usage (%)    Max H / Max V / Total Overflow
+---------------------------------------------------------------------------------------
+li1                  0             0            0.00%             0 /  0 /  0
+met1            631302         27147            4.30%             0 /  0 /  0
+met2            638334         30522            4.78%             0 /  0 /  0
+met3            445299           656            0.15%             0 /  0 /  0
+met4            245534           335            0.14%             0 /  0 /  0
+met5             61488             0            0.00%             0 /  0 /  0
+---------------------------------------------------------------------------------------
+Total          2021957         58660            2.90%             0 /  0 /  0
+
+[INFO GRT-0018] Total wirelength: 488257 um
+[INFO GRT-0014] Routed nets: 4854
+[INFO] Setting RC values…
+Setting global connections for newly added cells…
+[INFO] Setting global connections...
+Updating metrics…
+Cell type report:                       Count       Area
+  Fill cell                              1270    4767.07
+  Tap cell                              42679   53399.96
+  Antenna cell                            351     878.34
+  Clock buffer                            387    5235.02
+  Timing Repair Buffer                   1261    9935.78
+  Inverter                                843    3239.36
+  Clock inverter                           50     391.63
+  Sequential cell                         705   18493.99
+  Multi-Input combinational cell         1528   14415.08
+  Total                                 49074  110756.22
+Writing OpenROAD database to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/41-openroad-repairantennas/1-diodeinsertion/systolic_sorter.odb'…
+Writing layout to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/41-openroad-repairantennas/1-diodeinsertion/systolic_sorter.def'…

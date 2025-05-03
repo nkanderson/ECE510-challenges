@@ -1,0 +1,5 @@
+`verilator_config
+lint_off -rule DECLFILENAME
+lint_off -rule EOFNEWLINE
+lint_off -rule UNDRIVEN -file "/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/tmp/a31efbbe969d4165ad31942aec7bacd8.bb.v"
+lint_off -rule UNUSEDSIGNAL -file "/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/tmp/a31efbbe969d4165ad31942aec7bacd8.bb.v"

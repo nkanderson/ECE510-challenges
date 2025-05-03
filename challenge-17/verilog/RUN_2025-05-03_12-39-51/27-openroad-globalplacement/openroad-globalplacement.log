@@ -1,0 +1,136 @@
+Reading OpenROAD database at '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/24-openroad-ioplacement/systolic_sorter.odb'…
+Reading library file at '/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib'…
+Reading design constraints file at '/nix/store/ss2cw3sxbrwwx9jl0rrppbw4kgcmgi2n-python3-3.11.9-env/lib/python3.11/site-packages/openlane/scripts/base.sdc'…
+[INFO] Using clock clk…
+[INFO] Setting output delay to: 5
+[INFO] Setting input delay to: 5
+[INFO] Setting load to: 0.033442
+[INFO] Setting clock uncertainty to: 0.25
+[INFO] Setting clock transition to: 0.1499999999999999944488848768742172978818416595458984375
+[INFO] Setting timing derate to: 5%
+[INFO] Setting RC values…
+[INFO] Setting signal min routing layer to: met1 and clock min routing layer to met1. 
+[INFO] Setting signal max routing layer to: met5 and clock max routing layer to met5. 
++ global_placement -density 0.1300508 -timing_driven -routability_driven -pad_right 0 -pad_left 0 -init_wirelength_coef 0.25
+[INFO GPL-0002] DBU: 1000
+[INFO GPL-0003] SiteSize: (  0.460  2.720 ) um
+[INFO GPL-0004] CoreBBox: (  5.520 10.880 ) ( 1745.240 1738.080 ) um
+[INFO GPL-0006] NumInstances:             47025
+[INFO GPL-0007] NumPlaceInstances:         3076
+[INFO GPL-0008] NumFixedInstances:        43949
+[INFO GPL-0009] NumDummyInstances:            0
+[INFO GPL-0010] NumNets:                   3335
+[INFO GPL-0011] NumPins:                  11471
+[INFO GPL-0012] DieBBox:  (  0.000  0.000 ) ( 1751.000 1751.000 ) um
+[INFO GPL-0013] CoreBBox: (  5.520 10.880 ) ( 1745.240 1738.080 ) um
+[INFO GPL-0016] CoreArea:            3004844.384 um^2
+[INFO GPL-0017] NonPlaceInstsArea:    58167.037 um^2
+[INFO GPL-0018] PlaceInstsArea:       36897.888 um^2
+[INFO GPL-0019] Util:                     1.252 %
+[INFO GPL-0020] StdInstsArea:         36897.888 um^2
+[INFO GPL-0021] MacroInstsArea:           0.000 um^2
+[InitialPlace]  Iter: 1 CG residual: 0.00005279 HPWL: 471683803
+[InitialPlace]  Iter: 2 CG residual: 0.00011213 HPWL: 536646378
+[InitialPlace]  Iter: 3 CG residual: 0.00011041 HPWL: 507931409
+[InitialPlace]  Iter: 4 CG residual: 0.00020807 HPWL: 462290560
+[InitialPlace]  Iter: 5 CG residual: 0.00022697 HPWL: 426509546
+[InitialPlace]  Iter: 6 CG residual: 0.00009810 HPWL: 386667138
+[InitialPlace]  Iter: 7 CG residual: 0.00009573 HPWL: 349960227
+[InitialPlace]  Iter: 8 CG residual: 0.00004823 HPWL: 323794203
+[InitialPlace]  Iter: 9 CG residual: 0.00004202 HPWL: 307569797
+[InitialPlace]  Iter: 10 CG residual: 0.00002287 HPWL: 297744650
+[InitialPlace]  Iter: 11 CG residual: 0.00002248 HPWL: 291575157
+[InitialPlace]  Iter: 12 CG residual: 0.00001034 HPWL: 287841588
+[InitialPlace]  Iter: 13 CG residual: 0.00000774 HPWL: 285472934
+[INFO GPL-0031] FillerInit:NumGCells:     32789
+[INFO GPL-0032] FillerInit:NumGNets:       3335
+[INFO GPL-0033] FillerInit:NumGPins:      11471
+[INFO GPL-0023] TargetDensity:            0.130
+[INFO GPL-0024] AvrgPlaceInstArea:       11.995 um^2
+[INFO GPL-0025] IdealBinArea:            92.236 um^2
+[INFO GPL-0026] IdealBinCnt:              32577
+[INFO GPL-0027] TotalBinArea:        3004844.384 um^2
+[INFO GPL-0028] BinCnt:       128    128
+[INFO GPL-0029] BinSize: ( 13.592 13.494 )
+[INFO GPL-0030] NumBins: 16384
+[NesterovSolve] Iter:    1 overflow: 0.594 HPWL: 279727358
+[INFO GPL-0100] Timing-driven: executing resizer for reweighting nets.
+[INFO GPL-0101] Timing-driven: worst slack 1.12e-08
+[INFO GPL-0103] Timing-driven: weighted 333 nets.
+[NesterovSolve] Snapshot saved at iter = 0
+[NesterovSolve] Iter:   10 overflow: 0.501 HPWL: 281646114
+[NesterovSolve] Iter:   20 overflow: 0.512 HPWL: 280091166
+[NesterovSolve] Iter:   30 overflow: 0.514 HPWL: 280253473
+[NesterovSolve] Iter:   40 overflow: 0.517 HPWL: 280013697
+[NesterovSolve] Iter:   50 overflow: 0.518 HPWL: 279221325
+[NesterovSolve] Iter:   60 overflow: 0.516 HPWL: 279596726
+[NesterovSolve] Iter:   70 overflow: 0.525 HPWL: 279533111
+[NesterovSolve] Iter:   80 overflow: 0.518 HPWL: 279558717
+[NesterovSolve] Iter:   90 overflow: 0.515 HPWL: 279577544
+[NesterovSolve] Iter:  100 overflow: 0.528 HPWL: 279840543
+[NesterovSolve] Iter:  110 overflow: 0.520 HPWL: 280061887
+[NesterovSolve] Iter:  120 overflow: 0.518 HPWL: 278900849
+[NesterovSolve] Iter:  130 overflow: 0.522 HPWL: 279363448
+[NesterovSolve] Iter:  140 overflow: 0.519 HPWL: 280213391
+[NesterovSolve] Iter:  150 overflow: 0.518 HPWL: 280175179
+[NesterovSolve] Iter:  160 overflow: 0.517 HPWL: 280844367
+[NesterovSolve] Iter:  170 overflow: 0.515 HPWL: 280750187
+[NesterovSolve] Iter:  180 overflow: 0.511 HPWL: 279443726
+[NesterovSolve] Iter:  190 overflow: 0.505 HPWL: 280044151
+[NesterovSolve] Iter:  200 overflow: 0.496 HPWL: 280655994
+[INFO GPL-0100] Timing-driven: executing resizer for reweighting nets.
+[INFO GPL-0101] Timing-driven: worst slack 1.04e-08
+[INFO GPL-0103] Timing-driven: weighted 333 nets.
+[NesterovSolve] Iter:  210 overflow: 0.481 HPWL: 280230889
+[NesterovSolve] Iter:  220 overflow: 0.462 HPWL: 279848401
+[NesterovSolve] Iter:  230 overflow: 0.436 HPWL: 280335166
+[NesterovSolve] Iter:  240 overflow: 0.395 HPWL: 279997907
+[NesterovSolve] Iter:  250 overflow: 0.348 HPWL: 279573915
+[NesterovSolve] Iter:  260 overflow: 0.302 HPWL: 279594884
+[INFO GPL-0075] Routability numCall: 1 inflationIterCnt: 1 bloatIterCnt: 0
+[INFO GPL-0036] TileBBox: (    0    0 ) ( 6900 6900 ) DBU
+[INFO GPL-0038] TileCnt:     253  253
+[INFO GPL-0040] NumTiles: 64009
+[INFO GPL-0081] TotalRouteOverflow: 0
+[INFO GPL-0082] OverflowTileCnt: 0
+[INFO GPL-0083] 0.5%RC: 0.6043641474388098
+[INFO GPL-0084] 1.0%RC: 0.5780913887455386
+[INFO GPL-0085] 2.0%RC: 0.5500485687214913
+[INFO GPL-0086] 5.0%RC: 0.5138514020207597
+[INFO GPL-0087] FinalRC: 0.59122777
+[INFO GPL-0077] FinalRC lower than targetRC(1.01), routability not needed.
+[INFO GPL-0100] Timing-driven: executing resizer for reweighting nets.
+[INFO GPL-0101] Timing-driven: worst slack 9.79e-09
+[INFO GPL-0103] Timing-driven: weighted 333 nets.
+[NesterovSolve] Iter:  270 overflow: 0.266 HPWL: 280049619
+[NesterovSolve] Iter:  280 overflow: 0.236 HPWL: 280400305
+[NesterovSolve] Iter:  290 overflow: 0.214 HPWL: 280759342
+[INFO GPL-0100] Timing-driven: executing resizer for reweighting nets.
+[INFO GPL-0101] Timing-driven: worst slack 9.62e-09
+[INFO GPL-0103] Timing-driven: weighted 333 nets.
+[NesterovSolve] Iter:  300 overflow: 0.192 HPWL: 281487931
+[NesterovSolve] Iter:  310 overflow: 0.174 HPWL: 282121771
+[NesterovSolve] Iter:  320 overflow: 0.154 HPWL: 282942853
+[INFO GPL-0100] Timing-driven: executing resizer for reweighting nets.
+[INFO GPL-0101] Timing-driven: worst slack 9.39e-09
+[INFO GPL-0103] Timing-driven: weighted 333 nets.
+[NesterovSolve] Iter:  330 overflow: 0.136 HPWL: 283438695
+[NesterovSolve] Iter:  340 overflow: 0.120 HPWL: 283939622
+[NesterovSolve] Iter:  350 overflow: 0.102 HPWL: 284380734
+[NesterovSolve] Finished with Overflow: 0.098813
+[INFO] Setting RC values…
+Setting global connections for newly added cells…
+[INFO] Setting global connections...
+Updating metrics…
+Cell type report:                       Count       Area
+  Fill cell                              1270    4767.07
+  Tap cell                              42679   53399.96
+  Inverter                                843    3164.28
+  Sequential cell                         705   18524.02
+  Multi-Input combinational cell         1528   15209.59
+  Total                                 47025   95064.92
+Writing OpenROAD database to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/27-openroad-globalplacement/systolic_sorter.odb'…
+Writing netlist to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/27-openroad-globalplacement/systolic_sorter.nl.v'…
+Writing powered netlist to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/27-openroad-globalplacement/systolic_sorter.pnl.v'…
+Writing layout to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/27-openroad-globalplacement/systolic_sorter.def'…
+Writing timing constraints to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/27-openroad-globalplacement/systolic_sorter.sdc'…

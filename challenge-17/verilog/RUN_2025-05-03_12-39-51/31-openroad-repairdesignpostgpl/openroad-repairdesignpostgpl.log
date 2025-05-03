@@ -1,0 +1,97 @@
+Reading timing models for corner nom_tt_025C_1v80…
+Reading timing library for the 'nom_tt_025C_1v80' corner at '/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib'…
+Reading timing models for corner nom_ff_n40C_1v95…
+Reading timing library for the 'nom_ff_n40C_1v95' corner at '/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__ff_n40C_1v95.lib'…
+Reading timing models for corner nom_ss_100C_1v60…
+Reading timing library for the 'nom_ss_100C_1v60' corner at '/home/stonepine/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__ss_100C_1v60.lib'…
+Reading OpenROAD database at '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/27-openroad-globalplacement/systolic_sorter.odb'…
+Reading design constraints file at '/nix/store/ss2cw3sxbrwwx9jl0rrppbw4kgcmgi2n-python3-3.11.9-env/lib/python3.11/site-packages/openlane/scripts/base.sdc'…
+[INFO] Using clock clk…
+[INFO] Setting output delay to: 5
+[INFO] Setting input delay to: 5
+[INFO] Setting load to: 0.033442
+[INFO] Setting clock uncertainty to: 0.25
+[INFO] Setting clock transition to: 0.1499999999999999944488848768742172978818416595458984375
+[INFO] Setting timing derate to: 5%
+[INFO] Setting RC values…
+[INFO RSZ-0027] Inserted 258 input buffers.
+[INFO RSZ-0028] Inserted 256 output buffers.
+[INFO RSZ-0058] Using max wire length 6335um.
+Iteration | Resized | Buffers | Nets repaired | Remaining
+---------------------------------------------------------
+        0 |       0 |       0 |             0 |      3849
+      100 |       8 |       0 |             0 |      3749
+      200 |      16 |       0 |             0 |      3649
+      300 |      19 |       0 |             0 |      3549
+      400 |      27 |       0 |             0 |      3449
+      500 |     155 |      77 |            12 |      3349
+      600 |     247 |      79 |            14 |      3249
+      700 |     339 |      79 |            14 |      3149
+      800 |     439 |      79 |            27 |      3049
+      900 |     539 |      79 |            38 |      2949
+     1000 |     634 |      79 |            38 |      2849
+     1100 |     732 |      79 |            38 |      2749
+     1200 |     869 |     116 |           129 |      2649
+     1300 |     969 |     116 |           229 |      2549
+     1400 |    1069 |     116 |           265 |      2449
+     1500 |    1198 |     153 |           266 |      2349
+     1600 |    1207 |     153 |           266 |      2249
+     1700 |    1283 |     153 |           266 |      2149
+     1800 |    1383 |     153 |           266 |      2049
+     1900 |    1483 |     156 |           269 |      1949
+     2000 |    1576 |     158 |           271 |      1849
+     2100 |    1654 |     158 |           271 |      1749
+     2200 |    1754 |     158 |           271 |      1649
+     2300 |    1854 |     158 |           271 |      1549
+     2400 |    1954 |     158 |           271 |      1449
+     2500 |    2056 |     160 |           272 |      1349
+     2600 |    2151 |     161 |           275 |      1249
+     2700 |    2151 |     161 |           375 |      1149
+     2800 |    2151 |     161 |           475 |      1049
+     2900 |    2151 |     161 |           575 |       949
+     3000 |    2151 |     161 |           675 |       849
+     3100 |    2151 |     161 |           775 |       749
+     3200 |    2151 |     161 |           875 |       649
+     3300 |    2151 |     161 |           975 |       549
+     3400 |    2206 |     161 |          1008 |       449
+     3500 |    2399 |     298 |          1010 |       349
+     3600 |    2462 |     298 |          1010 |       249
+     3700 |    2462 |     298 |          1010 |       149
+     3800 |    2462 |     298 |          1010 |        49
+    final |    2462 |     298 |          1010 |         0
+---------------------------------------------------------
+[INFO RSZ-0034] Found 1001 slew violations.
+[INFO RSZ-0035] Found 13 fanout violations.
+[INFO RSZ-0036] Found 1 capacitance violations.
+[INFO RSZ-0038] Inserted 298 buffers in 1010 nets.
+[INFO RSZ-0039] Resized 2462 instances.
+Placement Analysis
+---------------------------------
+total displacement       6996.5 u
+average displacement        0.1 u
+max displacement            9.5 u
+original HPWL          353386.6 u
+legalized HPWL         357357.9 u
+delta HPWL                    1 %
+
+[INFO DPL-0020] Mirrored 1573 instances
+[INFO DPL-0021] HPWL before          357357.9 u
+[INFO DPL-0022] HPWL after           354151.8 u
+[INFO DPL-0023] HPWL delta               -0.9 %
+[INFO] Setting RC values…
+Setting global connections for newly added cells…
+[INFO] Setting global connections...
+Updating metrics…
+Cell type report:                       Count       Area
+  Fill cell                              1270    4767.07
+  Tap cell                              42679   53399.96
+  Timing Repair Buffer                    812    5441.47
+  Inverter                                843    3239.36
+  Sequential cell                         705   18493.99
+  Multi-Input combinational cell         1528   14415.08
+  Total                                 47837   99756.92
+Writing OpenROAD database to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/31-openroad-repairdesignpostgpl/systolic_sorter.odb'…
+Writing netlist to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/31-openroad-repairdesignpostgpl/systolic_sorter.nl.v'…
+Writing powered netlist to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/31-openroad-repairdesignpostgpl/systolic_sorter.pnl.v'…
+Writing layout to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/31-openroad-repairdesignpostgpl/systolic_sorter.def'…
+Writing timing constraints to '/home/stonepine/ECE510-AI_ML_HW/ECE510-challenges/challenge-17/verilog/runs/RUN_2025-05-03_12-39-51/31-openroad-repairdesignpostgpl/systolic_sorter.sdc'…

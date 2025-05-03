@@ -1,5 +1,3 @@
-`include "PE.sv"
-
 module systolic_sorter #(parameter N = 8) (
     input  logic              clk,
     input  logic              rst,
@@ -41,7 +39,7 @@ module systolic_sorter #(parameter N = 8) (
     // Instantiate PEs and wire outputs to temp arrays
     generate
         for (genvar i = 0; i < N-1; i++) begin : gen_pe
-            PE pe_inst (
+            pe pe_inst (
                 .clk(clk),
                 .rst(rst),
                 .in_left(pe_inputs[i]),
