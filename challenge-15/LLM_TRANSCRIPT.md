@@ -1,6 +1,6 @@
 # LLM Transcript
 
-**Note**: The following was continued from the discussion started for Challenge 9 and continued for Challenge 12. This is visible in [../challenge-9/LLM_TRANSCRIPT.md](../challenge-9/LLM_TRANSCRIPT.md).
+**Note**: The following was continued from the discussion started for Challenge 9 and continued for Challenge 12. This is visible in [../challenge-9/docs/LLM_TRANSCRIPT.md](../challenge-9/docs/LLM_TRANSCRIPT.md).
 
 ## ChatGPT
 
@@ -2756,6 +2756,48 @@ Would you like me to:
     Or just send the full generate_golden_vectors.py as-is for now?
 
 You're one step away from a fully reusable and testable inference + HDL toolchain.
+
+Prompt: Yes, let's start refactoring. This is the current lstm_inference.py:
+<pasted in contents of file>
+
+Response: Great — let’s begin the refactor cleanly and modularly.
+✅ Step 1: Create lstm_core.py
+
+This new file will hold all the shared components that are used both by lstm_inference.py and the golden value exporter.
+
+<provided code>
+
+✅ Step 2: Modify lstm_inference.py
+
+Update the top of the file:
+
+```python
+from lstm_core import (
+    LSTMCell, Dense,
+    vector_sigmoid, vector_tanh,
+    elementwise_add, elementwise_mul,
+    matvec_mul
+)
+```
+
+You can remove all duplicated logic for:
+
+    Activation functions
+
+    elementwise_*
+
+    matvec_mul
+
+    LSTMCell
+
+    Dense
+
+Only keep the LSTMAutoencoder, compute_mse, and the main script logic.
+
+✅ Next Step
+
+Once you’ve confirmed this works cleanly, I’ll help write the generate_golden_vectors.py script using this shared logic. Would you like me to send that next?
+
 
 ## Summary
 
