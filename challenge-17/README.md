@@ -6,6 +6,10 @@ Standard bubble sort has a Big O runtime of O(n^2). Using a 1-dimensional systol
 
 Full LLM transcripts found in [LLM_TRANSCRIPT.md](./docs/LLM_TRANSCRIPT.md).
 
+## Implementation with PyTorch
+
+An implementation of a 1-D systolic array using PyTorch was generated using ChatGPT. In this implementation, each processing element (PE) of the systolic array is simulated by a position in a tensor, where the tensor holds all of the elements. The sort algorithm iterates over the tensor indexes and on each iteration, makes a pairwise comparison and swap over a vector of tensor values. It alternates between comparing odd first and even first items. That is, on one iteration, it will compare items beginning with odd indexes ((1, 2), (3, 4), etc.) and on the next, it compares those beginning on even indexes ((0, 1), (2, 3), etc.). An individual iteration is comparable to a systolic pulse.
+
 ## Results
 
 ```sh
