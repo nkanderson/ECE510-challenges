@@ -1,41 +1,77 @@
 import os
 import numpy as np
+import argparse
+from utils import save_mem_file
+
+GATE_NAMES = ["i", "f", "c", "o"]  # input, forget, cell, output
 
 
-def float_to_fixed_hex(val, q_format=(4, 12)):
-    q_int, q_frac = q_format
-    scale = 2**q_frac
-    max_val = 2 ** (q_int + q_frac - 1) - 1
-    min_val = -(2 ** (q_int + q_frac - 1))
-    fixed_val = int(round(val * scale))
-    fixed_val = max(min_val, min(max_val, fixed_val))  # clamp
-    if fixed_val < 0:
-        fixed_val = (1 << (q_int + q_frac)) + fixed_val  # 2's complement
-    return f"{fixed_val:04X}"
-
-
-def save_mem_file(array, path, q_format=(4, 12)):
-    with open(path, "w") as f:
-        if isinstance(array[0], list):
-            for vec in array:
-                for val in vec:
-                    f.write(float_to_fixed_hex(val, q_format) + "\n")
-        else:
-            for val in array:
-                f.write(float_to_fixed_hex(val, q_format) + "\n")
-
-
-def generate_mem_files(
-    npz_path="saved_model/lstm_weights.npz", output_dir="weights", q_format=(4, 12)
-):
+def save_lstm_weights(weights, prefix, output_dir):
+    W, U, b = weights  # W: input weights, U: recurrent weights, b: biases
+    hidden_size = b.shape[0] // 4
     os.makedirs(output_dir, exist_ok=True)
-    weights = np.load(npz_path, allow_pickle=True)
-    for key in weights.files:
-        array = weights[key].tolist()
-        filename = f"{key}.mem"
-        save_mem_file(array, os.path.join(output_dir, filename), q_format)
-    print(f"Saved {len(weights.files)} .mem files to {output_dir}/")
+
+    for idx, gate in enumerate(GATE_NAMES):
+        # input weights
+        save_mem_file(
+            W[:, idx * hidden_size : (idx + 1) * hidden_size],
+            os.path.join(output_dir, f"{prefix}_W_{gate}.mem"),
+        )
+
+        # recurrent weights
+        save_mem_file(
+            U[:, idx * hidden_size : (idx + 1) * hidden_size],
+            os.path.join(output_dir, f"{prefix}_U_{gate}.mem"),
+        )
+
+        # biases
+        save_mem_file(
+            b[idx * hidden_size : (idx + 1) * hidden_size],
+            os.path.join(output_dir, f"{prefix}_b_{gate}.mem"),
+        )
+
+
+def save_dense_weights(weights, prefix, output_dir):
+    W, b = weights
+    os.makedirs(output_dir, exist_ok=True)
+    save_mem_file(W, os.path.join(output_dir, f"{prefix}_W.mem"))
+    save_mem_file(b, os.path.join(output_dir, f"{prefix}_b.mem"))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--npz",
+        type=str,
+        default="saved_model/lstm_weights.npz",
+        help="Path to .npz weights file",
+    )
+    parser.add_argument(
+        "--outdir", type=str, default="weights", help="Output directory for .mem files"
+    )
+    args = parser.parse_args()
+
+    data = np.load(args.npz, allow_pickle=True)
+    weights = list(data.values())
+
+    # Expected order based on build_lstm_autoencoder
+    layer_mapping = [
+        ("enc1", save_lstm_weights),
+        ("enc2", save_lstm_weights),
+        ("dec1", save_lstm_weights),
+        ("dec2", save_lstm_weights),
+        ("dense", save_dense_weights),
+    ]
+
+    i = 0
+    for prefix, save_func in layer_mapping:
+        if save_func == save_lstm_weights:
+            save_func(weights[i : i + 3], prefix, args.outdir)
+            i += 3
+        elif save_func == save_dense_weights:
+            save_func(weights[i : i + 2], prefix, args.outdir)
+            i += 2
 
 
 if __name__ == "__main__":
-    generate_mem_files()
+    main()

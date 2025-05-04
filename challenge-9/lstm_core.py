@@ -1,5 +1,7 @@
 import math
 
+# import numpy as np
+
 try:
     profile
 except NameError:
@@ -46,6 +48,7 @@ class LSTMCell:
         self.W_i, self.W_f, self.W_c, self.W_o = self._split(W)
         self.U_i, self.U_f, self.U_c, self.U_o = self._split(U)
         self.b_i, self.b_f, self.b_c, self.b_o = self._split(b)
+        # print(f"W_i: {np.shape(self.W_i)}, b_i: {np.shape(self.b_i)}")
 
     def _split(self, mat):
         size = self.hidden_size
@@ -82,6 +85,9 @@ class LSTMCell:
                 elementwise_add(matvec_mul(self.U_o, h_prev), self.b_o),
             )
         )
+        # print(
+        #     f"[debug] i={i[0]:.4f}, f={f[0]:.4f}, c_tilde={c_tilde[0]:.4f}, o={o[0]:.4f}"
+        # )
         c = elementwise_add(elementwise_mul(f, c_prev), elementwise_mul(i, c_tilde))
         h = elementwise_mul(o, vector_tanh(c))
         return h, c
