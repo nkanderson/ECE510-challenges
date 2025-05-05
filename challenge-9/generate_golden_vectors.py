@@ -19,8 +19,15 @@ def generate_vectors(npz_path, weights_path, out_dir, num_windows, fmt):
 
     # Load weights
     weights = np.load(weights_path)
-    W1, U1, b1 = weights["arr_0"], weights["arr_1"], weights["arr_2"]
-    W2, U2, b2 = weights["arr_3"], weights["arr_4"], weights["arr_5"]
+    # W1, U1, b1 = weights["arr_0"], weights["arr_1"], weights["arr_2"]
+    # W2, U2, b2 = weights["arr_3"], weights["arr_4"], weights["arr_5"]
+    W1 = np.reshape(weights["arr_0"], (4 * hidden1, input_dim)).tolist()
+    U1 = np.reshape(weights["arr_1"], (4 * hidden1, hidden1)).tolist()
+    b1 = np.reshape(weights["arr_2"], (4 * hidden1,)).tolist()
+
+    W2 = np.reshape(weights["arr_3"], (4 * hidden2, hidden1)).tolist()
+    U2 = np.reshape(weights["arr_4"], (4 * hidden2, hidden2)).tolist()
+    b2 = np.reshape(weights["arr_5"], (4 * hidden2,)).tolist()
 
     lstm1 = LSTMCell(input_dim, hidden1, W1, U1, b1)
     lstm2 = LSTMCell(hidden1, hidden2, W2, U2, b2)
@@ -63,7 +70,7 @@ def main():
         "--weights", default="saved_model/lstm_weights.npz", help="Path to weights file"
     )
     parser.add_argument(
-        "--windows", type=int, default=5, help="Number of sequence windows to use"
+        "--windows", type=int, default=1, help="Number of sequence windows to use"
     )
     parser.add_argument(
         "--format", choices=["q4.12"], default="q4.12", help="Fixed-point format"
