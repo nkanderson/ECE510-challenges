@@ -4331,7 +4331,655 @@ This change will resolve the AttributeError, and the rest of your script should 
 
 Do you want the script to print only mismatches or also matching values for debugging?
 
-Prompt: 
+Prompt: Ok, now it's time to update our sv code to load the weights. Once in hardware, the weights should be saved in SRAM. We also need to update the testbench to use the generated golden vectors
+
+Response: Great. To proceed, here’s what you’ll need to do for both parts:
+
+1. SystemVerilog Module: Loading LSTM Weights into SRAM
+
+Assuming your design has an SRAM interface (e.g., dual-port or single-port), the weights will need to be:
+
+    Preloaded at the start of simulation (using $readmemh).
+
+    Indexed correctly during inference (e.g., W_i, U_f, etc.).
+
+Example SRAM preload:
+
+```systemverilog
+logic [15:0] sram_weights [0:W_TOTAL-1];
+initial begin
+  $readmemh("enc_lstm1_W_i.mem", sram_weights, 0);  // adjust offset as needed
+  $readmemh("enc_lstm1_U_i.mem", sram_weights, 256);
+  // ... repeat for other gates and layers
+end
+```
+
+You may prefer to store each gate’s weights contiguously, then multiplex access via FSM control logic depending on the LSTM gate being computed.
+
+2. Testbench: Use Golden Vectors
+
+Assuming you’ve generated the following .mem files:
+
+    x_in.mem, h_prev.mem, c_prev.mem (inputs)
+
+    h_out.mem, c_out.mem (expected outputs)
+
+Testbench loading:
+```systemverilog
+logic signed [15:0] x_in     [0:N-1];
+logic signed [15:0] h_out_gd [0:N-1];
+
+initial begin
+  $readmemh("x_in.mem", x_in);
+  $readmemh("h_out.mem", h_out_gd);
+end
+```
+
+Comparison:
+```systemverilog
+always_ff @(posedge clk) begin
+  if (done) begin
+    for (int i = 0; i < N; i++) begin
+      if (dut.h_out[i] !== h_out_gd[i]) begin
+        $display("Mismatch at %0d: expected %h, got %h", i, h_out_gd[i], dut.h_out[i]);
+      end
+    end
+  end
+end
+```
+
+Would you like me to help script the exact $readmemh order and address layout, or generate a sample top-level wrapper to map weights into indexed SRAM banks?
+
+Prompt: Let's go through the exact `$readmemh` order and address layout
+
+Response: Perfect. Let’s go through how to organize your LSTM weights into a unified address layout for SRAM initialization using $readmemh.
+
+🧠 LSTM Weight Components Recap
+
+Each LSTM layer has:
+
+    W: input weight matrix → shape (4 * hidden_size, input_size)
+
+    U: recurrent weight matrix → shape (4 * hidden_size, hidden_size)
+
+    b: bias vector → shape (4 * hidden_size,)
+
+Each of these is split into four gates:
+
+    i (input), f (forget), c (cell), o (output)
+
+So for a 2-layer encoder and 2-layer decoder LSTM, we have:
+```
+enc_lstm1: W1, U1, b1   (input_size → 64)
+enc_lstm2: W2, U2, b2   (64 → 32)
+dec_lstm1: W3, U3, b3   (32 → 32)
+dec_lstm2: W4, U4, b4   (32 → 64)
+```
+You also have:
+
+    dense: Wd, bd → shape (64, 6), (6)
+
+🗂️ Address Layout Strategy
+
+Let’s define SRAM address space as a linear memory region of 16-bit entries (Q4.12 fixed point, stored in .mem).
+
+Each .mem file is a flattened list of values (row-major if it's a 2D matrix), written one per line.
+
+We'll allocate a contiguous address range for each group of weights:
+
+📦 Example Address Map (in .mem loading order)
+
+Region	Filename	Offset	Size
+enc_lstm1_W_i	enc_lstm1_W_i.mem	0	64 × input_size
+enc_lstm1_W_f	enc_lstm1_W_f.mem	+A	64 × input_size
+enc_lstm1_W_c	enc_lstm1_W_c.mem	+B	64 × input_size
+enc_lstm1_W_o	enc_lstm1_W_o.mem	+C	64 × input_size
+enc_lstm1_U_i	enc_lstm1_U_i.mem	+D	64 × 64
+enc_lstm1_U_f	enc_lstm1_U_f.mem	+E	64 × 64
+enc_lstm1_U_c	enc_lstm1_U_c.mem	+F	64 × 64
+enc_lstm1_U_o	enc_lstm1_U_o.mem	+G	64 × 64
+enc_lstm1_b_i	enc_lstm1_b_i.mem	+H	64
+enc_lstm1_b_f	enc_lstm1_b_f.mem	+I	64
+enc_lstm1_b_c	enc_lstm1_b_c.mem	+J	64
+enc_lstm1_b_o	enc_lstm1_b_o.mem	+K	64
+...	...	...	...
+dense_W	dense_W.mem	+X	6 × 64
+dense_b	dense_b.mem	+Y	6
+
+We can compute each offset (e.g. A = 64×input_size, D = 4×64×input_size, etc.) and preload in SystemVerilog like so:
+
+🧾 SystemVerilog $readmemh Block
+```systemverilog
+initial begin
+  $readmemh("enc_lstm1_W_i.mem", sram, 0);
+  $readmemh("enc_lstm1_W_f.mem", sram, 64*input_size);
+  $readmemh("enc_lstm1_W_c.mem", sram, 2*64*input_size);
+  $readmemh("enc_lstm1_W_o.mem", sram, 3*64*input_size);
+
+  int base = 4*64*input_size;
+  $readmemh("enc_lstm1_U_i.mem", sram, base);
+  $readmemh("enc_lstm1_U_f.mem", sram, base + 64*64);
+  $readmemh("enc_lstm1_U_c.mem", sram, base + 2*64*64);
+  $readmemh("enc_lstm1_U_o.mem", sram, base + 3*64*64);
+
+  base = base + 4*64*64;
+  $readmemh("enc_lstm1_b_i.mem", sram, base);
+  $readmemh("enc_lstm1_b_f.mem", sram, base + 64);
+  $readmemh("enc_lstm1_b_c.mem", sram, base + 2*64);
+  $readmemh("enc_lstm1_b_o.mem", sram, base + 3*64);
+  
+  // Repeat for enc_lstm2, dec_lstm1, dec_lstm2, dense...
+end
+```
+
+✅ Action Plan
+
+    ✅ In generate_mem_files.py, make sure files are split by gate as you've done (e.g., enc_lstm1_W_i.mem, etc.).
+
+    ✅ Your SRAM (in simulation) should be logic [15:0] sram [0:SRAM_DEPTH-1].
+
+    🧮 Calculate each offset and put it in constants (or derive them from parameters).
+
+    🔁 Repeat $readmemh(...) for each gate in order.
+
+    ✅ At runtime, your FSM should fetch the correct gate weights using these offsets.
+
+Would you like me to generate a full address table and $readmemh block for all layers (assuming 6 inputs, 64–32–32–64 hidden units)?
+
+Prompt: Ok, so that's another aspect to this we need to consider. The weights for a given lstm cell are set during initialization. So when this is run as hardware acceleration alongside a python program, the cells will be instantiated first with their specific weights. With just simulation, it would make sense that this takes place in our testbench. For synthesis, will we ultimately need another module, which instantiates the 4 cells with their weights? If so, I think we can still start with just simulating a given cell as we're doing currently, but we'll eventually need a module that loads all the weights and instantiates all the cells. Can we have a separate memory-loading module that both our current testbench and the eventual top-level module for synthesis can use to instantiate lstm cells with the appropriate weights?
+
+Response: Yes, creating a separate memory-loading module is a smart and scalable approach. Here's how you can structure it:
+
+🔧 WeightLoader.sv Module (Reusable SRAM Loader)
+
+This module:
+
+    Accepts a file name ($readmemh) and loads weights into an SRAM-style memory array.
+
+    Can be instantiated multiple times with parameters for each LSTM cell’s W, U, and b memories.
+
+    Can be reused in:
+
+        The testbench (to validate against golden vectors).
+
+        The top-level hardware module (for synthesis integration).
+
+Example: WeightLoader.sv
+```systemverilog
+module WeightLoader #(
+    parameter int DATA_WIDTH = 16,
+    parameter int MEM_DEPTH = 256,
+    parameter string FILE = ""
+) (
+    output logic [DATA_WIDTH-1:0] mem [0:MEM_DEPTH-1]
+);
+    initial begin
+        if (FILE != "") begin
+            $display("Loading weights from: %s", FILE);
+            $readmemh(FILE, mem);
+        end
+    end
+endmodule
+```
+
+In Testbench or Top-Level Module
+
+logic [15:0] W_i_mem [0:255];
+WeightLoader #(
+    .FILE("weights/lstm1_W_i.mem")
+) load_W_i (.mem(W_i_mem));
+
+You'd repeat this for each weight/bias vector in each cell (W_i, W_f, W_c, W_o, U_i, ..., b_o).
+Later: LSTMArrayTop.sv
+
+Eventually, your synthesis-ready top module can instantiate four LSTMCell modules and pass in these weight memories as parameters or through connected wires initialized by WeightLoader.
+
+Would you like help writing a parametric LSTMCell wrapper that can plug into this infrastructure?
+
+Prompt: I was actually thinking we'd have a module that loads all the weights
+
+Response: Great — in that case, the best approach is to create a dedicated SystemVerilog module (e.g. weight_loader.sv) that:
+
+    Declares all the required weight SRAM arrays (W_i, U_i, b_i, etc.) for each LSTM cell.
+
+    Uses $readmemh to load each array from its corresponding .mem file.
+
+    Exposes the loaded arrays as outputs (or through interfaces) so they can be connected to:
+
+        the testbench for simulation,
+
+        the top-level LSTM hardware wrapper for synthesis.
+
+This provides a single point of truth for memory initialization and keeps your synthesis path clean. Would you like me to generate a draft of this weight_loader.sv module and show how it might connect to one LSTM cell instance?
+
+Prompt: That generally sounds good, though when you say it "exposes the loaded arrays as outputs", I'm wondering if instead we have just have a shared memory map so that the testbench and top-level LSTM hardware wrapper know where to access the weights directly from memory. I don't think they should have to go through the weight_loader module in order to access SRAM, right?
+
+Response: You're absolutely right — and your intuition aligns with good hardware design practice.
+
+Instead of having the weight_loader output the weights, it’s cleaner and more realistic to have it:
+
+    Own and initialize the memory blocks (e.g., BRAM or SRAM arrays),
+
+    Expose those memories via named identifiers and memory-mapped addressing,
+
+    Let other modules (like the LSTM cells or testbench) access the weights directly by referencing the same memory arrays or via shared interfaces/buses.
+
+So the role of weight_loader.sv would be:
+
+    Contain logic [15:0] W1_i [0:...], U1_i, b1_i, etc.
+
+    Use $readmemh in an initial block to populate these arrays from .mem files.
+
+    These arrays are not output ports — they are shared (via hierarchical references or wiring in the top-level module).
+
+For simulation (testbench):
+
+    The testbench can access these directly via hierarchical reference, e.g.:
+
+    $display("Weight value = %h", top.weight_loader.W1_i[5]);
+
+For synthesis:
+
+    Your top-level LSTM wrapper module will instantiate both:
+
+        weight_loader
+
+        All 4 LSTM cells (each wired to appropriate subarrays, like W1_i, U1_i, etc.)
+
+That way, everything shares the same memory map, and there's no unnecessary routing of weight data through output ports.
+
+To summarize:
+
+✅ Yes, weight_loader should be a centralized memory block
+✅ LSTM cells and testbench should access weights by address
+✅ No need to pass weights via ports — memory sharing is cleaner
+✅ It supports both simulation and synthesis paths cleanly
+
+Would you like me to generate a draft of weight_loader.sv that:
+
+    Includes all memory arrays,
+
+    Uses $readmemh to populate them,
+
+    Provides a clear layout for W, U, and b for all 4 LSTM layers?
+
+Prompt: Ok, yes, that sounds good
+
+Response: Here is a centralized SystemVerilog module (weight_loader.sv) that loads all LSTM and dense layer weights from memory files into logic [15:0] arrays:
+
+<provided code>
+
+You’ll want to:
+
+    Replace /* appropriate size */ with the actual memory sizes for each file.
+
+    Update paths if your weights are organized under a different folder structure.
+
+Next, we can create a lstm_top_wrapper.sv that uses this memory layout and instantiates each LSTM layer and the dense layer accordingly. Would you like to generate that as well?
+
+Prompt: Ok, this isn't quite right yet. The .mem files we have are of the naming convention (enc|dec)%d_(b|U|W)_(c|f|i|o).mem for the encoders and decoders for each weight or bias and gate. And we have a dense_b.mem and dense_W.mem. Here's the full list, just to make sure we're on the same page:
+<provided list of weights filenames>
+
+Response: Great — thanks for confirming the naming convention. With this layout, here's how we can structure the weight_loader module to align with simulation and synthesis needs:
+✅ Goals Recap
+
+    One weight_loader.sv module that:
+
+        Loads each .mem file into its dedicated SRAM block at a fixed address offset
+
+        Uses $readmemh only once per file (for simulation)
+
+    Testbench and top-level LSTM wrapper access weights directly via a shared memory map
+
+📁 Expected Memory Map Structure
+
+Each LSTM cell uses 4 gates (i, f, c, o), and each gate has:
+
+    W (input × hidden)
+
+    U (hidden × hidden)
+
+    b (bias vector, length = hidden)
+
+So, for each cell, the layout could be:
+```
+Base address for enc1_W_i → 0x0000
+Base address for enc1_U_i → 0x0400
+Base address for enc1_b_i → 0x0800
+...
+Base address for enc2_W_c → 0x3000
+...
+Base address for dec2_b_o → 0x9C00
+...
+Base address for dense_W   → 0xA000
+Base address for dense_b   → 0xA800
+```
+
+We will define parameters like:
+```systemverilog
+localparam ADDR_ENC1_W_I = 13'h0000;
+localparam ADDR_ENC1_U_I = 13'h0400;
+localparam ADDR_ENC1_B_I = 13'h0800;
+// ...
+localparam ADDR_DENSE_W  = 13'hA000;
+localparam ADDR_DENSE_B  = 13'hA800;
+```
+
+🧩 weight_loader.sv Responsibilities
+
+    Instantiate one sram module per matrix
+
+    For each matrix:
+
+        Associate a fixed base address
+
+        Use $readmemh("enc1_W_i.mem", sram.mem); during simulation
+
+    Expose a compile-time map (parameters or macros) of addresses so both:
+
+        The testbench can load data at the correct offsets
+
+        The top-level LSTM module knows where to read weights
+
+🔧 Next Step
+
+Would you like me to now:
+
+    Generate the actual weight_loader.sv module with instantiations and address mapping?
+
+    Or output a shell template and we populate it incrementally?
+
+Let me know how granular you’d like the next step.
+
+Prompt: Yes, I would like the actual weight_loader.sv module with instantiations and address mapping. Do you need to know the size of each file, or can you determine that given the known parameters?
+
+Response: Perfect — I can determine the necessary memory sizes and address layout based on the LSTM architecture and standard fixed-point assumptions, assuming the following:
+✅ Assumed Architecture Details
+
+You confirmed earlier the model structure is:
+
+Encoder:
+  LSTM(64) → LSTM(32)
+Decoder:
+  LSTM(32) → LSTM(64)
+Output:
+  Dense(64 → 6)
+
+Each LSTM has:
+```
+    W: shape = (4 × hidden_dim, input_dim)
+
+    U: shape = (4 × hidden_dim, hidden_dim)
+
+    b: shape = (4 × hidden_dim,)
+```
+And all values are Q4.12 fixed-point 16-bit (1 word per entry).
+
+🔢 Exact Memory Sizes
+
+| Layer | W Size         | U Size     | b Size | Notes              |
+| ----- | -------------- | ---------- | ------ | ------------------ |
+| enc1  | (256 × 6)      | (256 × 64) | 256    | 64 hidden, 6 input |
+| enc2  | (128 × 64)     | (128 × 32) | 128    | 32 hidden          |
+| dec1  | (128 × 32)     | (128 × 32) | 128    | 32 hidden          |
+| dec2  | (256 × 32)     | (256 × 64) | 256    | 64 hidden          |
+| dense | (6 × 64) = 384 | —          | 6      | final projection   |
+
+Each matrix is stored row-major, one 16-bit word per element.
+
+🧠 Address Layout Strategy
+
+Let’s allocate 4096 words per matrix (aligned to 12-bit address boundaries) for padding and simplicity.
+
+We'll assign offsets starting at address 0x0000:
+| File           | Address Offset |
+| -------------- | -------------- |
+| `enc1_W_i.mem` | 0x0000         |
+| `enc1_W_f.mem` | 0x1000         |
+| `enc1_W_c.mem` | 0x2000         |
+| `enc1_W_o.mem` | 0x3000         |
+| `enc1_U_i.mem` | 0x4000         |
+| ...            | ...            |
+| `dense_W.mem`  | 0xF000         |
+| `dense_b.mem`  | 0xF100         |
+
+We'll assign 1 SRAM per matrix and load it with $readmemh(...).
+
+📄 weight_loader.sv (Partial Example)
+
+Here’s the generated weight_loader.sv module:
+```systemverilog
+module weight_loader;
+
+  // Define base addresses (in words, not bytes)
+  localparam int ADDR_ENC1_W_I = 13'h0000;
+  localparam int ADDR_ENC1_W_F = 13'h1000;
+  localparam int ADDR_ENC1_W_C = 13'h2000;
+  localparam int ADDR_ENC1_W_O = 13'h3000;
+  localparam int ADDR_ENC1_U_I = 13'h4000;
+  localparam int ADDR_ENC1_U_F = 13'h5000;
+  localparam int ADDR_ENC1_U_C = 13'h6000;
+  localparam int ADDR_ENC1_U_O = 13'h7000;
+  localparam int ADDR_ENC1_B_I = 13'h8000;
+  localparam int ADDR_ENC1_B_F = 13'h8100;
+  localparam int ADDR_ENC1_B_C = 13'h8200;
+  localparam int ADDR_ENC1_B_O = 13'h8300;
+
+  // ... define similar for enc2, dec1, dec2, dense
+
+  // Declare SRAMs for weights
+  logic [15:0] enc1_W_i_mem [0:4095];
+  logic [15:0] enc1_W_f_mem [0:4095];
+  logic [15:0] enc1_W_c_mem [0:4095];
+  logic [15:0] enc1_W_o_mem [0:4095];
+
+  logic [15:0] enc1_U_i_mem [0:4095];
+  logic [15:0] enc1_U_f_mem [0:4095];
+  logic [15:0] enc1_U_c_mem [0:4095];
+  logic [15:0] enc1_U_o_mem [0:4095];
+
+  logic [15:0] enc1_b_i_mem [0:4095];
+  logic [15:0] enc1_b_f_mem [0:4095];
+  logic [15:0] enc1_b_c_mem [0:4095];
+  logic [15:0] enc1_b_o_mem [0:4095];
+
+  // ... repeat for enc2, dec1, dec2, dense
+
+  initial begin
+    $readmemh("enc1_W_i.mem", enc1_W_i_mem);
+    $readmemh("enc1_W_f.mem", enc1_W_f_mem);
+    $readmemh("enc1_W_c.mem", enc1_W_c_mem);
+    $readmemh("enc1_W_o.mem", enc1_W_o_mem);
+
+    $readmemh("enc1_U_i.mem", enc1_U_i_mem);
+    $readmemh("enc1_U_f.mem", enc1_U_f_mem);
+    $readmemh("enc1_U_c.mem", enc1_U_c_mem);
+    $readmemh("enc1_U_o.mem", enc1_U_o_mem);
+
+    $readmemh("enc1_b_i.mem", enc1_b_i_mem);
+    $readmemh("enc1_b_f.mem", enc1_b_f_mem);
+    $readmemh("enc1_b_c.mem", enc1_b_c_mem);
+    $readmemh("enc1_b_o.mem", enc1_b_o_mem);
+
+    // ... repeat for enc2, dec1, dec2, dense
+
+    $readmemh("dense_W.mem", dense_W_mem);
+    $readmemh("dense_b.mem", dense_b_mem);
+  end
+
+endmodule
+```
+This gives you:
+
+    Named access during simulation (enc1_W_i_mem[...])
+
+    A clear address map for top-level access to SRAM
+
+    Reusable addresses via the localparams for mapping
+
+🟩 Next Steps
+
+Would you like:
+
+    The full expanded module including all enc2, dec1, dec2, and dense layers?
+
+    A Verilog script to auto-generate the address map and $readmemh statements from your file list?
+
+Let me know how you'd like to proceed.
+
+Prompt: I think that is all making sense, but I'd like to confirm the exact memory sizes you outlines above. You said the enc1 b Size would be 256. It sounded like each entry would be 16 bits. My enc1_b_o.mem file, for example, has 64 lines with 1 4-digit hex value per line. That means each line is 16 bits, so I'm not sure that matches what you've described, does it? The dense_W.mem file, on the other hand, has exactly 384 lines, also with 1 4-digit hex value per line.
+
+Response: Excellent catch — you're right to question that, and you're absolutely correct.
+
+Let’s go through the expected sizes carefully and exactly to reconcile what’s in the .mem files with the theoretical shape of each weight matrix or bias vector.
+✅ Summary of What You Observed
+
+    Each .mem file has one 4-digit hex value per line, meaning one 16-bit value per line
+
+    enc1_b_o.mem has 64 lines → 64 × 16-bit entries
+
+    dense_W.mem has 384 lines → 384 × 16-bit entries
+
+So let's cross-check that against the math from the LSTM shapes.
+
+📐 LSTM Weight and Bias Shapes
+
+For a layer with:
+
+    input_dim = I
+
+    hidden_dim = H
+
+You should have:
+Param	Shape	Elements
+W	(4H, I)	4 × H × I
+U	(4H, H)	4 × H × H
+b	(4H,)	4 × H
+
+So the .mem files named:
+
+    *_W_i.mem → should contain H × I = (W for gate i)
+
+    *_b_i.mem → should contain H values (not 4H — that’s the total across all 4 gate files)
+
+In your case:
+For enc1:
+
+    input = 6
+
+    hidden = 64
+    → so each W gate (e.g., enc1_W_i.mem) is 64 × 6 = 384 entries ✅
+    → and each b gate (e.g., enc1_b_o.mem) is 64 entries ✅
+
+That's exactly what you have in the .mem files.
+🚫 Correction to Earlier Message
+
+In my earlier summary I said:
+
+    Each LSTM has:
+    • W: shape = (4 × hidden_dim, input_dim)
+    • U: shape = (4 × hidden_dim, hidden_dim)
+    • b: shape = (4 × hidden_dim,)
+
+That’s still correct overall for stacked matrices (as in combined W, U, b), but your .mem files are already split by gate (i, f, c, o). That means:
+
+    Each individual .mem file for W/U has size H × I or H × H
+
+    Each b file has H entries
+
+🧾 Final Confirmed Sizes for enc1 (input=6, hidden=64)
+File	Shape	Entries	Expected lines in .mem
+*_W_*.mem	64×6	384	✅ 384 lines
+*_U_*.mem	64×64	4096	✅ 4096 lines
+*_b_*.mem	64	64	✅ 64 lines
+
+Same pattern applies to enc2, dec1, dec2.
+🟢 dense_W.mem
+
+    Output dim = 6
+
+    Input dim = 64
+    → 6 × 64 = 384 entries → ✅ your file has 384 lines
+
+✅ Conclusion
+
+You’re 100% right — each .mem file is already split per gate, so:
+
+    No need to multiply by 4 when referring to the size of a single .mem file
+
+    The b size per gate is H, not 4×H
+
+    The W and U file sizes are H × input_dim and H × hidden_dim respectively
+
+Would you like me to now regenerate the weight_loader.sv using these confirmed .mem sizes and gate-split structure?
+
+Prompt: Yes, please
+
+Response: Here is a table of all .mem files along with the number of 16-bit entries each contains, based on your LSTM architecture:
+
+| Layer | Param | Gate | Filename       | Size (Entries) |
+| ----- | ----- | ---- | -------------- | -------------- |
+| enc1  | W     | i    | enc1\_W\_i.mem | 384            |
+| enc1  | U     | i    | enc1\_U\_i.mem | 4096           |
+| enc1  | b     | i    | enc1\_b\_i.mem | 64             |
+| enc1  | W     | f    | enc1\_W\_f.mem | 384            |
+| enc1  | U     | f    | enc1\_U\_f.mem | 4096           |
+| enc1  | b     | f    | enc1\_b\_f.mem | 64             |
+| enc1  | W     | c    | enc1\_W\_c.mem | 384            |
+| enc1  | U     | c    | enc1\_U\_c.mem | 4096           |
+| enc1  | b     | c    | enc1\_b\_c.mem | 64             |
+| enc1  | W     | o    | enc1\_W\_o.mem | 384            |
+| enc1  | U     | o    | enc1\_U\_o.mem | 4096           |
+| enc1  | b     | o    | enc1\_b\_o.mem | 64             |
+| enc2  | W     | i    | enc2\_W\_i.mem | 2048           |
+| enc2  | U     | i    | enc2\_U\_i.mem | 1024           |
+| enc2  | b     | i    | enc2\_b\_i.mem | 32             |
+| enc2  | W     | f    | enc2\_W\_f.mem | 2048           |
+| enc2  | U     | f    | enc2\_U\_f.mem | 1024           |
+| enc2  | b     | f    | enc2\_b\_f.mem | 32             |
+| enc2  | W     | c    | enc2\_W\_c.mem | 2048           |
+| enc2  | U     | c    | enc2\_U\_c.mem | 1024           |
+| enc2  | b     | c    | enc2\_b\_c.mem | 32             |
+| enc2  | W     | o    | enc2\_W\_o.mem | 2048           |
+| enc2  | U     | o    | enc2\_U\_o.mem | 1024           |
+| enc2  | b     | o    | enc2\_b\_o.mem | 32             |
+| dec1  | W     | i    | dec1\_W\_i.mem | 1024           |
+| dec1  | U     | i    | dec1\_U\_i.mem | 1024           |
+| dec1  | b     | i    | dec1\_b\_i.mem | 32             |
+| dec1  | W     | f    | dec1\_W\_f.mem | 1024           |
+| dec1  | U     | f    | dec1\_U\_f.mem | 1024           |
+| dec1  | b     | f    | dec1\_b\_f.mem | 32             |
+| dec1  | W     | c    | dec1\_W\_c.mem | 1024           |
+| dec1  | U     | c    | dec1\_U\_c.mem | 1024           |
+| dec1  | b     | c    | dec1\_b\_c.mem | 32             |
+| dec1  | W     | o    | dec1\_W\_o.mem | 1024           |
+| dec1  | U     | o    | dec1\_U\_o.mem | 1024           |
+| dec1  | b     | o    | dec1\_b\_o.mem | 32             |
+| dec2  | W     | i    | dec2\_W\_i.mem | 2048           |
+| dec2  | U     | i    | dec2\_U\_i.mem | 4096           |
+| dec2  | b     | i    | dec2\_b\_i.mem | 64             |
+| dec2  | W     | f    | dec2\_W\_f.mem | 2048           |
+| dec2  | U     | f    | dec2\_U\_f.mem | 4096           |
+| dec2  | b     | f    | dec2\_b\_f.mem | 64             |
+| dec2  | W     | c    | dec2\_W\_c.mem | 2048           |
+| dec2  | U     | c    | dec2\_U\_c.mem | 4096           |
+| dec2  | b     | c    | dec2\_b\_c.mem | 64             |
+| dec2  | W     | o    | dec2\_W\_o.mem | 2048           |
+| dec2  | U     | o    | dec2\_U\_o.mem | 4096           |
+| dec2  | b     | o    | dec2\_b\_o.mem | 64             |
+|       |       |      | dense\_W\.mem  | 384            |
+|       |       |      | dense\_b.mem   | 6              |
+
+Would you like the address map next, or should we now generate the weight_loader.sv module based on this layout?
+
+Prompt: Let's generate the weight_loader.sv module
+
+Response: It looks like the file system is temporarily unavailable, so I wasn’t able to save the generated weight_loader.sv file directly.
+
+However, here is the full contents of the generated module, which you can copy and save manually:
+<provided code>
+
+Let me know if you'd like this split into multiple modules or memory banks. 
 
 ## Summary
 
