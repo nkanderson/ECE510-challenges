@@ -4085,6 +4085,253 @@ This mismatch between the shape of W_i and the shape of your input vector x is c
 
 Let me know if you'd like me to paste the fixed block of code directly. Would you also like a debug print that confirms shape alignment before running step() again?
 
+Prompt: Ok, it seems like that worked, or at least it produced some output. Is there any way to verify this matches my error_report.csv or anomalies?
+
+Response: Yes — now that you're generating .mem files from your LSTM inference (e.g., h_out.mem), you can verify correctness against your error_report.csv or anomalies in one of two ways, depending on what error_report.csv contains:
+
+✅ Option 1: If error_report.csv contains LSTM outputs per timestep
+
+Check if it has columns like:
+```
+timestamp, ..., h_0, h_1, ..., h_31
+```
+Then you can:
+
+    Load h_out.mem in Python, convert the fixed-point hex values back to floats.
+
+    Compare per timestep with the values from the CSV.
+
+    Use a tolerance-based check to account for fixed-point rounding.
+
+Example comparison:
+```python
+import numpy as np
+import pandas as pd
+from utils import fixed_hex_to_float
+
+# Load mem file (Q4.12 format)
+with open("golden_vectors/h_out.mem") as f:
+    hex_vals = [line.strip() for line in f if line.strip()]
+floats = [fixed_hex_to_float(val, q_format=(4, 12)) for val in hex_vals]
+h_out = np.array(floats).reshape((-1, 32))  # (num_timesteps, hidden_dim)
+
+# Load expected from CSV
+df = pd.read_csv("error_report.csv")
+expected = df[[f"h_{i}" for i in range(32)]].values  # adjust as needed
+
+# Compare
+np.allclose(h_out, expected, atol=0.01)  # or a different tolerance
+```
+
+✅ Option 2: If error_report.csv only marks anomalous windows
+
+If the CSV flags certain windows as anomalous but doesn’t contain the raw LSTM outputs:
+
+    You can compare the output of the hardware simulation driven by x_in.mem against your software golden h_out.mem.
+
+    Any divergence > threshold for a timestep or window could be flagged.
+
+    Then, check if the same window appears in error_report.csv.
+
+This gives you indirect verification that your Python inference pipeline is producing the correct "expected" outputs for hardware comparison.
+
+🔁 Next Step
+
+Would you like a helper script that loads h_out.mem and compares it to error_report.csv, either float-by-float or window-by-window, depending on the format? If so, please share a snippet of your CSV file’s structure.
+
+Prompt: So I have a few CSVs we generated much earlier. And fyi, I decided to output a single window for the golden vector generation, in an attempt to keep things simpler. My `error_report.csv` contains window_index and mse. My anomalies.csv also contains window_index and mse, but only for the windows marked as anomalous, which isn't going to be helpful here. I need a way to confirm that the values we generated for a single window match the output generated earlier from the inference run. If I don't validate these golden vectors and then there's an issue with hardware validation, I won't know if the problem is in the hardware implementation or in the golden vector data. So we may need to modify the lstm_inference file in order to allow it to use our generated golden vector data in place of the output from the step method. Is there any simpler way to go about it?
+
+Response: You're absolutely right to want to validate this now — otherwise, you're flying blind when hardware mismatches occur.
+
+Given your goal and setup, here’s the simplest, most reliable path forward:
+
+✅ Step-by-step Validation Plan
+🔹 Step 1: Run lstm_inference.py for one window and capture h_out
+
+Make sure lstm_inference.py runs exactly one window from your .npz input (the same one used in generate_golden_vectors.py).
+
+Update the inference script to:
+
+    Load only the first window from the .npz
+
+    Print or save the final h_out at each timestep
+
+```python
+data = np.load("new_data_sequences.npz")["sequences"]
+window = data[0]  # (24, 6)
+
+# Run model inference as usual
+...
+outputs = []
+for x in window:
+    h1, c1 = lstm1.step(x, h1, c1)
+    h2, c2 = lstm2.step(h1, h2, c2)
+    outputs.append(h2.copy())
+
+np.savetxt("reference_h_out.csv", outputs, delimiter=",", fmt="%.6f")
+```
+
+🔹 Step 2: Decode h_out.mem from golden vectors
+
+Write a simple decoder to:
+
+    Read the golden_vectors/h_out.mem
+
+    Convert from Q4.12 hex to float
+
+    Reshape to shape (24, 32)
+
+```python
+from utils import fixed_hex_to_float
+import numpy as np
+
+with open("golden_vectors/h_out.mem") as f:
+    hex_vals = [line.strip() for line in f if line.strip()]
+floats = [fixed_hex_to_float(h, q_format=(4, 12)) for h in hex_vals]
+golden = np.array(floats).reshape((24, 32))  # assuming 24 timesteps
+
+np.savetxt("decoded_golden_h_out.csv", golden, delimiter=",", fmt="%.6f")
+```
+
+🔹 Step 3: Compare
+```python
+ref = np.loadtxt("reference_h_out.csv", delimiter=",")
+golden = np.loadtxt("decoded_golden_h_out.csv", delimiter=",")
+
+if np.allclose(ref, golden, atol=1e-3):
+    print("[✓] Golden vectors match software inference output.")
+else:
+    print("[✗] Mismatch detected!")
+    diff = np.abs(ref - golden)
+    print("Max diff:", np.max(diff))
+    np.savetxt("diff.csv", diff, delimiter=",", fmt="%.6f")
+```
+
+✅ Why this works well
+
+    It’s minimal: no need to rewrite lstm_inference.py to consume .mem files.
+
+    It compares two trustworthy sources: the original inference vs your golden vector pipeline.
+
+    You only need to validate this once per configuration to gain confidence.
+
+    If it passes, you’ve eliminated software as the source of error — future mismatches point to hardware or testbench issues.
+
+Would you like me to generate a compact version of this validation script for you?
+
+Prompt: Yes, that seems reasonable. For reference, the current `lstm_inference.py` is below. It may make sense to add an CLI option to perform the reference_h_out generation:
+
+<pasted in file contents>
+
+Response: Great, thanks for sharing the full context. To support validation, we’ll add a new command-line option like --export-reference-hout to lstm_inference.py. When enabled, it will:
+
+    Run inference for just one window (e.g., index 0).
+
+    Capture the output of the fourth LSTM layer (h4).
+
+    Save it as a .mem file using the same save_mem_file utility in Q4.12 format.
+
+Here’s the minimal diff you can apply:
+✅ Step 1: Add this import
+
+At the top of lstm_inference.py:
+
+from utils import save_mem_file  # Add this
+
+✅ Step 2: Insert the following after errors = []
+
+```python
+    if "--export-reference-hout" in sys.argv:
+        i = 0
+        seq = sequences[i].tolist()
+        h1 = [0.0] * model.hidden1
+        c1 = [0.0] * model.hidden1
+        h2 = [0.0] * model.hidden2
+        c2 = [0.0] * model.hidden2
+
+        for x in seq:
+            h1, c1 = model.lstm1.step(x, h1, c1)
+            h2, c2 = model.lstm2.step(h1, h2, c2)
+
+        repeated = [h2 for _ in range(len(seq))]
+        h3 = [0.0] * model.hidden3
+        c3 = [0.0] * model.hidden3
+        h4 = [0.0] * model.hidden4
+        c4 = [0.0] * model.hidden4
+
+        h_out_lines = []
+        for x in repeated:
+            h3, c3 = model.lstm3.step(x, h3, c3)
+            h4, c4 = model.lstm4.step(h3, h4, c4)
+            h_out_lines.append(h4.copy())
+
+        save_mem_file(h_out_lines, "reference_h_out.mem")
+        print("[info] Saved reference_h_out.mem")
+        sys.exit(0)
+```
+
+✅ Step 3: Run the script
+
+python lstm_inference.py --npz new_data_sequences.npz --export-reference-hout
+
+You can now compare reference_h_out.mem against golden_vectors/h_out.mem.
+
+Would you like a diff-checking Python snippet for comparing the files line-by-line and reporting mismatches?
+
+Prompt: This doesn't use the weights from the saved model, or the npz data used in the golden vector generation. It doesn't match what you proposed earlier
+
+Response: You're right — thanks for catching that. Let's modify lstm_inference.py to add a --verify-golden mode that:
+
+    Loads the same .npz input as used in generate_golden_vectors.py
+
+    Loads the same lstm_weights.npz file
+
+    Runs inference on the first window
+
+    Compares the internal h_out vectors at each timestep with the values saved in golden_vectors/h_out.mem
+
+    Reports any differences with numeric tolerances
+
+Would you like this to show per-timestep mismatches, or just summarize with a max absolute error and MSE?
+
+Prompt: Show per-timestep mismatches
+
+Response: Great — here's a script that compares golden vectors against Python inference results and prints any mismatches per timestep. It assumes you're using:
+
+    new_data_sequences.npz (with key sequences) for input
+
+    lstm_weights.npz for weights
+
+    golden outputs saved in golden_vectors/h_out.mem (Q4.12 format)
+
+<provided code>
+
+To run:
+
+python compare_outputs.py --window 0
+
+Would you like a plot of the differences per timestep as well?
+
+Prompt: No, we need to get this working
+
+<provided error output>
+
+Response: Thanks — that error means h2 is a plain Python list, not a NumPy array, so calling .tolist() on it fails. Since your LSTMCell.step method returns regular Python list objects (based on your custom implementation), the fix is to remove the .tolist() call entirely.
+✅ Fix this line in validate_golden_vector.py:
+
+Change:
+
+reference.extend(h2.tolist())
+
+To:
+
+reference.extend(h2)
+
+This change will resolve the AttributeError, and the rest of your script should run as intended.
+
+Do you want the script to print only mismatches or also matching values for debugging?
+
+Prompt: 
 
 ## Summary
 
