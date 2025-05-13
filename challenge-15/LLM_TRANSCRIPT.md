@@ -5727,6 +5727,340 @@ Let me know if you'd like to:
 
 <Note: Going to start a new thread because there seem to be some performance problems>
 
+## New thread for SV development
+
+Prompt: I have a systemverilog project that is recreating an LSTM cell for AI inference. It includes the following files: lstm_cell.sv, matvec_mul.sv, sigmoid_approx.sv, tanh_approx.sv, elementwise_add.sv, elementwise_mul.sv, and a weight_loader.sv which is intended to load weights for 4 different LSTM cells from .mem files. I want to update a tb_lstm_cell.sv testbench file I have to use the weights, as well as some golden vectors I have in the files c_out.mem, h_out.mem, and it will need to use h_prev.mem, c_prev.mem, and x_in.mem as well. The following code is the lstm_cell.sv followed by the current testbench file. Let's start by updating the testbench to correctly test the lstm_cell using the weights and vectors.
+
+<pasted in lstm_cell.sv and tb_lstm_cell.sv>
+
+Response: To update your tb_lstm_cell.sv to load weights and vectors from .mem files and validate against golden outputs, we'll follow these steps:
+✅ Plan
+
+    Load all input vector/matrix files:
+
+        x_in.mem
+
+        h_prev.mem
+
+        c_prev.mem
+
+        W*.mem, U*.mem, and b*.mem (flattened into arrays)
+
+    Wait for done signal
+
+    Compare outputs (h, c) with h_out.mem, c_out.mem
+
+✅ Updated tb_lstm_cell.sv Snippet
+
+Here is your updated testbench:
+```systemverilog
+`timescale 1ns / 1ps
+
+module tb_lstm_cell;
+
+    parameter int INPUT_SIZE  = 2;
+    parameter int HIDDEN_SIZE = 2;
+    parameter int DATA_WIDTH  = 32;
+
+    logic clk;
+    logic rst_n;
+    logic start;
+    logic done;
+
+    logic signed [DATA_WIDTH-1:0] x[INPUT_SIZE];
+    logic signed [DATA_WIDTH-1:0] h_prev[HIDDEN_SIZE];
+    logic signed [DATA_WIDTH-1:0] c_prev[HIDDEN_SIZE];
+
+    logic signed [DATA_WIDTH-1:0] W[HIDDEN_SIZE*4][INPUT_SIZE];
+    logic signed [DATA_WIDTH-1:0] U[HIDDEN_SIZE*4][HIDDEN_SIZE];
+    logic signed [DATA_WIDTH-1:0] b[HIDDEN_SIZE*4];
+
+    logic signed [DATA_WIDTH-1:0] h[HIDDEN_SIZE];
+    logic signed [DATA_WIDTH-1:0] c[HIDDEN_SIZE];
+
+    logic signed [DATA_WIDTH-1:0] golden_h[HIDDEN_SIZE];
+    logic signed [DATA_WIDTH-1:0] golden_c[HIDDEN_SIZE];
+
+    // DUT
+    lstm_cell #(
+        .INPUT_SIZE(INPUT_SIZE),
+        .HIDDEN_SIZE(HIDDEN_SIZE),
+        .DATA_WIDTH(DATA_WIDTH)
+    ) dut (
+        .clk(clk),
+        .rst_n(rst_n),
+        .start(start),
+        .done(done),
+        .x(x),
+        .h_prev(h_prev),
+        .c_prev(c_prev),
+        .W(W),
+        .U(U),
+        .b(b),
+        .h(h),
+        .c(c)
+    );
+
+    // Clock
+    always #5 clk = ~clk;
+
+    initial begin
+        integer i, j;
+
+        // Initialize
+        clk   = 0;
+        rst_n = 0;
+        start = 0;
+
+        // Reset
+        repeat (2) @(posedge clk);
+        rst_n = 1;
+        @(posedge clk);
+
+        // Load memory files
+        $readmemh("x_in.mem",      x);
+        $readmemh("h_prev.mem",    h_prev);
+        $readmemh("c_prev.mem",    c_prev);
+        $readmemh("h_out.mem",     golden_h);
+        $readmemh("c_out.mem",     golden_c);
+
+        $readmemh("enc1_W_i.mem",  W[0]);  // W[0] → i gate
+        $readmemh("enc1_W_f.mem",  W[1]);  // W[1] → f gate
+        $readmemh("enc1_W_c.mem",  W[2]);  // W[2] → c gate
+        $readmemh("enc1_W_o.mem",  W[3]);  // W[3] → o gate
+
+        $readmemh("enc1_U_i.mem",  U[0]);
+        $readmemh("enc1_U_f.mem",  U[1]);
+        $readmemh("enc1_U_c.mem",  U[2]);
+        $readmemh("enc1_U_o.mem",  U[3]);
+
+        $readmemh("enc1_b_i.mem",  b[0]);
+        $readmemh("enc1_b_f.mem",  b[1]);
+        $readmemh("enc1_b_c.mem",  b[2]);
+        $readmemh("enc1_b_o.mem",  b[3]);
+
+        // Start computation
+        @(posedge clk);
+        start = 1;
+        @(posedge clk);
+        start = 0;
+
+        // Wait for done
+        wait (done);
+        @(posedge clk);
+
+        $display("Output h and c values:");
+        for (i = 0; i < HIDDEN_SIZE; i++) begin
+            $display("h[%0d] = %0d", i, h[i]);
+            $display("c[%0d] = %0d", i, c[i]);
+        end
+
+        // Self-check against golden vectors
+        for (i = 0; i < HIDDEN_SIZE; i++) begin
+            if (h[i] !== golden_h[i])
+                $fatal(1, "FAIL: h[%0d] = %0d, expected %0d", i, h[i], golden_h[i]);
+            if (c[i] !== golden_c[i])
+                $fatal(1, "FAIL: c[%0d] = %0d, expected %0d", i, c[i], golden_c[i]);
+        end
+
+        $display("✅ All golden checks passed.");
+        $finish;
+    end
+
+endmodule
+```
+
+📁 Expected .mem File Format
+
+Each .mem file should contain 1 value per line, optionally in hex or decimal, matching the data width and sign convention used in your fixed-point format. For example:
+```
+# enc1_W_i.mem
+00001
+00002
+```
+For 2x2 matrices (e.g., W[0][0], W[0][1]), enc1_W_i.mem should contain 2 values → representing W[0][0], W[0][1].
+
+✅ Next Steps
+
+Let me know if:
+
+    You’re using Q4.12 or another fixed-point format (so I can check bit alignment).
+
+    You want to load all 4 LSTM cells from weight_loader.sv instead (for multiple lstm_cell instances).
+
+    You need to generate .mem files from NumPy/CSV with Python scripts.
+
+Would you like help validating that your .mem files are in the correct shape and match HIDDEN_SIZE × INPUT_SIZE, etc.?
+
+Prompt: Yes, this is using Q4.12 fixed-point format. The following is the code used to generate the golden vectors, so I think actually we're going to need to instantiate 2 lstm cells in the testbench in order to use the golden vectors. Does that make sense?
+<pasted in generate_vectors function>
+
+Response: Yes, you're exactly right — based on this Python code, the LSTM inference consists of two stacked LSTM layers:
+
+    lstm1: from x to hidden state h1 (size 64)
+
+    lstm2: from h1 to output h2 (size 32)
+
+The golden vectors saved are:
+
+    Inputs: x_in.mem (input to LSTM1), h_prev.mem, c_prev.mem (for LSTM2)
+
+    Outputs: h_out.mem, c_out.mem (from LSTM2)
+
+Thus, your SystemVerilog testbench must instantiate both LSTM cells in sequence:
+
+    lstm1: compute h1, c1 from x_in (zero-initialized h_prev1, c_prev1)
+
+    lstm2: compute final h2, c2 from h1, c_prev, h_prev (matching Python's lstm2.step())
+
+✅ Summary of Signal Flow
+x_in      → LSTM1 → h1
+                      ↓
+h_prev → LSTM2 ← c_prev
+         ↓           ↓
+     h_out         c_out
+
+✅ Next Step: Updated tb_lstm_cell.sv (Outline)
+```systemverilog
+    logic signed [DATA_WIDTH-1:0] h1[64];
+    logic signed [DATA_WIDTH-1:0] c1[64];
+
+    logic signed [DATA_WIDTH-1:0] x_in[INPUT_SIZE];
+    logic signed [DATA_WIDTH-1:0] h2_prev[32];
+    logic signed [DATA_WIDTH-1:0] c2_prev[32];
+
+    logic signed [DATA_WIDTH-1:0] h2_out[32];
+    logic signed [DATA_WIDTH-1:0] c2_out[32];
+
+    // Instantiate LSTM1
+    lstm_cell #(
+        .INPUT_SIZE(INPUT_SIZE),
+        .HIDDEN_SIZE(64),
+        .DATA_WIDTH(DATA_WIDTH)
+    ) lstm1 (...);
+
+    // Instantiate LSTM2
+    lstm_cell #(
+        .INPUT_SIZE(64),
+        .HIDDEN_SIZE(32),
+        .DATA_WIDTH(DATA_WIDTH)
+    ) lstm2 (...);
+```
+
+You'll also need:
+
+    Separate W, U, b arrays for both lstm1 and lstm2
+
+    Load .mem files: enc1_W_*.mem, enc2_W_*.mem, etc.
+
+    Set initial h_prev1, c_prev1 to zero (as Python does)
+
+✅ Optional Optimization: Pipeline FSM
+
+To test multiple steps (each step = one x_in from the .mem), wrap this in a loop:
+
+    Load x_in[i], h_prev[i], c_prev[i]
+
+    Assert start for lstm1
+
+    Wait for done
+
+    Assert start for lstm2
+
+    Compare h2_out and c2_out to golden values h_out[i], c_out[i]
+
+Would you like me to write the full updated testbench that:
+
+    Instantiates both LSTMs
+
+    Loads and parses all .mem files
+
+    Validates one or more timesteps?
+
+Let me know how many timesteps you want the testbench to simulate — just 1, or a loop over a full sequence?
+
+Prompt: I guess the number of timesteps we can validate depends on how much data we have, correct?
+
+Everything else sounds good
+
+Response: Exactly — the number of timesteps you can validate corresponds to the number of lines in the .mem files:
+
+    x_in.mem, h_prev.mem, c_prev.mem, h_out.mem, c_out.mem should all have N × vector_length entries
+
+    where:
+
+        x_in.mem should have N × INPUT_SIZE values
+
+        h_prev.mem, c_prev.mem, h_out.mem, c_out.mem should each have N × HIDDEN_SIZE values (32 in your case)
+
+        N is the number of timesteps generated
+
+So we can:
+
+    Determine N by reading the .mem file lengths (dividing by vector width)
+
+    Simulate a loop from 0 to N-1 and compare each step’s output
+
+✅ Coming Up: Full Updated Testbench
+
+I’ll now write the complete tb_lstm_cell.sv that:
+
+    Instantiates both LSTM layers
+
+    Loads all weights and vectors from .mem files
+
+    Simulates N steps (based on file size)
+
+    Compares each h2, c2 output to golden vectors
+
+Before I proceed — can you confirm:
+
+    Are the .mem files for x_in, h_prev, c_prev, h_out, c_out stored as one value per line, in hexadecimal and in Q4.12 format?
+
+    What are the filenames for the weight files? Should I assume:
+```
+enc1_W_i.mem, enc1_W_f.mem, enc1_W_c.mem, enc1_W_o.mem
+enc1_U_i.mem, ...
+enc1_b_i.mem, ...
+enc2_W_i.mem, ...
+...
+enc2_b_o.mem
+```
+
+Once you confirm, I’ll provide the full testbench.
+
+Prompt: Yes, that naming is correct. We'll also need to update lstm_cell.sv to use specified weights. Since that is tied to the specific gate, I think it will make sense to have that as a parameter that is set on instantiation. Let's finish the testbench, then do that.
+
+Response: Perfect — thanks for confirming.
+
+Here is the complete updated tb_lstm_cell.sv that:
+
+    Instantiates two LSTM layers (lstm1 with 64 hidden units, lstm2 with 32)
+
+    Loads all weights from .mem files using $readmemh
+
+    Reads vector input/output .mem files (for N timesteps)
+
+    Loops through each timestep, applying input and checking output
+
+    Assumes Q4.12 hex fixed-point representation, one value per line
+
+✅ Full tb_lstm_cell.sv
+<provided updated tb_lstm_cell.sv>
+
+🔧 Next Step: lstm_cell.sv Update
+
+Let’s now proceed to update lstm_cell.sv so it uses specified gates (W_i, W_f, etc.) individually, which will allow direct .mem mapping instead of pre-concatenated 4*HIDDEN arrays.
+
+Would you prefer:
+
+    Keeping W, U, b as single flattened arrays ([4*HIDDEN][*]), and just mapping index ranges internally? (minimal change)
+
+    Or rewriting the module ports to separate gate-specific ports: W_i, W_f, W_c, W_o, etc.? (explicit structure)
+
+Let me know your preferred direction.
+
+
 ## Summary
 
 🧠 2. LSTMCell.step() → SystemVerilog equivalent
