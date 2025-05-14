@@ -49,7 +49,7 @@ The current model uses 32-bit precision. It could be worth attempting to use 16-
 - Recreate a simplified model with 1 encoder and 1 decoder, each with 32 hidden cells. Use 2 features instead of 6: air temperature and sea level pressure.
 - Recreate inference algorithm as needed with new model. Need to determine the sizing of the input and output vectors. Benchmark new algorithm.
 - Output weights and golden vectors.
-- Start with creating a SV module for the matrix multiplication. Need to determine required input and output size for the matrix multiplier.
+- Start with creating a SV module for the matrix multiplication. Need to determine required input and output size for the matrix multiplier. Consider how to reduce precision, and impact of this change.
 - Might try to get weights into SRAM with the above matrix multiplier, but may also just need to start by assuming they will be transferred per operation.
 - Consider expanding hardware implementation to cover each gate computation - this would include the activation function applied to elementwise add on the result of matrix multiplication on the input kernel and the input with result of elementwise add of the matrix multiplication of the recurrent kernel and the previous hidden state with the bias (see `lstm_core.py` `step` method).
 
