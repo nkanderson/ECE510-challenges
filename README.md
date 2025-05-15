@@ -1,23 +1,23 @@
 # ECE 510: Hardware for Artifical Intelligence and Machine Learning
 
-This repository encapsulates work done related to ECE 510, with individual directories corresponding to weekly challenges. Each directory contains a README.md with additional details and links to other resources as needed.
+This repository encapsulates work done related to ECE 510, with individual directories corresponding to weekly challenges. Each directory contains a README.md with additional details and links to other resources as needed. See the [table of contents](#table-of-contents) for a full listing.
 
-An annotated bibliography covering all papers read for this class is below.
+An [annotated bibliography](#annotated-bibliography) covering all papers read for this class is below.
 
 ## Table of Contents
 
 **Challenge 2: Paper Review for _Intrinsic and Designed Computation_ (2010)**  
 Summary and analysis of Crutchfield, Ditto, & Sinha 2010 paper _Intrinsic and
-Designed Computation_. ([link](./challenge-2/README.md))
+Designed Computation_. ([link](./challenge-02/README.md))
 
 **Challenge 5: Python Algorithm Analysis**  
-Bytecode analysis and basic profiling for Python algorithms including quicksort, matrix multiplication, different equation solver, basic cryptography, and a convolutional neural network. ([link](./challenge-5/README.md))
+Bytecode analysis and basic profiling for Python algorithms including quicksort, matrix multiplication, different equation solver, basic cryptography, and a convolutional neural network. ([link](./challenge-05/README.md))
 
 **Challenges 6, 7, and 8: Simple Neuron and MLP Implementations**  
-Includes implementation of a simple neuron with NAND and XOR functions (Challenge 6), visualization of the perceptron learning rule (Challenge 7), and implementation of a multi-layer perceptron (MLP) network trained to solve XOR (Challenge 8). ([link](./challenge-6/README.md))
+Includes implementation of a simple neuron with NAND and XOR functions (Challenge 6), visualization of the perceptron learning rule (Challenge 7), and implementation of a multi-layer perceptron (MLP) network trained to solve XOR (Challenge 8). ([link](./challenge-06/README.md))
 
 **Challenges 9 and 12: Bootstrapping the Main Project and SW / HW Boundary**  
-Includes training an LSTM Autoencoder model and creation of a pure-Python inference script (Challenge 9) and profiling and analysis of script to determine software / hardware boundary and target execution time for hardware acceleration (Challenge 12). ([link](./challenge-9/README.md))
+Includes training an LSTM Autoencoder model and creation of a pure-Python inference script (Challenge 9) and profiling and analysis of script to determine software / hardware boundary and target execution time for hardware acceleration (Challenge 12). ([link](./challenge-09/README.md))
 
 **Challenges 10 and 11: Identification of Computational Bottlenecks and GPU Acceleration**  
 Identification and discussion of computational bottlenecks in a FrozenLake Q learning algorithm (Challenge 10) and optimization of the algorithm of execution on a GPU (Challenge 11). ([link](./challenge-10/README.md))
