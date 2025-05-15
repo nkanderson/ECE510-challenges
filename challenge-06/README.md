@@ -17,24 +17,24 @@ A basic `Perceptron` class was created with the assistance of ChatGPT, whose cor
 
 After training, the model was capable of producing a prediction for a set of inputs using the `forward` method, which performed a multiply-accumulate with matrix multiplication on the weights and inputs, incorporated the `bias` value, and finally squashed the output to a value between 0 and 1 using a `sigmoid` function.
 
-![Chart showing weights and bias evolution for NAND training](./images/NAND_weights_bias_evolution.png)
+![Chart showing weights and bias evolution for NAND training](./images/NAND_weights_bias_evolution.png)  
 *Chart showing progression of weights and bias values for NAND training over 10k epochs.*
 
-![Chart showing learning curve for NAND training](./images/NAND_learning_curve.png)
+![Chart showing learning curve for NAND training](./images/NAND_learning_curve.png)  
 *Chart showing learning curve for NAND training over 10k epochs. As expected, the model is successfully able to reduce the total error to nearly zero.*
 
-![Chart showing weights and bias evolution for XOR training](./images/XOR_weights_bias_evolution_2.png)
+![Chart showing weights and bias evolution for XOR training](./images/XOR_weights_bias_evolution_2.png)  
 *Chart showing progression of weights and bias values for XOR training over 10k epochs.*
 
-![Chart showing learning curve for XOR training](./images/XOR_learning_curve.png)
+![Chart showing learning curve for XOR training](./images/XOR_learning_curve.png)  
 *Chart showing learning curve for XOR training over 10k epochs. The total error the model is able to achieve levels off quickly, but is never reduced to much below 1.025. This is due to XOR not being a linearly separable problem.*
 
 As expected, it was possible to successfully train this simple model on a NAND function, because it is a linearly separable problem. XOR was unsuccessful across multiple training runs, illustrating that it is not possible for this model to produce nonlinear separable classification. Animations showing the decision boundary for each further illustrate this point.
 
-![Decision boundary for NAND training over 10k epochs](./images/nand_decision_boundary.gif)
+![Decision boundary for NAND training over 10k epochs](./images/nand_decision_boundary.gif)  
 *Decision boundary animation for NAND training over 10k epochs, showing the model correctly producing results using linear separation of the problem.*
 
-![Decision boundary for XOR training over 10k epochs](./images/xor_decision_boundary.gif)
+![Decision boundary for XOR training over 10k epochs](./images/xor_decision_boundary.gif)  
 *Decision boundary animation for XOR training over 10k epochs, showing the model attempting to find a linear separation, but ultimately producing incorrect results for the XOR function.*
 
 The above show the decision boundary for a 2-value input space. The decision boundary is where the output function produces a value of 0.5, which is where the sigmoid transitions from 0 to 1. Each input then is represented on its own axis, with a line showing the demarcation between classifications of a set of inputs.
@@ -55,30 +55,30 @@ In order to better understand the role of the neurons in the hidden layer, and h
 
 The following visualizations were created to support a deeper understanding of hidden layer contributions to the final model output:
 
-![Hidden Neuron 1 Activation](./images/MLP_output_viz_animation/mlp_h1_activation.png)
+![Hidden Neuron 1 Activation](./images/MLP_output_viz_animation/mlp_h1_activation.png)  
 *Activation values for hidden neuron 1 within the XOR input space.*
 
-![Hidden Neuron 2 Activation](./images/MLP_output_viz_animation/mlp_h2_activation.png)
+![Hidden Neuron 2 Activation](./images/MLP_output_viz_animation/mlp_h2_activation.png).  
 *Activation values for hidden neuron 2 within the XOR input space.*
 
-![Decision Boundary for XOR problem solved with MLP](./images/MLP_output_viz_animation/mlp_decision_boundary.png)
+![Decision Boundary for XOR problem solved with MLP](./images/MLP_output_viz_animation/mlp_decision_boundary.png)  
 *Decision boundary for an MLP trained on XOR data.*
 
-![Animation of output neuron output overlaid with hidden neurons threshold values](./images/MLP_output_viz_animation/xor_output_hidden.gif)
+![Animation of output neuron output overlaid with hidden neurons threshold values](./images/MLP_output_viz_animation/xor_output_hidden.gif).  
 *Animation of output neuron output overlaid with hidden neurons threshold values for the MLP trained on XOR data. Green lines show the activation thresholds for hidden neuron 2, pink lines show the activation thresholds for hidden neuron 1. Output neuron values were produced by the function using the output weights and bias prior to being squashed by the sigmoid function. Note: Beginning frames are weighted in order to slow the animation progression during significant model changes.*
 
 Though there is no guarantee of a strict decomposition of the problem by each hidden neuron, the above example does show a clear breakdown of each hidden neuron's contribution to the decision boundary. The below is the same set of visualizations, but for a model producing incorrect results for the XOR problem.
 
-![Hidden Neuron 1 Activation, incorrect results](./images/MLP_output_viz_animation-incorrect_XOR/mlp_h1_activation.png)
+![Hidden Neuron 1 Activation, incorrect results](./images/MLP_output_viz_animation-incorrect_XOR/mlp_h1_activation.png)  
 *Activation values for hidden neuron 1 within the XOR input space, with incorrect results.*
 
-![Hidden Neuron 2 Activation, incorrect results](./images/MLP_output_viz_animation-incorrect_XOR/mlp_h2_activation.png)
+![Hidden Neuron 2 Activation, incorrect results](./images/MLP_output_viz_animation-incorrect_XOR/mlp_h2_activation.png)  
 *Activation values for hidden neuron 2 within the XOR input space, with incorrect results.*
 
-![Decision Boundary for XOR problem incorrectly solved with MLP](./images/MLP_output_viz_animation-incorrect_XOR/mlp_decision_boundary.png)
+![Decision Boundary for XOR problem incorrectly solved with MLP](./images/MLP_output_viz_animation-incorrect_XOR/mlp_decision_boundary.png)  
 *Decision boundary for an MLP trained on XOR data, with incorrect results.*
 
-![Animation of output neuron output overlaid with hidden neurons threshold values, incorrect results](./images/MLP_output_viz_animation-incorrect_XOR/xor_output_hidden.gif)
+![Animation of output neuron output overlaid with hidden neurons threshold values, incorrect results](./images/MLP_output_viz_animation-incorrect_XOR/xor_output_hidden.gif)  
 *Animation of output neuron output overlaid with hidden neurons threshold values for the MLP trained on XOR data, with incorrect output for XOR. Green lines show the activation thresholds for hidden neuron 2, pink lines show the activation thresholds for hidden neuron 1. Output neuron values were produced by the function using the output weights and bias prior to being squashed by the sigmoid function. Note: Beginning frames are weighted in order to slow the animation progression during significant model changes.*
 
 ## Results and Discussion

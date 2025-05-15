@@ -68,8 +68,7 @@ Running for size: 10000
   NumPy: 0.503727s, 0.230 MB (actual)
 ```
 
-![Bar chart showing execution time and memory usage for MPS, Python, and NumPy](./images/mps_python_numpy.png)
-
+![Bar chart showing execution time and memory usage for MPS, Python, and NumPy](./images/mps_python_numpy.png)  
 *Bar chart showing execution time and memory usage for PyTorch on MPS, pure sequential Python, and NumPy.*
 
 The pure sequential Python showed the expected approximation of O(n^2) execution time growth, with execution time roughly doubling across arrays increasing in length by 2500. The two parallelized implementations - the systolic array using PyTorch and NumPy using vectorization - both show significantly lower growth in execution time. The NumPy version is the most performant in terms of execution time. This is likely due to the data transfer penalty incurred by the transfer to the GPU in the PyTorch MPS implementation.

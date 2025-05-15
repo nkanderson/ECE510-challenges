@@ -14,13 +14,13 @@ Full LLM transcripts found in [LLM_TRANSCRIPT.md](./LLM_TRANSCRIPT.md). Commands
 
 Generated bar charts showing instructions by category for each program showed no or very few arithmetic instructions for each program. ChatGPT suggested this was due to the programs delegating all arithmetic functionality to underlying C programs. This would make sense, but did not help with the desired algorithmic analysis.
 
-![Bar chart showing opcode breakdown by category for quicksort program](./images/opcodes_by_category_matrix_multiplication.png)
+![Bar chart showing opcode breakdown by category for quicksort program](./images/opcodes_by_category_matrix_multiplication.png)  
 *Bar chart of opcodes by category for matrix multiplication program, indicating that arithmetic functions are not in Python, and have likely been delegated to C code via Numpy instead.*
 
-![Bar chart showing opcode breakdown by category for CNN program](./images/opcodes_by_category_convolutional_neural_network.png)
+![Bar chart showing opcode breakdown by category for CNN program](./images/opcodes_by_category_convolutional_neural_network.png)  
 *Bar chart of opcodes by category for CNN program. There is a relatively small reported number of arithmetic functions here, despite this program obviously having an intensive arithmetic computation component.*
 
-![Bar chart showing opcode breakdown by category for example program](./images/opcodes_by_category_example.png)
+![Bar chart showing opcode breakdown by category for example program](./images/opcodes_by_category_example.png)  
 *Bar chart of opcodes by category for example program, showing that basic arithmetic functions in Python are captured when present. This was performed to confirm there was not a tooling or analysis issue.*
 
 Though the bytecode analysis in itself did not produce deeper insights into the arithmetic workload of these programs, it is worth mentioning that there are multiple ways of generating such bytecode for analysis, with differing results. In a first attempt, disassembled code was output to individual files using `dis`. Separately,  counts for different instruction categories was produced by analysis of the `module.main.__code__` code object. This resulted in a discrepancy between the programmatic counts from the code object and the results based on inspection of the disassembly file. It seems that the code object is further optimized for the Python interpreter, and has in some cases alternative instructions related to caching. Though this does not change the more salient issue of delegation to C code, it is worth noting that not all bytecode analysis may be equal.
@@ -29,10 +29,10 @@ Though the bytecode analysis in itself did not produce deeper insights into the 
 
 Similar to the above, analysis of the code using `cProfile` and interactive visualization with `snakeviz` provided support for the conclusion that the computationally intensive arithmetic work was not taking place directly in Python code, but instead in underlying libraries using C or C++.
 
-![Visualization in snakeviz of matrix multiplication program](./images/matrix_multiply_snakeviz.png)
+![Visualization in snakeviz of matrix multiplication program](./images/matrix_multiply_snakeviz.png)  
 *Visualization in `snakeviz` of matrix multiplication program shows that most of the work taking place in Python code was related to printing output instead of arithmetic functions.*
 
-![Visualization in snakeviz of convolutional neural network program](./images/cnn_snakeviz_tf.png)
+![Visualization in snakeviz of convolutional neural network program](./images/cnn_snakeviz_tf.png)  
 *Visualization in `snakeviz` of convolutional neural network program showing the functions with the most significant cumulative execution time. In requesting additional information on the TensorFlow function here, ChatGPT indicated that "TFE_Py_Execute is a C function exposed as a built-in method in Python".*
 
 ## Reflections on "Vibe Coding"
