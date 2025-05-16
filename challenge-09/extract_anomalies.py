@@ -2,7 +2,7 @@ import pandas as pd
 import csv
 
 # Load anomaly indices
-anomalies = pd.read_csv("anomalies.csv")
+anomalies = pd.read_csv("data/anomalies.csv")
 anom_indices = anomalies["window_index"].tolist()
 
 # Load original NOAA CSV (raw, not preprocessed)
