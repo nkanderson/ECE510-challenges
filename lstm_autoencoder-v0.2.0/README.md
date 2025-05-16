@@ -6,6 +6,10 @@ This work represents the iterative changes outlined in [Challenge 23](../challen
 
 ## Summary of Work
 
+### Updated Profiling
+
+After fixing the weight loading transposition issue (see [CHANGELOG](./docs/CHANGELOG.md)), the overall runtime for inference was much longer, going from ~2s to ~60s. The identified bottlenecks were the same, however, so at this point, it does not seem like changing hardware acceleration targets is necessary. It may be worthwhile to profile on multiple machines and attempt to confirm the updated runtime though, as it will impact the ultimate assessment of hardware execution speedup.
+
 ### Reduced Precision Values
 
 With assistance from ChatGPT for analysis of existing inference and weights, determined the following fixed point formats should suffice:
