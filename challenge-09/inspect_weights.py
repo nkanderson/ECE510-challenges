@@ -16,3 +16,8 @@ for name in weights.files:
     print(f"{name}: shape={arr.shape}, dtype={arr.dtype}")
     if arr.size == 0:
         print("  ⚠️  WARNING: empty array!")
+        continue
+
+    min_val = arr.min()
+    max_val = arr.max()
+    print(f"  min = {min_val:.6f}, max = {max_val:.6f}")

@@ -974,3 +974,475 @@ class LSTMAutoencoder:
     Your inference quality should improve — this should restore expected behavior.
 
 Let me know if you'd like to verify some reconstructed output or check if the fixed-point ranges need updating after this correction.
+
+Prompt: Ok, yes, I'm now seeing the following:
+```
+(venv) ➜  challenge-9 git:(main) ✗ python minmax_vals.py
+matvec_mul outputs: min = -2.787466, max = 3.261290
+sigmoid inputs: min = -2.471494, max = 4.194249
+sigmoid outputs: min = 0.077881, max = 0.985142
+tanh inputs: min = -7.762074, max = 5.582468
+tanh outputs: min = -1.000000, max = 0.999972
+```
+
+How likely are those values to remain close to the above ranges if the model's saved weights are updated? Or, for example, if the model were changed to have fewer LSTM layers (like 1 encoder and 1 decoder), or fewer hidden neurons in a cell?
+
+Response: Great — your updated results now reflect meaningful, non-zero LSTM activity. Let's now evaluate how stable those value ranges are across changes to weights, layers, or architecture.
+🔍 Summary of current observed ranges:
+| Component        | Observed Range   | Notes                                                      |
+| ---------------- | ---------------- | ---------------------------------------------------------- |
+| `matvec_mul`     | −2.79 to +3.26   | Pre-activation; affected by weights and input distribution |
+| `sigmoid input`  | −2.47 to +4.19   | Tighter than `matvec_mul`, but still wide                  |
+| `sigmoid output` | 0.078 to 0.985   | Close to expected (sigmoid never hits 0 or 1 exactly)      |
+| `tanh input`     | −7.76 to +5.58   | Broad — reflects accumulating state over time              |
+| `tanh output`    | −1.0 to +0.99997 | Saturating as expected for large-magnitude inputs          |
+
+🔁 How stable are these ranges across changes?
+1. Changing trained weights (same architecture):
+
+    Variation is expected but usually limited.
+
+    If data and architecture are the same, but weights are retrained:
+
+        matvec_mul and activation inputs might shift by ±10–20%
+
+        Saturating outputs (tanh, sigmoid) will still mostly cluster near asymptotes (±1 or near 0/1)
+
+✅ Conclusion: If you're picking fixed-point format, add a margin (e.g., 1.5× current max) to be safe.
+
+2. Reducing hidden size (e.g., from 64 to 32):
+
+    matvec_mul will involve fewer additions → smaller magnitude outputs
+
+    You’ll likely see reduced activation input range, especially early in the network
+
+✅ Conclusion: Your current range is probably a worst-case. Smaller LSTM cells usually shrink internal range.
+
+3. Reducing number of LSTM layers (e.g., removing decoder layers):
+
+    This reduces accumulation depth
+
+    Intermediate states won’t compound as deeply → smaller tanh inputs
+
+    Output may shift toward center (fewer saturations)
+
+✅ Conclusion: The network becomes shallower → activations are more linear, less extreme
+
+4. Changing input data distribution:
+
+    If you normalize or preprocess differently (e.g., change preprocess_noaa_csv), then all bets are off
+
+    This is usually the most impactful factor in early activations
+
+✅ Conclusion: Make sure your input normalization remains consistent with training
+
+🧮 Recommendation for fixed-point quantization
+
+Given your current ranges and desired robustness:
+| Signal Type      | Max abs | Recommended Q-format | Notes                                  |
+| ---------------- | ------- | -------------------- | -------------------------------------- |
+| `matvec_mul`     | ±3.3    | `Q4.12`              | Range: ±8.0, resolution ≈ 0.00024      |
+| `sigmoid input`  | ±4.2    | `Q4.12`              | Same                                   |
+| `sigmoid output` | \[0, 1] | `U1.15`              | Unsigned                               |
+| `tanh input`     | ±8      | `Q5.11` or `Q6.10`   | Slightly wider range needed            |
+| `tanh output`    | ±1      | `Q2.14`              | Very precise near 0; saturates near ±1 |
+
+Would you like to generate a visual histogram of any of these distributions to help set quantization buckets more precisely?
+
+Prompt: What about for the weights themselves? Can we add something to the `inspect_weights.py` script to determine min and max values for all of the saved weights?
+
+Response: Absolutely — augmenting inspect_weights.py to print min and max values per array is straightforward and very useful for determining appropriate fixed-point ranges for weights and biases.
+
+✅ Updated inspect_weights.py script:
+```python
+import numpy as np
+import sys
+
+if len(sys.argv) < 2:
+    print("Usage: python inspect_weights.py path/to/weights.npz")
+    sys.exit(1)
+
+weights_path = sys.argv[1]
+weights = np.load(weights_path)
+
+print(f"\nContents of: {weights_path}\n")
+for name in weights.files:
+    arr = weights[name]
+    print(f"{name}: shape={arr.shape}, dtype={arr.dtype}")
+    if arr.size == 0:
+        print("  ⚠️  WARNING: empty array!")
+        continue
+
+    min_val = arr.min()
+    max_val = arr.max()
+    print(f"  min = {min_val:.6f}, max = {max_val:.6f}")
+```
+
+🧪 Example Output:
+```
+arr_0: shape=(6, 256), dtype=float32
+  min = -0.498124, max = 0.522889
+arr_1: shape=(64, 256), dtype=float32
+  min = -0.411203, max = 0.609912
+...
+```
+
+📌 Notes:
+
+    This includes both weights and biases (arr_0 through arr_13 in your case).
+
+    The largest magnitude across all arrays gives you the global bound to size your weight SRAM or ROMs.
+
+    If you plan to use one shared fixed-point format for all weights, the largest |min|max| across all arrays should guide your integer bits.
+
+Would you like the script to also:
+
+    Collect the global min/max across all weights, and
+
+    Recommend a Q-format?
+
+I can add that too.
+
+Prompt: Ok, here's the output. I'd like to confirm that these are likely to remain close to their current values with the possible changes to the model we discussed above, and from there, determine a good Q-format:
+```
+Contents of: saved_model/lstm_weights.npz
+
+arr_0: shape=(6, 256), dtype=float32
+  min = -0.199119, max = 0.249886
+arr_1: shape=(64, 256), dtype=float32
+  min = -0.294504, max = 0.301785
+arr_2: shape=(256,), dtype=float32
+  min = -0.022004, max = 1.062893
+arr_3: shape=(64, 128), dtype=float32
+  min = -0.316599, max = 0.309933
+arr_4: shape=(32, 128), dtype=float32
+  min = -0.306074, max = 0.314463
+arr_5: shape=(128,), dtype=float32
+  min = -0.022036, max = 1.037820
+arr_6: shape=(32, 128), dtype=float32
+  min = -0.396735, max = 0.361372
+arr_7: shape=(32, 128), dtype=float32
+  min = -0.322808, max = 0.320230
+arr_8: shape=(128,), dtype=float32
+  min = -0.027369, max = 1.045591
+arr_9: shape=(32, 256), dtype=float32
+  min = -0.271761, max = 0.395466
+arr_10: shape=(64, 256), dtype=float32
+  min = -0.283422, max = 0.297896
+arr_11: shape=(256,), dtype=float32
+  min = -0.048886, max = 1.005607
+arr_12: shape=(64, 6), dtype=float32
+  min = -0.322017, max = 0.330376
+arr_13: shape=(6,), dtype=float32
+  min = 0.020469, max = 0.041089
+```
+
+Response: Thanks — that’s very clear. Let’s break it down step by step to determine:
+
+    How stable these values are across likely model changes
+
+    What Q-format(s) would be safe and efficient
+
+🔍 Observed weight/bias ranges
+
+We can summarize your output as:
+| Type        | Max Abs Value |
+| ----------- | ------------- |
+| All weights | \~0.4         |
+| LSTM biases | \~1.06        |
+| Dense bias  | \~0.041       |
+
+🔁 How stable are these ranges?
+1. Changing weights (retraining):
+
+    Retraining from scratch with same architecture and data might shift weight ranges by ±10–30%, but not more unless:
+
+        Input data scale changes significantly
+
+        Training regime or regularization changes drastically
+
+2. Fewer LSTM layers or smaller hidden size:
+
+    Generally produces smaller weights (less capacity → less need to compensate)
+
+    Range might actually shrink, especially in later layers
+
+3. Dense output layer:
+
+    Weights are small
+
+    Biases are especially small (~0.04) — minimal concern here
+
+✅ Conclusion: Your current ranges are near a conservative upper bound.
+
+🧮 Fixed-Point Format Recommendation
+
+Let’s conservatively plan for:
+
+    Weights up to ±0.5
+
+    Biases up to ±1.25
+
+🎯 Q-format options:
+| Q-format  | Range           | Resolution (LSB) | Fits?                               |
+| --------- | --------------- | ---------------- | ----------------------------------- |
+| **Q1.15** | −1.0 to 0.99997 | \~3.05e−5        | ❌ biases would clip                 |
+| **Q2.14** | −2.0 to 1.9999  | \~6.1e−5         | ✅ safe for all                      |
+| **Q3.13** | −4.0 to 3.999   | \~1.2e−4         | ✅ overkill for weights              |
+| **Q4.12** | −8.0 to 7.999   | \~2.4e−4         | ✅ overkill; match activation width? |
+
+✅ Recommended:
+
+    Weights: Q2.14
+
+    Biases: also Q2.14 for simplicity (or Q3.13 if you're worried about dynamic range)
+
+    This gives:
+
+        Sufficient margin for retraining variability
+
+        High resolution for small weights
+
+        Consistent internal signal ranges
+
+If you're aligning fixed-point widths with activation outputs (Q4.12), using that across the board (weights, inputs, outputs) is also reasonable — but Q2.14 gives slightly better weight granularity.
+
+Would you like a utility function to quantize the weights to this format and save them as .mem or .hex files?
+
+Prompt: Not right now, but maybe later. Will there be much added hardware needed to translate between these different q-formats?
+
+Response: Great question — and one that gets to the heart of balancing hardware complexity with numerical efficiency.
+🧮 Converting between Q-formats in hardware
+
+Let’s say you're mixing formats like:
+
+    Inputs / intermediate signals: Q4.12
+
+    Weights / biases: Q2.14
+
+These all use 16-bit signed integers, but the binary point is in a different place.
+
+🔧 What does format translation require?
+
+To align formats for arithmetic (typically addition or multiplication), you need:
+
+    Binary point alignment:
+
+        Shifting bits left or right to match fractional precision.
+
+    Optional rounding or saturation logic to prevent overflow or truncation.
+
+This typically boils down to a bit-shift operation, which is cheap in hardware.
+
+🚦Examples:
+🟢 Case 1: Multiply Q4.12 × Q2.14
+
+    Multiply two 16-bit values → 32-bit product
+
+    Their formats have 12+14 = 26 fractional bits
+
+    You want to truncate result back to target format (say Q4.12 → 12 fractional bits)
+
+✅ Just do a 14-bit right shift of the 32-bit product
+🟡 Case 2: Add Q4.12 + Q2.14
+
+    Requires equalizing the formats first
+
+    Shift one operand before add:
+
+        Either left-shift the Q2.14 by 2 bits → becomes Q4.12
+
+        Or right-shift Q4.12 by 2 bits → becomes Q2.14
+
+✅ Again, just a bit shift, plus attention to overflow/saturation if needed
+
+🧠 Key insight:
+
+    As long as all values are stored in the same bit width (e.g., int16_t), translating between Q-formats is cheap and localized.
+
+✅ No multipliers
+✅ No LUTs
+✅ Just shifters (and maybe clippers)
+
+💡 Best practice:
+
+    Choose one primary internal format for activations/signals (Q4.12 is common)
+
+    Choose weight/bias format (Q2.14 or same as activations)
+
+    Convert weights to match signal format once when loading from memory
+
+    Keep math consistent during inference
+
+This minimizes translation and helps with pipelining and synthesis.
+
+Let me know if you later want a small RTL module to do this shift/saturation logic — it's often wrapped into MAC units.
+
+Prompt: I want to make sure I'm understanding correctly. When you say "Convert weights to match signal format once when loading from memory", does that mean there's no real benefit to storing them in a different format from the signal format of Q4.12? Like would the precision be lost immediately? Or is that not what you're suggesting?
+
+Response: You're thinking about this exactly the right way, and this is a subtle but important distinction.
+
+Let’s clarify what happens and what the trade-offs are when weights and signals use different fixed-point formats — particularly with regard to Q2.14 vs Q4.12.
+
+🔄 What I mean by “convert weights to match signal format once”
+
+That refers to shifting or reinterpreting the weight's Q-format at runtime, in hardware, before using it in a computation — for example:
+
+    Store weights in Q2.14 in SRAM (more precise for small values)
+
+    Load them into the datapath
+
+    Shift left by 2 to reinterpret them as Q4.12
+
+    Multiply against a signal that's already in Q4.12
+
+    Result has a known format, say Q8.24, which you then shift/truncate to the target format
+
+✅ This preserves the original precision of Q2.14 while aligning it to match your MAC unit's expectations.
+
+🧠 Precision: Is anything lost by storing weights in a higher-resolution format?
+➕ Advantages of storing weights as Q2.14:
+
+    More precision for small values (better quantization fidelity)
+
+    Potentially improves final inference accuracy
+
+✖️ But if you immediately shift them into Q4.12 at runtime:
+
+    Yes, the extra precision is lost
+
+    Because shifting left by 2 effectively discards the 2 least significant bits
+
+So if you shift at load-time, you’re right: there's no benefit to storing in a more precise format — you’ve rounded them to match Q4.12 anyway.
+
+🧠 So when is Q2.14 better?
+
+    If your datapath or MAC unit is built to handle Q2.14 × Q4.12 directly:
+
+        You don’t shift the weights
+
+        The multiplier takes Q2.14 and Q4.12
+
+        You track fractional bits explicitly in the result
+
+        Then you truncate only the final output
+
+✅ In this case, Q2.14 retains all its precision during MAC operations
+
+    Or if you post-process weights before loading into SRAM:
+
+        Quantize weights to Q4.12 offline
+
+        You can round/truncate with a software script
+
+        Saves storage
+
+        But yes, precision is lost
+
+🔁 Summary Table
+| Approach                                  | Weight Format | Signal Format | Runtime Shift? | Precision Retained? |
+| ----------------------------------------- | ------------- | ------------- | -------------- | ------------------- |
+| **Store & compute in Q4.12**              | Q4.12         | Q4.12         | None           | ✅ Limited to Q4.12  |
+| **Store Q2.14, shift to Q4.12 at load**   | Q2.14         | Q4.12         | Yes (shift)    | ❌ Lost at shift     |
+| **Store Q2.14, compute as Q2.14 × Q4.12** | Q2.14         | Q4.12         | No             | ✅ Fully preserved   |
+
+✅ Recommendation
+
+If you're not trying to save memory, and want simpler logic:
+
+    Just use Q4.12 everywhere (weights, signals, activations)
+
+    Pre-quantize weights to Q4.12 and store as-is
+
+    Simple MAC units, no shifting logic, consistent format
+
+If you're optimizing for fidelity and you're building your own MAC pipeline:
+
+    Store weights in Q2.14, and compute directly without translation
+
+    Final truncation to output format happens at the last step only
+
+Let me know your priority (fidelity vs simplicity vs area), and I can help you spec the MAC datapath design to match.
+
+Prompt: My matrix-vector multiplication will be customized for this usage. In each usage, it accepts a weight matrix (W or U) and a vector such as h_prev. So it seems like it could make sense to have it specifically compute Q2.14 x Q4.12. Does that seem correct?
+
+Response: Yes — that’s not just correct, it’s a very good design choice for your setup.
+
+Let’s break it down in the context of your application:
+
+✅ Your Scenario:
+
+    You’re building a custom MAC unit (matrix-vector multiply module)
+
+    You’ll hardcode the weight format (Q2.14) and assume input vectors (e.g. x, h_prev) are in Q4.12
+
+    Output will be used as pre-activation input to sigmoid, tanh, etc.
+
+🔢 What happens in Q2.14 × Q4.12?
+Step-by-step:
+
+    Multiply one weight element (Q2.14) × one vector element (Q4.12):
+
+        Total fractional bits: 14 + 12 = 26
+
+        Bit width: 16b × 16b → 32b product
+
+        Result format: Q6.26
+
+    Sum across dot product:
+
+        You accumulate many Q6.26 values
+
+        Accumulator might be, say, 40–48 bits to preserve full precision
+
+    Truncate/round the final sum to Q4.12 (or Q5.11, Q6.10 depending on dynamic range)
+
+🎯 Why this makes sense:
+
+| Reason                                      | Why it’s beneficial                                                           |
+| ------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Weights are small**                       | Q2.14 gives high resolution for small values                                  |
+| **Inputs have larger dynamic range**        | Q4.12 allows capturing wider signal variation                                 |
+| **Final result needs range and resolution** | Your product ends up with enough precision (Q6.26), and you can round smartly |
+| **You control the datapath**                | You avoid runtime shifts or format juggling                                   |
+
+🧠 Design Considerations
+
+    Your MAC datapath needs to:
+
+        Multiply signed 16b × 16b → signed 32b
+
+        Accumulate Q6.26 values across a row
+
+        Truncate/round the result to desired output format (e.g., Q4.12)
+
+    Example output truncation:
+
+```verilog
+// result: 32-bit signed accumulator in Q6.26
+// To convert to Q4.12, take bits [26+4 : 14] = [30:14]
+output_val = accumulator[30:15];  // rounding
+```
+
+✅ Recommendation:
+
+If you're using:
+
+    weights in Q2.14, and
+
+    input vectors in Q4.12
+
+Then yes, your matrix-vector multiply unit should be designed specifically for Q2.14 × Q4.12.
+
+This gives you:
+
+    Efficient memory storage (16-bit weight SRAMs)
+
+    High precision
+
+    Simplified interface
+
+    No runtime format conversion logic
+
+Would you like a sketch of the fixed-point multiply-and-accumulate logic in Verilog for Q2.14 × Q4.12 with Q4.12 output?
+
