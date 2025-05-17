@@ -47,6 +47,11 @@ module matvec_multiplier #(
     logic signed [31:0] acc;
     logic signed [DATA_WIDTH-1:0] vector_buffer [0:MAX_COLS-1];
 
+    // Vector load control
+    logic vector_loaded;
+
+    logic signed [31:0] product;
+
     // Output logic
     assign busy = (state != S_IDLE);
 
@@ -74,8 +79,6 @@ module matvec_multiplier #(
         endcase
     end
 
-    // Vector load control
-    logic vector_loaded;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             vector_loaded <= 0;
@@ -102,7 +105,7 @@ module matvec_multiplier #(
         end else if (state == S_MAC) begin
             for (int i = 0; i < BANDWIDTH; i++) begin
                 if (col_idx + i < num_cols) begin
-                    logic signed [31:0] product = matrix_data[i] * vector_buffer[col_idx + i]; // Q2.14 × Q4.12 = Q6.26
+                    product = matrix_data[i] * vector_buffer[col_idx + i]; // Q2.14 × Q4.12 = Q6.26
                     acc <= acc + (product >>> 14); // Shift back to Q4.12
                 end
             end
