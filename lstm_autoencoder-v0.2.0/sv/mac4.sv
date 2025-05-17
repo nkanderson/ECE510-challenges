@@ -27,6 +27,6 @@ module mac4 #(
     assign sum = s0 + s1 + s2 + s3;
 
     // Final output (lower 16 bits of Q4.12)
-    assign result = sum[27:12];
+    assign result = sum[15:0];
 
 endmodule
