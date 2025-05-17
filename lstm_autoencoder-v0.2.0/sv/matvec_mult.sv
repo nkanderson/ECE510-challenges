@@ -12,12 +12,15 @@ module matvec_multiplier #(
     input  logic [$clog2(MAX_ROWS)-1:0] num_rows,
     input  logic [$clog2(MAX_COLS)-1:0] num_cols,
 
+    // NOTE: vector_in and matrix_data are defaulting to var rather than wire
+    // due to default compile options. Should confirm this is as desired.
     // Vector chunk input
     input  logic vector_write_enable,
     input  logic [$clog2(MAX_COLS)-1:0] vector_base_addr,
     input  logic signed [15:0] vector_in [0:BANDWIDTH-1], // Q4.12
 
     // Matrix SRAM interface
+    // TODO: matrix_addr port size mismatch when testing a small matrix
     output logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr,
     output logic matrix_enable,
     input  logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1], // Q2.14
@@ -43,7 +46,7 @@ module matvec_multiplier #(
     // Internal loop counters
     logic [$clog2(MAX_ROWS)-1:0] row_idx;
     logic [$clog2(MAX_COLS)-1:0] col_idx;
-    
+
     logic signed [31:0] acc;
     logic signed [DATA_WIDTH-1:0] vector_buffer [0:MAX_COLS-1];
 
@@ -97,12 +100,17 @@ module matvec_multiplier #(
     assign matrix_enable = (state == S_REQ_MAT);
     assign matrix_addr   = row_idx * num_cols + col_idx;
 
-    // MAC accumulation
+    // MAC accumulation with row tracking
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             acc <= 0;
             col_idx <= 0;
+            row_idx <= 0;
         end else if (state == S_MAC) begin
+            if (col_idx + BANDWIDTH >= num_cols) begin
+                row_idx <= row_idx + 1;
+                col_idx <= 0;
+            end
             for (int i = 0; i < BANDWIDTH; i++) begin
                 if (col_idx + i < num_cols) begin
                     product = matrix_data[i] * vector_buffer[col_idx + i]; // Q2.14 × Q4.12 = Q6.26
@@ -114,20 +122,21 @@ module matvec_multiplier #(
             if (col_idx == 0) acc <= 0;
         end else if (state == S_IDLE) begin
             col_idx <= 0;
+            row_idx <= 0;
         end
     end
 
     // Row tracking
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            row_idx <= 0;
-        end else if (state == S_MAC && col_idx + BANDWIDTH >= num_cols) begin
-            row_idx <= row_idx + 1;
-            col_idx <= 0;
-        end else if (state == S_IDLE) begin
-            row_idx <= 0;
-        end
-    end
+    // always_ff @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n) begin
+    //         row_idx <= 0;
+    //     end else if (state == S_MAC && col_idx + BANDWIDTH >= num_cols) begin
+    //         row_idx <= row_idx + 1;
+    //         col_idx <= 0;
+    //     end else if (state == S_IDLE) begin
+    //         row_idx <= 0;
+    //     end
+    // end
 
     // Output logic
     always_ff @(posedge clk or negedge rst_n) begin

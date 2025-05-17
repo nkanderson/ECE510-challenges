@@ -31,7 +31,7 @@ module matvec_tb;
     logic busy;
 
     // DUT instantiation
-    matvec_tm_multiplier #(
+    matvec_multiplier #(
         .MAX_ROWS(ROWS),
         .MAX_COLS(COLS),
         .BANDWIDTH(BANDWIDTH)
@@ -45,6 +45,7 @@ module matvec_tb;
         .vector_base_addr(vector_base_addr),
         .vector_in(vector_in),
         .matrix_addr(matrix_addr),
+        // TODO: need matix_enable
         .matrix_data(matrix_data),
         .matrix_ready(matrix_ready),
         .result_out(result_out),
@@ -74,6 +75,7 @@ module matvec_tb;
     integer pass_count = 0;
 
     initial begin
+        // TODO: should row be static or automatic?
         int row = 0;
         // Reset
         rst_n = 0;
