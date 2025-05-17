@@ -74,6 +74,7 @@ module matvec_tb;
     integer pass_count = 0;
 
     initial begin
+        int row = 0;
         // Reset
         rst_n = 0;
         start = 0;
@@ -116,7 +117,6 @@ module matvec_tb;
         start = 0;
 
         // Wait and check results
-        int row = 0;
         while (row < ROWS) begin
             @(posedge clk);
             if (result_valid) begin
