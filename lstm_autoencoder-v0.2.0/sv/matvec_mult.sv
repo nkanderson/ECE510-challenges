@@ -109,7 +109,7 @@ module matvec_multiplier #(
     // Matrix fetch signals
     // TODO: Do we want to clock in matrix_data so we're not relying on matrix_loader
     // to hold the data on the wires?
-    assign matrix_enable = (state == S_REQ_MAT);
+    assign matrix_enable = (state == S_REQ_MAT || state == S_WAIT_MAT);
     assign matrix_addr   = row_idx * num_cols + col_idx;
 
     // MAC accumulation with row tracking

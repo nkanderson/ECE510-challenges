@@ -91,6 +91,11 @@ module matvec_tb;
         test_vector[2] = 16'sd12288;  // 3.0
         test_vector[3] = 16'sd16384;  // 4.0
 
+        // Start operation
+        start = 1;
+        @(posedge clk);
+        start = 0;
+
         // Load test vector into DUT
         for (int i = 0; i < COLS; i += BANDWIDTH) begin
             vector_base_addr = i;
@@ -117,10 +122,7 @@ module matvec_tb;
         expected_result[2] = 16'sd376832;  // 92.0
         expected_result[3] = 16'sd524288;  // 128.0
 
-        // Start operation
-        start = 1;
-        @(posedge clk);
-        start = 0;
+        @(posedge matrix_ready);
 
         // Wait and check results
         while (row < ROWS) begin
