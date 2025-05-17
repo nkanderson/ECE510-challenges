@@ -1,4 +1,6 @@
 module matrix_loader #(
+    // TODO: Will need to decide how many blocks of SRAM to use. This will determine
+    // the address width and total size of each block.
     parameter ADDR_WIDTH = 12, // 2^12 = 4096
     parameter DATA_WIDTH = 16,
     parameter BANDWIDTH  = 16
@@ -22,7 +24,7 @@ module matrix_loader #(
     // Initialize with placeholder ramp values
     initial begin
         for (int i = 0; i < (1<<ADDR_WIDTH); i++) begin
-            matrix_mem[i] = $signed(i); // e.g., i = 5 -> 0.0003 in Q2.14
+            matrix_mem[i] = $signed(i << 14);
         end
     end
 

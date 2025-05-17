@@ -23,6 +23,7 @@ module matvec_tb;
     logic signed [DATA_WIDTH-1:0] vector_in [0:BANDWIDTH-1];
 
     logic [ADDR_WIDTH-1:0] matrix_addr;
+    logic matrix_enable;
     logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1];
     logic matrix_ready;
 
@@ -45,7 +46,7 @@ module matvec_tb;
         .vector_base_addr(vector_base_addr),
         .vector_in(vector_in),
         .matrix_addr(matrix_addr),
-        // TODO: need matix_enable
+        .matrix_enable(matrix_enable),
         .matrix_data(matrix_data),
         .matrix_ready(matrix_ready),
         .result_out(result_out),
@@ -61,7 +62,7 @@ module matvec_tb;
     ) loader (
         .clk(clk),
         .rst_n(rst_n),
-        .enable(busy), // fetch when multiplier is active
+        .enable(matrix_enable),
         .matrix_addr(matrix_addr),
         .matrix_data(matrix_data),
         .ready(matrix_ready)
@@ -75,8 +76,7 @@ module matvec_tb;
     integer pass_count = 0;
 
     initial begin
-        // TODO: should row be static or automatic?
-        int row = 0;
+        automatic int row = 0;
         // Reset
         rst_n = 0;
         start = 0;
@@ -99,6 +99,10 @@ module matvec_tb;
             end
             vector_write_enable = 1;
             @(posedge clk);
+            // TODO: Is it necessary to drop this signal between chunks?
+            // Seems like it would make matvec_mul switch between idle and
+            // vector load states, which does not seem like it's quite what
+            // we want, even though it may work
             vector_write_enable = 0;
             @(posedge clk);
         end

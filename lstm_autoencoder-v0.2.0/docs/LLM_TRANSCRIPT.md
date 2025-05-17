@@ -2474,3 +2474,73 @@ This version is fully compatible with:
     A row-by-row output pattern verified in the self-checking testbench
 
 Would you like me to update or generate a matching waveform-friendly .gtkw file or add assert statements to the testbench next?
+
+Prompt: There seems to be a mismatch between the placeholder values in matrix_loader and the expected_result values in the testbench. It seems that the testbench assumes the matrix in SRAM is using raw integers instead of values that will be handled as Q2.14 format numbers. In this block:
+```
+for (int i = 0; i < (1<<ADDR_WIDTH); i++) begin
+  matrix_mem[i] = $signed(i); // e.g., i = 5 -> 0.0003 in Q2.14
+end
+```
+Should we instead do something like `matrix_mem[i] = i << 14;`?
+
+Response: ✅ Yes — you're exactly right.
+
+There is a mismatch between how the matrix values are initialized in matrix_loader and how the testbench interprets them.
+
+🔍 Problem Recap
+
+The matrix is meant to store values in Q2.14 fixed-point, but the current initialization uses:
+```systemverilog
+matrix_mem[i] = $signed(i); // interpreted as 0.0003 in Q2.14
+```
+
+That stores the value i as a signed 16-bit integer, which is interpreted as:
+```
+i = 5 → 5 * 2^-14 ≈ 0.000305
+```
+
+But in your testbench, you're assuming the matrix has whole integer values like:
+```
+[0 1 2 3]
+[4 5 6 7]
+...
+```
+
+and you're manually computing expected dot products as:
+```
+[0 1 2 3] ⋅ [1 2 3 4] = 20.0
+```
+
+That assumes matrix values are whole numbers encoded in Q2.14, i.e.,:
+```
+matrix_mem[i] = i << 14; // i × 2^14
+```
+
+✅ Correct Fix
+
+Change this in matrix_loader.sv:
+```systemverilog
+initial begin
+    for (int i = 0; i < (1<<ADDR_WIDTH); i++) begin
+        matrix_mem[i] = $signed(i << 14); // Q2.14 encoding of integer i
+    end
+end
+```
+
+This will:
+
+    Encode i as a Q2.14 fixed-point number
+
+    Align with the testbench expectations
+
+    Avoid test mismatches when computing dot products
+
+📌 Summary
+| Change Needed                      | Why                             |
+| ---------------------------------- | ------------------------------- |
+| `matrix_mem[i] = i << 14;`         | Proper Q2.14 encoding           |
+| Leave vector as-is                 | Already in Q4.12                |
+| No need to change expected outputs | Already computed in Q4.12 space |
+
+Would you like me to regenerate the testbench .sv file with this change reflected in a comment, or are you ready to run it with the corrected matrix encoding?
+
