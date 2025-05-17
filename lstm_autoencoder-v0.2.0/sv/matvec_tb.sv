@@ -22,7 +22,7 @@ module matvec_tb;
     logic [$clog2(COLS)-1:0] vector_base_addr;
     logic signed [DATA_WIDTH-1:0] vector_in [0:BANDWIDTH-1];
 
-    logic [ADDR_WIDTH-1:0] matrix_addr;
+    logic [$clog2(ROWS*COLS)-1:0] matrix_addr;
     logic matrix_enable;
     logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1];
     logic matrix_ready;

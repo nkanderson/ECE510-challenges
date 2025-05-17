@@ -8,7 +8,7 @@ module matrix_loader #(
     input  logic clk,
     input  logic rst_n,
     input  logic enable,
-    input  logic [ADDR_WIDTH-1:0] matrix_addr, // Base address from multiplier
+    input  logic [$clog2(ADDR_WIDTH)-1:0] matrix_addr, // Base address from multiplier
     output logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1],
     output logic ready
 );
