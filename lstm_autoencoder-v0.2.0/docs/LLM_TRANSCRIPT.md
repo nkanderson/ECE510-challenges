@@ -1446,3 +1446,548 @@ This gives you:
 
 Would you like a sketch of the fixed-point multiply-and-accumulate logic in Verilog for Q2.14 × Q4.12 with Q4.12 output?
 
+### Reference
+
+For internal reference: https://chatgpt.com/c/68279fab-dc18-8012-8b4d-4d016e84be21
+
+## Time-multiplexed Matrix-Vector Multiplier in SV
+
+Prompt: I would like a time-multiplexed matrix-vector multiplier in systemverilog. It should take a max of 16 values at a time from either the matrix or the vector, and the values will be 16-bit fixed point. For the matrix, the format will be Q2.14 and for the vector, it will be Q4.12. The output should be no more than 16 values wide either (though I think it may make sense to emit just one scalar at a time). The matrix values will come from weights that will ultimately be stored in SRAM. We will need to decide how to represent that here, if it's possible to have a shared memory map with a weight loader, or if there's another preferred way to access the weights from SRAM. The maximum possible size of a matrix will be 64x64, max size of a vector will be 64x1, and max size of output 64x1. It will need flexibility to handle sizes smaller than that.
+
+Response: Here's a plan and initial SystemVerilog design for a time-multiplexed matrix-vector multiplier that meets your constraints:
+
+✅ Design Summary
+
+    Matrix format: Q2.14
+
+    Vector format: Q4.12
+
+    Output format: Q4.12 (assuming you'd like to match the vector scale post-multiplication)
+
+    Max dimensions: 64×64 matrix × 64×1 vector
+
+    Bandwidth constraint: Process 16 values at a time from matrix or vector
+
+    Output: Emit one scalar per matrix row (i.e., one result per row), time-multiplexed
+
+🧠 Architecture Overview
+
+    SRAM Interface: External module loads weights into matrix_sram[0:4095] and vector_reg[0:63]
+
+    FSM Control: Finite State Machine to orchestrate time-multiplexed accumulation
+
+    Multiply-Accumulate (MAC): Fixed-point multiplication and accumulation
+
+    Scaler/Truncator: To manage Q2.14 × Q4.12 → Q4.12 fixed-point conversion
+
+🧾 Top Module Interface
+```systemverilog
+module matvec_tm_multipler #(
+    parameter MAX_ROWS = 64,
+    parameter MAX_COLS = 64,
+    parameter BANDWIDTH = 16
+)(
+    input  logic clk,
+    input  logic rst_n,
+    input  logic start,
+
+    input  logic [$clog2(MAX_ROWS)-1:0] num_rows,
+    input  logic [$clog2(MAX_COLS)-1:0] num_cols,
+
+    input  logic signed [15:0] vector_in [0:BANDWIDTH-1],  // Q4.12
+    input  logic signed [15:0] matrix_in [0:BANDWIDTH-1],  // Q2.14
+
+    output logic signed [15:0] result_out,  // Q4.12
+    output logic result_valid,
+
+    output logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr,
+    output logic [$clog2(MAX_COLS)-1:0] vector_addr,
+    output logic busy
+);
+```
+
+🧮 Fixed-Point Arithmetic
+
+For Q2.14 × Q4.12 = Q6.26 → Truncate back to Q4.12:
+
+    Multiply two 16-bit signed values → 32-bit result
+
+    Shift result right by 14 to match Q4.12
+```systemverilog
+logic signed [31:0] product;
+logic signed [15:0] truncated_result;
+
+assign product = matrix_val * vector_val;  // 16x16 -> 32
+assign truncated_result = product >>> 14;  // shift down to Q4.12
+```
+
+🧱 Control FSM and Accumulator Example
+```systemverilog
+typedef enum logic [1:0] {
+    IDLE,
+    LOAD_ROW,
+    COMPUTE,
+    DONE
+} state_t;
+
+state_t state, next_state;
+
+logic signed [31:0] acc;
+logic signed [15:0] matrix_val, vector_val;
+logic [$clog2(MAX_COLS)-1:0] col_idx;
+logic [$clog2(MAX_ROWS)-1:0] row_idx;
+```
+
+📦 SRAM Interface (suggested)
+
+Use an external SRAM module or dual-port RAM block where:
+
+    One port is for a weight_loader module to load values
+
+    One port is for the matvec_tm_multiplier to read sequentially
+
+Access pattern:
+```systemverilog
+matrix_addr = row_idx * num_cols + col_idx;
+vector_addr = col_idx;
+```
+
+📤 Output Handling
+```systemverilog
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        result_out <= 0;
+        result_valid <= 0;
+    end else if (state == DONE) begin
+        result_out <= acc[25 +: 16];  // Take the middle 16 bits as Q4.12
+        result_valid <= 1;
+    end else begin
+        result_valid <= 0;
+    end
+end
+```
+
+🏁 Next Steps
+
+    I can help write the full behavioral version of this module
+
+    We can define a separate sram_loader.sv to preload matrix/weights
+
+    Later we can add a configurable interface (e.g., AXI-lite, APB) if needed
+
+Would you like me to proceed with generating the full matvec_tm_multiplier.sv implementation based on this spec?
+
+Prompt: A few clarifications:
+- Only the weights (the matrix) will be in SRAM, the vector will be passed in externally, probably over a SPI bus or maybe PCIe
+- The weights in SRAM can be made-up placeholder weights for now, but we will eventually load from .mem files. So we can do something simpler for now, but make a note of the intended change for the future
+- An external SRAM module sounds good. To make sure I understand, the `matrix_addr` and `vector_addr` outputs are set by the matrix-vector multiplier in order to access the data it currently needs? That sounds good for the matrix, but as noted above, the vector will be passed in separately
+- Let's use one-hot encoding for the FSM
+- Is the provided output logic intended to be clocked, or should that be combinational?
+
+Response: Great clarifications. Here's how we’ll revise and proceed based on your notes:
+
+✅ Updated Design Clarifications
+
+    SRAM: Only for Matrix Weights
+    ✔ We'll use an external SRAM module (matrix_sram) containing placeholder weights for now (can be preloaded from .mem in future via $readmemh or loaded dynamically).
+
+    Vector Input: External Source (e.g., SPI/PCIe)
+    ✔ We'll remove vector_addr and treat the vector as a fixed, externally-supplied 64×1 array passed via input port (e.g., one row per operation or entire vector ahead of time). We’ll assume it's latched or static during the operation.
+
+    Address Control
+    ✔ The matrix_addr will still be generated internally to fetch from SRAM during the multiply-accumulate loop.
+    ✖ vector_addr will no longer be needed—values will be read directly from vector_in.
+
+    FSM: One-Hot Encoding
+    ✔ Will define states as logic [3:0], each state as a one-hot value.
+
+    Output Logic
+    ✔ The output (result_out, result_valid) should be clocked. This ensures synchronization with FSM control and allows clean handshaking with downstream modules. If combinational logic were used, we could violate setup/hold timing or see glitches when the accumulator changes.
+
+📘 FSM States (One-Hot)
+```systemverilog
+typedef enum logic [3:0] {
+    S_IDLE     = 4'b0001,
+    S_LOAD     = 4'b0010,
+    S_COMPUTE  = 4'b0100,
+    S_DONE     = 4'b1000
+} state_t;
+```
+We'll update the FSM to use these one-hot values in the full module.
+
+📤 Vector Input Assumption
+
+Instead of time-multiplexing the vector, we’ll:
+
+    Accept the full 64-element vector as a static input logic signed [15:0] vector[0:63]
+
+    Use an internal index to grab vector[col_idx] during MAC
+
+This simplifies integration with your SPI/PCIe interface—just pass the vector in before computation.
+
+✅ Updated Output Logic – Clocked
+
+Here’s how the output stage should behave:
+```systemverilog
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        result_valid <= 1'b0;
+        result_out   <= '0;
+    end else if (state == S_DONE) begin
+        result_valid <= 1'b1;
+        result_out   <= acc >>> 14; // Q2.14 × Q4.12 = Q6.26 → Q4.12
+    end else begin
+        result_valid <= 1'b0;
+    end
+end
+```
+
+This ensures result_out is latched and stable when result_valid goes high, and also avoids premature or glitchy signals.
+
+🧱 Next Steps
+
+I’ll now generate the full matvec_tm_multiplier.sv implementation based on this updated spec:
+
+    One-hot FSM
+
+    Vector passed in as static input
+
+    Matrix read from external SRAM using matrix_addr
+
+    Accumulate and emit one result per row
+
+    Clocked output with handshake signal
+
+Would you like this module to emit one result per row across multiple cycles (e.g., handshake with downstream module) or should it just produce one result and stop for now (e.g., only row 0)?
+
+Prompt: We're getting close, but we need to refine our handling of the vector input. To answer the question about emitting results - it should emit one result per row across multiple cycles.
+
+Regarding the input vector, I do not want a 64-value wide input, so it should only get a max of 16 values at a time. Similar to the matrix, it could be smaller than that, 64 values is just the maximum. I suppose we could consider going back to the SRAM assumption, but I want to understand that a bit more. The idea is that an external client would pass in the vector, but should not have to pass the matrix because the matrix values are known ahead of time. In the case of multiplexing like this, is it more common to coordinate with the client to pass chunks at a time, or to have the client pass the entire value and have it placed in a buffer for this module to read as needed?
+
+Response: Thanks, that helps lock down the key behavioral and interface decisions. Here's a refined breakdown and recommendation based on your clarifications:
+
+✅ Behavior Recap (Updated)
+
+    The module will:
+
+        Process one output row at a time
+
+        Fetch matrix values from SRAM in 16-wide chunks
+
+        Accept vector data in 16-wide chunks, buffered locally until the full vector is ready
+
+        Emit one scalar result per cycle once computation for a row completes
+
+🧠 Handling Vector Input: Tradeoffs & Options
+
+Since your matrix is fixed/stored in SRAM and your vector changes per inference, you’re right to isolate responsibility:
+| Option                                       | Description                                                                            | Pros                                                                            | Cons                                                            |
+| -------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| **A. Push Chunks (Client-Driven Streaming)** | Client sends 16-wide vector chunks; this module stores them into a local vector buffer | Simplifies client (just a burst transfer); matches the matrix streaming pattern | Needs local vector buffer + load FSM; latency before processing |
+| **B. Pull On Demand (SRAM-mapped Vector)**   | Vector is preloaded into SRAM (e.g., by SPI DMA), then accessed like the matrix        | No buffer required; more flexible reuse of SRAM infra                           | Adds address multiplexing logic; adds load complexity to client |
+| **C. Wide Static Input**                     | Pass entire 64-wide vector at once                                                     | Easiest control logic                                                           | Violates your bandwidth limit; not acceptable in your case      |
+
+
+🟢 Recommended: Option A (Client sends 16-wide chunks, this module buffers)
+
+This approach matches your bandwidth constraint and avoids the overhead of vector address mapping logic. You'll need a small local buffer (e.g., logic signed [15:0] vector_buffer[0:63]) inside the module.
+
+📦 Vector Input Design for Option A
+```systemverilog
+input  logic vector_write_enable,               // handshake
+input  logic [$clog2(64)-1:0] vector_base_addr, // offset into vector buffer
+input  logic signed [15:0] vector_in[0:15],     // up to 16 Q4.12 values
+```
+
+When vector_write_enable is high, vector_in is stored into vector_buffer starting at vector_base_addr
+
+This continues until all num_cols values are loaded
+
+🏗️ Minimal FSM Extension for Vector Load Phase
+
+We add a S_VLOAD (Vector Load) state before compute:
+```systemverilog
+typedef enum logic [4:0] {
+    S_IDLE    = 5'b00001,
+    S_VLOAD   = 5'b00010,  // NEW
+    S_LOAD    = 5'b00100,
+    S_COMPUTE = 5'b01000,
+    S_DONE    = 5'b10000
+} state_t;
+```
+
+Once the buffer is fully populated (e.g., counter matches num_cols), transition to matrix loading.
+
+🧾 Module Behavior Timeline (per inference)
+| Phase       | Description                   |
+| ----------- | ----------------------------- |
+| `S_IDLE`    | Wait for `start` signal       |
+| `S_VLOAD`   | Accept chunks of vector data  |
+| `S_LOAD`    | Fetch matrix chunks from SRAM |
+| `S_COMPUTE` | Accumulate row dot product    |
+| `S_DONE`    | Emit scalar result            |
+| ↺ Repeat    | Next row                      |
+
+🧰 SRAM for Vector – When Might It Be Better?
+
+Vector-in-SRAM (Option B) becomes attractive when:
+
+    You already use a shared memory fabric (e.g., AXI + DMA from SPI)
+
+    You want the accelerator to operate completely independently after a DMA transfer
+
+    You want multiple modules to access the same vector (e.g., tiled inference)
+
+In that case, the client does a single DMA transfer into a known address range, and you map vector_addr inside your FSM similarly to matrix_addr.
+
+✅ Next Step: Code Generation
+
+Would you like me to now generate:
+
+    A SystemVerilog module for the matrix-vector multiplier that uses the chunked vector input (Option A) approach
+
+    A buffer inside for vector storage
+
+    FSM with one-hot encoding and support for sequential row-by-row output?
+
+I can also stub out a testbench or vector loader module if needed.
+
+Prompt: Yes, that sounds good. And I will want vector loader and testbench modules after we get a solid design
+
+Response: <provided code in canvas>
+
+The module matvec_tm_multiplier is now implemented with the following features:
+
+    Time-multiplexed multiply-accumulate for each matrix row
+
+    Vector loaded in 16-wide chunks via vector_in, buffered locally
+
+    Matrix values fetched via matrix_addr, assuming external SRAM
+
+    FSM using one-hot encoding
+
+    Result output one scalar at a time (result_out with result_valid)
+
+Next steps:
+
+    Create a vector_loader.sv module to feed vector chunks
+
+    Build a testbench that instantiates SRAM, loads matrix and vector values, and observes the output
+
+Would you like the vector_loader or testbench next?
+
+Prompt: Let's do the vector_loader. Briefly though, I'd like to confirm this will be synthesizable, specifically the `clog2` function. Are there any red flags for synthesis, or does this seem like it should be translatable to an ASIC design using a toolchain like openlane2?
+
+Response: Great question—very important to confirm synthesizability before building around this.
+
+✅ clog2 and Synthesizability in ASIC Tools
+
+SystemVerilog’s $clog2() is a constant function and is synthesizable as long as it's used in parameter contexts—which it is in your module. Most synthesis tools (including Yosys used by OpenLane2) support $clog2() just fine in:
+
+    Parameter declarations
+
+    Port widths
+
+    Index bounds
+
+So this usage:
+```systemverilog
+input logic [$clog2(MAX_COLS)-1:0] vector_base_addr
+```
+
+is synthesizable, because:
+
+    $clog2(MAX_COLS) is constant at elaboration time
+
+    It only affects bit widths, not dynamic logic
+
+✅ No red flag here
+
+🔎 Other Considerations for OpenLane2
+| Feature                                    | Synthesis-Ready? | Notes                                                                                |
+| ------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------ |
+| `$clog2()`                                 | ✅ Yes            | Constant-only context is fine                                                        |
+| `for` loop in `always_ff`                  | ✅ Yes            | As long as bounds are static (e.g., `BANDWIDTH`)                                     |
+| `enum logic [4:0]`                         | ✅ Yes            | Synthesizable one-hot encoding                                                       |
+| 2D input ports (e.g., `matrix_data[0:15]`) | ⚠️               | Synthesis tools usually want **flattened wires or packed arrays** for inputs/outputs |
+
+So the only minor adjustment you may eventually need is converting unpacked array inputs like:
+```systemverilog
+input logic signed [15:0] matrix_data [0:BANDWIDTH-1]
+```
+
+to something like:
+```systemverilog
+input logic signed [15:0] matrix_data_flat;
+```
+and unpack it internally. But for behavioral simulation, your current structure is totally fine.
+
+✅ Verdict
+
+    This is synthesizable and OpenLane2-compatible with very minor future tweaks
+
+    $clog2, one-hot FSMs, and fixed-point math all look clean
+
+    No inferred latches or async glitches
+
+    You’re set up well for ASIC translation
+
+I'll now generate the vector_loader.sv module next, assuming:
+
+    It accepts full vectors in 16-wide chunks
+
+    It manages the vector_base_addr and vector_write_enable signals into matvec_tm_multiplier
+
+Let me know if it should operate autonomously (e.g., from a testbench) or under external control (e.g., via a bus).
+
+Prompt: I thought with option A that the client was sending the vector directly to the matrix-vector multiplier, not to the loader, so I'm not sure why the `vector_loader.sv` would accept vectors. Doesn't it just need to accept the target matrix address?
+
+Response: Excellent catch — you're absolutely right, and your clarification is spot on.
+
+In Option A, as we discussed earlier:
+
+    The client sends 16-wide vector chunks directly to the matvec_tm_multiplier, using vector_in, vector_write_enable, and vector_base_addr.
+
+    The matrix is stored in SRAM, which is shared between a loader and the multiplier.
+
+    The vector_loader name would be misleading if it's just writing to matrix SRAM.
+
+So what you're describing is actually a matrix_loader.sv, not a vector loader. Let’s clarify both roles:
+
+✅ Correct Module Roles
+🔷 matvec_tm_multiplier.sv
+
+    Accepts vector chunks directly
+
+    Generates matrix_addr to read from SRAM
+
+    Emits one scalar per row as result
+
+🔷 matrix_loader.sv (you’re asking for this now)
+
+    Writes weights (in 16-wide chunks) into matrix SRAM at client-specified address
+
+    Can be driven by an external interface (e.g., SPI, testbench)
+
+    Shares SRAM with matvec_tm_multiplier
+
+🧱 matrix_loader.sv Interface Plan
+
+Here’s what it should do:
+```systemverilog
+module matrix_loader #(
+    parameter MAX_DEPTH = 4096,
+    parameter BANDWIDTH = 16
+)(
+    input  logic clk,
+    input  logic write_enable,
+    input  logic [$clog2(MAX_DEPTH)-1:0] write_addr,
+    input  logic signed [15:0] write_data [0:BANDWIDTH-1], // Q2.14
+
+    output logic signed [15:0] sram [0:MAX_DEPTH-1] // shared with multiplier
+);
+```
+
+On write_enable, writes write_data[i] to sram[write_addr + i]
+
+Simple write-through logic for behavioral testbench-level operation
+
+Later you can replace this with something connected to a real bus like SPI, AXI, etc
+
+⚠️ Shared Memory Model
+
+In simulation, this shared memory (sram) can be a logic signed [15:0] sram[0:4095] array instantiated in the testbench and passed by reference to both matrix_loader and matvec_tm_multiplier.
+
+In synthesis, you’ll eventually replace this with a dual-port SRAM macro (e.g., sky130_sram_1rw1r_32x1024_8) and mux the address/data paths between reader and writer.
+
+Would you like me to now generate this matrix_loader.sv module based on this design?
+
+Prompt: This still doesn't sound quite right to me for `matrix_loader.sv`. We talked about this module providing the matrix in chunks to the multiplier, correct? Not writing to SRAM from the multiplier. It needs to provide the matrix-vector multiplier with the specified chunk of the matrix that has been stored in SRAM. We'll eventually have weights in .mem files, but for now, they can be made-up placeholders. They should have the format Q4.12 though, as specified above.
+
+Response: You're absolutely right again, and thank you for staying precise — that helps lock in clean design boundaries.
+
+✅ Corrected Role of matrix_loader.sv
+
+You’re looking for a read-side matrix fetcher, not a loader that writes weights. Let's reframe:
+🔷 matrix_loader.sv is responsible for:
+
+    Providing 16 matrix values per request (a chunk from a specific row × column offset)
+
+    Reading from a pre-initialized memory (weights stored in Q2.14 format)
+
+    Interfacing with the matvec_tm_multiplier, which drives an address request (matrix_addr)
+
+    Returning a chunk of matrix_data aligned to the expected bandwidth
+
+📦 Updated Design Summary for matrix_loader.sv
+| Signal        | Direction | Description                                                    |
+| ------------- | --------- | -------------------------------------------------------------- |
+| `clk`         | input     | Clock                                                          |
+| `matrix_addr` | input     | Start address of chunk (from multiplier)                       |
+| `matrix_data` | output    | 16-wide matrix chunk                                           |
+| `enable`      | input     | Read enable for chunk                                          |
+| `ready`       | output    | Asserted when data is valid (combinational or one-cycle delay) |
+
+It provides the 16 values starting at matrix_addr, behaving like a 1-read-port chunked SRAM with optional preloaded .mem.
+
+🧠 Memory Details
+
+    Internally holds a flat memory array like:
+```systemverilog
+logic signed [15:0] matrix_mem [0:4095]; // Q2.14 values
+```
+This memory can be populated with placeholder values for now:
+```systemverilog
+initial begin
+  for (int i = 0; i < 4096; i++) begin
+    matrix_mem[i] = $signed(i); // Q2.14 placeholder
+  end
+end
+```
+(This gives increasing ramp values for testing dot product correctness.)
+
+✅ Summary
+
+You are correct:
+
+    matrix_loader should respond to address requests from the multiplier
+
+    It is a read-only matrix chunk fetcher, not a writer
+
+    We should populate it with placeholder Q2.14 weights for now
+
+    Output width = 16, matching the multiplier’s input chunk width
+
+Would you like me to generate this corrected version of matrix_loader.sv now, which:
+
+    Accepts matrix_addr
+
+    Outputs matrix_data [0:15]
+
+    Internally holds a 4K-word placeholder SRAM?
+
+Prompt: Yes, this sounds correct now
+
+Response: <provided code in canvas>
+
+The matrix_loader.sv module is now complete:
+
+    It simulates a read-only SRAM initialized with placeholder ramp values (Q2.14 format).
+
+    When enable is high, it outputs 16 consecutive values starting at matrix_addr.
+
+    matrix_data[0:15] provides the chunk for the matrix-vector multiplier.
+
+    ready is asserted whenever valid data is available.
+
+You can connect this directly to the matvec_tm_multiplier's matrix_data input and drive matrix_addr and enable from the multiplier FSM.
+
+Would you like to proceed with a testbench next? It can:
+
+    Load a test vector (chunked)
+
+    Start the multiplier
+
+    Connect to the matrix loader
+
+    Print or check the scalar output results per row
