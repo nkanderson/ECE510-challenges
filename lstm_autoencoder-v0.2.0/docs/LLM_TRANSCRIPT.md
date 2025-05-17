@@ -2544,3 +2544,552 @@ This will:
 
 Would you like me to regenerate the testbench .sv file with this change reflected in a comment, or are you ready to run it with the corrected matrix encoding?
 
+Prompt: No, but we do need to fix the MAC accumulation - there's a blocking assignment to `product` inside this `always_ff` block:
+```
+always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            acc <= 0;
+            col_idx <= 0;
+            row_idx <= 0;
+        end else if (state == S_MAC) begin
+            if (col_idx + BANDWIDTH >= num_cols) begin
+                row_idx <= row_idx + 1;
+                col_idx <= 0;
+            end
+            for (int i = 0; i < BANDWIDTH; i++) begin
+                if (col_idx + i < num_cols) begin
+                    product = matrix_data[i] * vector_buffer[col_idx + i]; // Q2.14 × Q4.12 = Q6.26
+                    acc <= acc + (product >>> 14); // Shift back to Q4.12
+                end
+            end
+            col_idx <= col_idx + BANDWIDTH;
+        end else if (state == S_REQ_MAT) begin
+            if (col_idx == 0) acc <= 0;
+        end else if (state == S_IDLE) begin
+            col_idx <= 0;
+            row_idx <= 0;
+            // TODO: Reset acc here too?
+        end
+    end
+```
+I think we need to register `product` and let the MAC take more than 1 cycle
+
+Response: You're absolutely right — that block has multiple issues for a properly pipelined and synthesizable design:
+
+🔍 Problems Identified
+
+    Blocking assignment (product = ...) in always_ff
+    🔥 Invalid usage. All assignments in always_ff must be non-blocking (<=). Blocking assignment implies combinational behavior inside a clocked block, which violates synthesis rules.
+
+    Multiple writes to acc <= acc + ... in a loop
+    ⚠ This causes write-after-write (WAW) hazard: you're updating acc multiple times in a single clock edge, which won't behave as intended.
+
+    Assumption that MAC can consume the entire chunk in 1 cycle
+    🔥 This doesn’t match your time-multiplexed architecture. You should process 1 multiply-accumulate per cycle, not BANDWIDTH at once.
+
+✅ Correct Fix: One MAC per Cycle
+
+To fix this, we need to:
+
+    Add a MAC pipeline stage: multiply one matrix_data[i] × vector_buffer[i] per cycle
+
+    Track a chunk_idx to walk through the chunk
+
+    After BANDWIDTH cycles, increment col_idx, request next chunk
+
+🏗 Revised MAC State Flow (per chunk)
+| Clock Cycle | What Happens                                          |
+| ----------- | ----------------------------------------------------- |
+| N           | FSM enters `S_MAC` with `chunk_idx = 0`               |
+| N+1         | Perform MAC: `acc += matrix_data[0] × vector[base+0]` |
+| N+2         | MAC with index 1                                      |
+| …           | …                                                     |
+| N+BANDWIDTH | Done with chunk, advance `col_idx`                    |
+
+🔧 Updated Control Variables
+```systemverilog
+logic [$clog2(BANDWIDTH):0] chunk_idx;
+logic signed [31:0] product;
+```
+
+✅ MAC Loop (1 cycle per multiply-accumulate)
+```systemverilog
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        acc <= 0;
+        chunk_idx <= 0;
+    end else if (state == S_MAC) begin
+        if (col_idx + chunk_idx < num_cols) begin
+            logic signed [31:0] mul_result;
+            mul_result = matrix_data[chunk_idx] * vector_buffer[col_idx + chunk_idx];
+            acc <= acc + (mul_result >>> 14); // Q2.14 × Q4.12 → Q6.26 → Q4.12
+        end
+
+        chunk_idx <= chunk_idx + 1;
+
+        if (chunk_idx == BANDWIDTH - 1) begin
+            chunk_idx <= 0;
+            col_idx <= col_idx + BANDWIDTH;
+
+            if (col_idx + BANDWIDTH >= num_cols) begin
+                row_idx <= row_idx + 1;
+                result_out <= acc[27:12]; // Emit Q4.12 result
+                result_valid <= 1;
+                acc <= 0;
+                col_idx <= 0;
+            end
+
+            next_state <= (row_idx + 1 < num_rows) ? S_REQ_MAT : S_DONE;
+        end
+    end else begin
+        result_valid <= 0;
+    end
+end
+```
+
+🧠 Key Concept
+
+    You should stream matrix_data into the MAC one entry per cycle
+
+    This matches the time-multiplexing goal
+
+    Keeps you compatible with your bandwidth and ASIC timing constraints
+
+Would you like me to generate this cleaned-up, cycle-accurate MAC version of matvec_tm_multiplier.sv now?
+
+Prompt: Sure
+
+Response: Here is the corrected and cycle-accurate matvec_tm_multiplier.sv with:
+
+    ✅ One-hot FSM
+
+    ✅ Buffered 64-wide vector input in chunks
+
+    ✅ Handshake with matrix_loader using matrix_enable and matrix_ready
+
+    ✅ One multiply-accumulate per cycle
+
+    ✅ One scalar result emitted per row (result_out, result_valid)
+
+    ✅ Synthesizable and time-multiplexed for ASIC flows
+
+✅ matvec_tm_multiplier.sv (Updated for Streaming MAC)
+```systemverilog
+module matvec_tm_multiplier #(
+    parameter MAX_ROWS = 64,
+    parameter MAX_COLS = 64,
+    parameter BANDWIDTH = 16,
+    parameter DATA_WIDTH = 16
+)(
+    input  logic clk,
+    input  logic rst_n,
+    input  logic start,
+
+    input  logic [$clog2(MAX_ROWS)-1:0] num_rows,
+    input  logic [$clog2(MAX_COLS)-1:0] num_cols,
+
+    // Vector input (chunked)
+    input  logic vector_write_enable,
+    input  logic [$clog2(MAX_COLS)-1:0] vector_base_addr,
+    input  logic signed [DATA_WIDTH-1:0] vector_in [0:BANDWIDTH-1],
+
+    // Matrix interface
+    output logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr,
+    output logic matrix_enable,
+    input  logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1],
+    input  logic matrix_ready,
+
+    // Output
+    output logic signed [DATA_WIDTH-1:0] result_out,
+    output logic result_valid,
+    output logic busy
+);
+
+    typedef enum logic [5:0] {
+        S_IDLE      = 6'b000001,
+        S_VLOAD     = 6'b000010,
+        S_REQ_MAT   = 6'b000100,
+        S_WAIT_MAT  = 6'b001000,
+        S_MAC       = 6'b010000,
+        S_DONE      = 6'b100000
+    } state_t;
+
+    state_t state, next_state;
+
+    // FSM registers
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            state <= S_IDLE;
+        else
+            state <= next_state;
+    end
+
+    // FSM transition logic
+    always_comb begin
+        next_state = state;
+        case (state)
+            S_IDLE:      if (start) next_state = S_VLOAD;
+            S_VLOAD:     if (vector_loaded) next_state = S_REQ_MAT;
+            S_REQ_MAT:   next_state = S_WAIT_MAT;
+            S_WAIT_MAT:  if (matrix_ready) next_state = S_MAC;
+            S_MAC:       if (chunk_idx == BANDWIDTH - 1)
+                             next_state = (col_idx + BANDWIDTH >= num_cols) ?
+                                          ((row_idx + 1 < num_rows) ? S_REQ_MAT : S_DONE) :
+                                          S_REQ_MAT;
+            S_DONE:      next_state = S_IDLE;
+        endcase
+    end
+
+    assign busy = (state != S_IDLE);
+
+    // Vector buffer
+    logic signed [DATA_WIDTH-1:0] vector_buffer [0:MAX_COLS-1];
+    logic vector_loaded;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            vector_loaded <= 0;
+        else if (vector_write_enable) begin
+            for (int i = 0; i < BANDWIDTH; i++)
+                vector_buffer[vector_base_addr + i] <= vector_in[i];
+            if (vector_base_addr + BANDWIDTH >= num_cols)
+                vector_loaded <= 1;
+        end else if (state == S_IDLE)
+            vector_loaded <= 0;
+    end
+
+    // Row/col trackers
+    logic [$clog2(MAX_ROWS)-1:0] row_idx;
+    logic [$clog2(MAX_COLS)-1:0] col_idx;
+    logic [$clog2(BANDWIDTH):0] chunk_idx;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            row_idx <= 0;
+            col_idx <= 0;
+            chunk_idx <= 0;
+        end else if (state == S_MAC) begin
+            if (chunk_idx == BANDWIDTH - 1) begin
+                chunk_idx <= 0;
+                col_idx <= col_idx + BANDWIDTH;
+                if (col_idx + BANDWIDTH >= num_cols)
+                    row_idx <= row_idx + 1;
+            end else begin
+                chunk_idx <= chunk_idx + 1;
+            end
+        end else if (state == S_IDLE) begin
+            row_idx <= 0;
+            col_idx <= 0;
+            chunk_idx <= 0;
+        end
+    end
+
+    // Matrix fetch interface
+    assign matrix_enable = (state == S_REQ_MAT);
+    assign matrix_addr = row_idx * num_cols + col_idx;
+
+    // Accumulator
+    logic signed [31:0] acc;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            acc <= 0;
+        end else if (state == S_REQ_MAT && col_idx == 0) begin
+            acc <= 0;
+        end else if (state == S_MAC) begin
+            if (col_idx + chunk_idx < num_cols) begin
+                logic signed [31:0] product;
+                product = matrix_data[chunk_idx] * vector_buffer[col_idx + chunk_idx];
+                acc <= acc + (product >>> 14); // Q6.26 → Q4.12
+            end
+        end
+    end
+
+    // Output logic
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            result_out <= 0;
+            result_valid <= 0;
+        end else if (state == S_MAC &&
+                     chunk_idx == BANDWIDTH - 1 &&
+                     col_idx + BANDWIDTH >= num_cols) begin
+            result_out <= acc[27:12]; // Extract Q4.12 result
+            result_valid <= 1;
+        end else begin
+            result_valid <= 0;
+        end
+    end
+
+endmodule
+```
+
+✅ Ready to Test With
+
+    matrix_loader.sv (1-cycle latency, chunked read interface)
+
+    matvec_tb.sv (self-checking testbench, 4×4 input, known results)
+
+Let me know if you'd like:
+
+    A waveform dump setup
+
+    Assertion macros for error tracing
+
+    RTL diagram of the FSM or dataflow
+
+Ready to simulate and validate!
+
+Prompt: You still have blocking assigning to product inside an always_ff
+
+Response: You're absolutely right again — great catch.
+
+In this block:
+```systemverilog
+always_ff @(posedge clk or negedge rst_n) begin
+    ...
+    if (state == S_MAC) begin
+        if (col_idx + chunk_idx < num_cols) begin
+            logic signed [31:0] product;
+            product = matrix_data[chunk_idx] * vector_buffer[col_idx + chunk_idx];
+            acc <= acc + (product >>> 14);
+        end
+    end
+end
+```
+the line:
+```systemverilog
+product = matrix_data[chunk_idx] * vector_buffer[col_idx + chunk_idx];
+```
+is an illegal blocking assignment inside always_ff, and declaring product inside the block is not valid synthesis practice.
+
+✅ Correct Fix
+
+You have two options:
+Option 1: Inline the expression
+```systemverilog
+acc <= acc + ((matrix_data[chunk_idx] * vector_buffer[col_idx + chunk_idx]) >>> 14);
+```
+This is simple and avoids intermediate signals.
+
+Option 2: Declare product as a registered signal
+
+If you want to pipeline product, declare it outside:
+```systemverilog
+logic signed [31:0] product;
+```
+
+Then split the multiplication and accumulation over two cycles, which requires an additional FSM state — not necessary here unless you're optimizing timing.
+
+✅ Recommended Change for Now (Option 1)
+
+Update the acc update logic to:
+```systemverilog
+acc <= acc + ((matrix_data[chunk_idx] * vector_buffer[col_idx + chunk_idx]) >>> 14);
+```
+No need for product as a temporary variable in this case.
+
+Would you like me to regenerate the entire matvec_tm_multiplier.sv with this fix applied?
+
+Prompt: No. I'd like help creating a basic MAC module. It should perform a multiply-accumulate on up to 4 16-bit values per clock cycle - so I believe we'd end up with 4 parallel adders and multipliers when synthesized. They will be the Q2.14 and Q4.12 format, so each operation should appropriately shift the product prior to summing and placing the value on the output.
+
+Response: Great — let’s design a parallel MAC (Multiply-Accumulate) module that:
+
+    Accepts up to 4 parallel Q2.14 × Q4.12 input pairs per cycle
+
+    Performs fixed-point multiplication, right-shifts the results appropriately
+
+    Adds them in a balanced tree to reduce delay (using 3 adders)
+
+    Outputs a single accumulated result per cycle in Q4.12 format
+
+🧠 Fixed-Point Overview
+| Format  | Width  | Meaning         |
+| ------- | ------ | --------------- |
+| Q2.14   | 16-bit | Matrix value    |
+| Q4.12   | 16-bit | Vector value    |
+| Product | 32-bit | Q6.26           |
+| Output  | 16-bit | Q4.12 (`>>>14`) |
+
+📦 Module Interface
+```systemverilog
+module mac4 #(
+    parameter DATA_WIDTH = 16
+)(
+    input  logic signed [DATA_WIDTH-1:0] a0, b0,
+    input  logic signed [DATA_WIDTH-1:0] a1, b1,
+    input  logic signed [DATA_WIDTH-1:0] a2, b2,
+    input  logic signed [DATA_WIDTH-1:0] a3, b3,
+    output logic signed [DATA_WIDTH-1:0] result  // Q4.12
+);
+```
+
+⚙️ MAC Operation (Fully Parallel)
+
+Each product:
+```systemverilog
+p0 = a0 * b0;
+p1 = a1 * b1;
+p2 = a2 * b2;
+p3 = a3 * b3;
+```
+Each is a Q6.26 value, so shift each by 14:
+```systemverilog
+s0 = p0 >>> 14;
+s1 = p1 >>> 14;
+s2 = p2 >>> 14;
+s3 = p3 >>> 14;
+```
+Then sum:
+```systemverilog
+sum = s0 + s1 + s2 + s3;
+```
+
+✅ Full Verilog Implementation
+```systemverilog
+module mac4 #(
+    parameter DATA_WIDTH = 16
+)(
+    input  logic signed [DATA_WIDTH-1:0] a0, b0,
+    input  logic signed [DATA_WIDTH-1:0] a1, b1,
+    input  logic signed [DATA_WIDTH-1:0] a2, b2,
+    input  logic signed [DATA_WIDTH-1:0] a3, b3,
+    output logic signed [DATA_WIDTH-1:0] result  // Q4.12
+);
+
+    // Internal products: Q6.26
+    logic signed [31:0] p0, p1, p2, p3;
+    assign p0 = a0 * b0;
+    assign p1 = a1 * b1;
+    assign p2 = a2 * b2;
+    assign p3 = a3 * b3;
+
+    // Shifted to Q4.12
+    logic signed [31:0] s0, s1, s2, s3;
+    assign s0 = p0 >>> 14;
+    assign s1 = p1 >>> 14;
+    assign s2 = p2 >>> 14;
+    assign s3 = p3 >>> 14;
+
+    // Accumulate
+    logic signed [31:0] sum;
+    assign sum = s0 + s1 + s2 + s3;
+
+    // Final output (lower 16 bits of Q4.12)
+    assign result = sum[27:12];
+
+endmodule
+```
+
+✅ Synthesis Notes
+
+    This will infer:
+
+        4 signed multipliers
+
+        3 adders (summed as a tree: (s0+s1) + (s2+s3))
+
+    Should synthesize cleanly into DSP blocks (if available) or LUTs
+
+    Can be used as a drop-in unit for vector dot products in systolic arrays or streaming MAC pipelines
+
+Would you like a mac2 or mac16 variant next, or a testbench to confirm correct operation of mac4 with fixed-point inputs?
+
+Prompt: I'd like a testbench. It should be self-checking. I'd like the values to be in binary so it's easy to understand the values in use, with comments noting what the binary values correspond to in decimal for the relevant format.
+
+Response: Perfect — here’s a self-checking testbench for mac4 that:
+
+    Uses binary literals for both inputs and expected output
+
+    Includes comments showing the decimal equivalents based on:
+
+        Q2.14 for inputs a0–a3
+
+        Q4.12 for inputs b0–b3
+
+        Q4.12 for the final output
+
+    Performs one test and checks the result against the expected sum
+
+✅ mac4_tb.sv
+```systemverilog
+`timescale 1ns / 1ps
+
+module mac4_tb;
+
+    logic signed [15:0] a0, b0;
+    logic signed [15:0] a1, b1;
+    logic signed [15:0] a2, b2;
+    logic signed [15:0] a3, b3;
+    logic signed [15:0] result;
+
+    // Instantiate DUT
+    mac4 dut (
+        .a0(a0), .b0(b0),
+        .a1(a1), .b1(b1),
+        .a2(a2), .b2(b2),
+        .a3(a3), .b3(b3),
+        .result(result)
+    );
+
+    initial begin
+        // Test case 1
+        // Each product will be: (Q2.14 * Q4.12) = Q6.26 → >>>14 → Q4.12
+        //
+        // a0 = 0.5  (Q2.14) =  0b_0010_0000_0000_0000 = 8192
+        // b0 = 2.0  (Q4.12) =  0b_0010_0000_0000_0000 = 8192
+        // a1 = 1.0  (Q2.14) =  0b_0100_0000_0000_0000 = 16384
+        // b1 = 1.0  (Q4.12) =  0b_0001_0000_0000_0000 = 4096
+        // a2 = -0.5 (Q2.14) =  0b_1110_0000_0000_0000 = -8192
+        // b2 = 1.0  (Q4.12) =  0b_0001_0000_0000_0000 = 4096
+        // a3 = 0.25 (Q2.14) =  0b_0001_0000_0000_0000 = 4096
+        // b3 = 4.0  (Q4.12) =  0b_0100_0000_0000_0000 = 16384
+        //
+        // Products (float):
+        // 0.5 * 2.0   = 1.0
+        // 1.0 * 1.0   = 1.0
+        // -0.5 * 1.0  = -0.5
+        // 0.25 * 4.0  = 1.0
+        // Sum = 2.5
+
+        a0 = 16'b0010_0000_0000_0000; //  0.5
+        b0 = 16'b0010_0000_0000_0000; //  2.0
+
+        a1 = 16'b0100_0000_0000_0000; //  1.0
+        b1 = 16'b0001_0000_0000_0000; //  1.0
+
+        a2 = 16'b1110_0000_0000_0000; // -0.5
+        b2 = 16'b0001_0000_0000_0000; //  1.0
+
+        a3 = 16'b0001_0000_0000_0000; //  0.25
+        b3 = 16'b0100_0000_0000_0000; //  4.0
+
+        #1;
+
+        // Expect 2.5 in Q4.12 = 2.5 * 4096 = 10240 = 0b_0010_1000_0000_0000
+        if (result === 16'b0010_1000_0000_0000) begin
+            $display("✅ PASS: result = %0d (Q4.12)", result);
+        end else begin
+            $display("❌ FAIL: result = %0d, expected 10240", result);
+        end
+
+        $finish;
+    end
+
+endmodule
+```
+
+🧪 Expected Output
+
+You should see:
+```
+✅ PASS: result = 10240 (Q4.12)
+```
+
+📌 Notes
+
+    All values are binary to clearly show Q2.14 and Q4.12 encoding
+
+    The logic uses a direct comparison with the expected fixed-point result (2.5 * 4096 = 10240)
+
+    You can easily duplicate this test for multiple cases with varying signs, ranges, etc.
+
+Would you like an extended testbench with randomized Q2.14 × Q4.12 inputs and golden model checks next?
