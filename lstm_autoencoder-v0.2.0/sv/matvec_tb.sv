@@ -133,8 +133,8 @@ module matvec_tb;
                 end else begin
                     $display("❌ FAIL");
                 end
-                row++;
             end
+            row++;
         end
 
         $display("Test complete: %0d/%0d passed", pass_count, ROWS);
