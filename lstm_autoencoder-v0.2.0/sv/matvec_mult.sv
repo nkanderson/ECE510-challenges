@@ -55,8 +55,21 @@ module matvec_multiplier #(
     // Vector load control
     logic vector_loaded;
 
-    // MAC result
+    // MAC calculation and result
     logic signed [(DATA_WIDTH*2)-1:0] mac_result;
+    logic [$clog2(MAC_CHUNK_SIZE)-1:0] i;
+    logic [DATA_WIDTH-1:0] a [MAC_CHUNK_SIZE-1:0];
+    logic [DATA_WIDTH-1:0] b [MAC_CHUNK_SIZE-1:0];
+    logic [$clog2(MAX_ROWS * MAX_COLS)-1:0] mat_idx;
+    logic [$clog2(MAX_COLS)-1:0] vec_idx;
+
+    mac4 mac(
+              .a0(a[0]), .b0(b[0]),
+              .a1(a[1]), .b1(b[1]),
+              .a2(a[2]), .b2(b[2]),
+              .a3(a[3]), .b3(b[3]),
+              .result(mac_result)
+            );
 
     // Output logic
     assign busy = (state != S_IDLE);
@@ -145,9 +158,9 @@ module matvec_multiplier #(
     // MAC result
     always_comb begin
       if (state == S_MAC) begin
-        for (int i = 0; i < MAC_CHUNK_SIZE; i++) begin
-            int mat_idx = row_idx * num_cols + col_idx + i;
-            int vec_idx = col_idx + i;
+        for (i = 0; i < MAC_CHUNK_SIZE; i++) begin
+            mat_idx = row_idx * num_cols + col_idx + i;
+            vec_idx = col_idx + i;
 
             if ((col_idx + i) < num_cols) begin
                 a[i] = matrix_data[mat_idx];
@@ -157,14 +170,6 @@ module matvec_multiplier #(
                 b[i] = 0;
             end
         end
-
-        mac4(
-              .a0(a[0]), .b0(b[0]),
-              .a1(a[1]), .b1(b[1]),
-              .a2(a[2]), .b2(b[2]),
-              .a3(a[3]), .b3(b[3]),
-              .result(mac_result)
-            );
       end
     end
 
