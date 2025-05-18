@@ -122,7 +122,7 @@ module matvec_tb;
         expected_result[2] = 16'sd376832;  // 92.0
         expected_result[3] = 16'sd524288;  // 128.0
 
-        @(posedge matrix_ready);
+        @(posedge result_valid);
 
         // Wait and check results
         while (row < ROWS) begin
