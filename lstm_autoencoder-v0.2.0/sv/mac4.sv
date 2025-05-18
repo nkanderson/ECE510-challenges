@@ -5,7 +5,7 @@ module mac4 #(
     input  logic signed [DATA_WIDTH-1:0] a1, b1,
     input  logic signed [DATA_WIDTH-1:0] a2, b2,
     input  logic signed [DATA_WIDTH-1:0] a3, b3,
-    output logic signed [DATA_WIDTH-1:0] result  // Q4.12
+    output logic signed [(DATA_WIDTH*2)-1:0] result  // Q4.12
 );
 
     // Internal products: Q6.26

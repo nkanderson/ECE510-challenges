@@ -9,8 +9,8 @@ module matvec_multiplier #(
     input  logic start,
 
     // Matrix dimensions
-    input  logic [$clog2(MAX_ROWS)-1:0] num_rows,
-    input  logic [$clog2(MAX_COLS)-1:0] num_cols,
+    input  logic [$clog2(MAX_ROWS):0] num_rows,
+    input  logic [$clog2(MAX_COLS):0] num_cols,
 
     // NOTE: vector_in and matrix_data are defaulting to var rather than wire
     // due to default compile options. Should confirm this is as desired.
@@ -57,11 +57,8 @@ module matvec_multiplier #(
 
     // MAC calculation and result
     logic signed [(DATA_WIDTH*2)-1:0] mac_result;
-    logic [$clog2(MAC_CHUNK_SIZE)-1:0] i;
     logic [DATA_WIDTH-1:0] a [MAC_CHUNK_SIZE-1:0];
     logic [DATA_WIDTH-1:0] b [MAC_CHUNK_SIZE-1:0];
-    logic [$clog2(MAX_ROWS * MAX_COLS)-1:0] mat_idx;
-    logic [$clog2(MAX_COLS)-1:0] vec_idx;
 
     mac4 mac(
               .a0(a[0]), .b0(b[0]),
@@ -124,6 +121,9 @@ module matvec_multiplier #(
     // Matrix fetch signals
     // TODO: Do we want to clock in matrix_data so we're not relying on matrix_loader
     // to hold the data on the wires?
+    // FIXME: matrix_enable needs to drop earlier than it is - this is resulting
+    // in the matrix loader setting the loading signal high right away after
+    // it drops for one cycle
     assign matrix_enable = (state == S_REQ_MAT || state == S_WAIT_MAT);
     assign matrix_addr   = row_idx * num_cols + col_idx;
 
@@ -156,22 +156,12 @@ module matvec_multiplier #(
     end
 
     // MAC result
-    always_comb begin
-      if (state == S_MAC) begin
-        for (i = 0; i < MAC_CHUNK_SIZE; i++) begin
-            mat_idx = row_idx * num_cols + col_idx + i;
-            vec_idx = col_idx + i;
-
-            if ((col_idx + i) < num_cols) begin
-                a[i] = matrix_data[mat_idx];
-                b[i] = vector_buffer[vec_idx];
-            end else begin
-                a[i] = 0;
-                b[i] = 0;
-            end
+    generate
+        for (genvar i = 0; i < MAC_CHUNK_SIZE; i++) begin
+            assign a[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? matrix_data[row_idx * num_cols + col_idx + i] : '0;
+            assign b[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? vector_buffer[col_idx + i] : '0;
         end
-      end
-    end
+    endgenerate
 
     // Output logic
     always_ff @(posedge clk or negedge rst_n) begin

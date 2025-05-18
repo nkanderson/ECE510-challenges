@@ -16,8 +16,8 @@ module matvec_tb;
 
     // Test signals
     logic start;
-    logic [$clog2(ROWS)-1:0] num_rows = ROWS;
-    logic [$clog2(COLS)-1:0] num_cols = COLS;
+    logic [$clog2(ROWS):0] num_rows = ROWS;
+    logic [$clog2(COLS):0] num_cols = COLS;
     logic vector_write_enable;
     logic [$clog2(COLS)-1:0] vector_base_addr;
     logic signed [DATA_WIDTH-1:0] vector_in [0:BANDWIDTH-1];
