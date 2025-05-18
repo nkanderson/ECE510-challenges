@@ -3093,3 +3093,984 @@ You should see:
     You can easily duplicate this test for multiple cases with varying signs, ranges, etc.
 
 Would you like an extended testbench with randomized Q2.14 × Q4.12 inputs and golden model checks next?
+
+Prompt: I've got these blocks of code to update the MAC accumulation logic in matvec_mult to use the new mac4 module. `MAC_CHUNK_SIZE` is set to 4. The goal here is to get the MAC result when we're in the S_MAC state in a combinational block. The synchronous block then adds the result to the accumulator on the clock edge, and updates the row index. The tricky parts at the moment are figuring out exactly how to update the col_idx and row_idx, and when we go back to the S_REQ_MAT state to get more matrix data.
+```
+// MAC accumulation with row tracking
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            acc <= 0;
+            col_idx <= 0;
+            row_idx <= 0;
+        end else if (state == S_MAC) begin
+            // TODO: This probably needs to fetch another matrix chunk then...
+            if (col_idx >= num_cols) begin
+                row_idx <= row_idx + 1;
+                col_idx <= 0;
+            end else begin
+              acc <= acc + mac_result;
+            end
+            col_idx <= col_idx + MAC_CHUNK_SIZE;
+        // end else if (state == S_REQ_MAT) begin
+        //     if (col_idx == 0) acc <= 0;
+        end else if (state == S_IDLE) begin
+            acc <= 0;
+            col_idx <= 0;
+            row_idx <= 0;
+        end
+    end
+
+    // MAC result
+    always_comb begin
+      if (state == S_MAC) begin
+        mac4(
+              .a0(matrix_data[row_idx * col_idx]), .b0(vector_buffer[col_idx]),
+              .a1(matrix_data[row_idx * col_idx + 1]), .b1(vector_buffer[col_idx+1]),
+              .a2(matrix_data[row_idx * col_idx + 2]), .b2(vector_buffer[col_idx+2]),
+              .a3(matrix_data[row_idx * col_idx + 3]), .b3(vector_buffer[col_idx+3]),
+              .result(mac_result)
+            );
+      end
+    end
+```
+This is the state update logic:
+```
+always_comb begin
+        next_state = state;
+        case (state)
+            S_IDLE:      if (start) next_state = S_VLOAD;
+            S_VLOAD:     if (vector_loaded) next_state = S_REQ_MAT;
+            S_REQ_MAT:   next_state = S_WAIT_MAT;
+            S_WAIT_MAT:  if (matrix_ready) next_state = S_MAC;
+            S_MAC:       if (col_idx >= num_cols)
+                             next_state = (row_idx + 1 < num_rows) ? S_REQ_MAT : S_DONE;
+                         else
+                             next_state = S_REQ_MAT;
+            S_DONE:      next_state = S_IDLE;
+        endcase
+    end
+```
+I want help thinking through the exact state update logic for the mac and matrix data fetch states, as well as the logic for updating the col_idx and row_idx. Lastly (this can probably wait until we've done the rest), we'll need to make sure we're not attempting to index matrix_data or vector_buffer indexes that don't exist
+
+Response: You're close! Let's walk through a clean and correct way to organize:
+
+    col_idx and row_idx updates
+
+    State transitions around S_MAC and S_REQ_MAT
+
+    Handling partial MAC chunks
+
+    Safe memory access (bounds checking)
+
+🧠 Step-by-Step Reasoning
+
+✅ 1. col_idx and row_idx updates
+
+You’re currently incrementing col_idx unconditionally in S_MAC, and checking col_idx >= num_cols after already increasing it.
+
+Instead:
+
+    Only increment col_idx if there's still data in the current row.
+
+    After accumulating the full row, reset col_idx to 0 and increment row_idx.
+
+```systemverilog
+// In S_MAC
+if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+    row_idx <= row_idx + 1;
+    col_idx <= 0;
+end else begin
+    col_idx <= col_idx + MAC_CHUNK_SIZE;
+end
+acc <= acc + mac_result;
+```
+
+This guarantees:
+
+    You don’t overshoot num_cols
+
+    You reset col_idx at the correct boundary
+
+    You only add to acc if you're still within bounds
+
+✅ 2. State Update Logic (S_REQ_MAT ⇄ S_WAIT_MAT ⇄ S_MAC)
+
+Here’s how this should work:
+```
+[S_REQ_MAT]
+  ↓ (load issued)
+[S_WAIT_MAT]
+  ↓ (matrix_ready)
+[S_MAC]
+  → col_idx += 4
+  → acc += mac_result
+  → back to S_REQ_MAT if row isn't done
+  → or to S_DONE if all rows done
+```
+So your S_MAC logic should check:
+```systemverilog
+S_MAC:
+  if (col_idx + MAC_CHUNK_SIZE >= num_cols)
+    next_state = (row_idx + 1 < num_rows) ? S_REQ_MAT : S_DONE;
+  else
+    next_state = S_REQ_MAT;
+```
+🧠 Why not transition directly from S_MAC to S_MAC?
+
+Because you need to load the next chunk of matrix data from memory. Even if it’s pipelined, you must issue a new request via S_REQ_MAT, wait for it (S_WAIT_MAT), and then continue accumulating (S_MAC).
+
+✅ 3. Bounds Checking for Matrix Access
+
+This is especially important for the last chunk in a row where num_cols is not divisible by 4.
+
+Here’s what to do in your MAC call:
+```systemverilog
+always_comb begin
+    if (state == S_MAC) begin
+        for (int i = 0; i < MAC_CHUNK_SIZE; i++) begin
+            int mat_idx = row_idx * num_cols + col_idx + i;
+            int vec_idx = col_idx + i;
+
+            if ((col_idx + i) < num_cols) begin
+                a[i] = matrix_data[mat_idx];
+                b[i] = vector_buffer[vec_idx];
+            end else begin
+                a[i] = 0;
+                b[i] = 0;
+            end
+        end
+
+        mac4(
+            .a0(a[0]), .b0(b[0]),
+            .a1(a[1]), .b1(b[1]),
+            .a2(a[2]), .b2(b[2]),
+            .a3(a[3]), .b3(b[3]),
+            .result(mac_result)
+        );
+    end else begin
+        mac_result = 0;
+    end
+end
+```
+
+This prevents out-of-bounds access when num_cols % 4 ≠ 0.
+
+✅ 4. Final Integration Plan
+
+    MAC state: Adds result and updates col/row indices
+
+    REQ_MAT → WAIT_MAT → MAC: Needed every chunk
+
+    FSM:
+```systemverilog
+S_MAC:
+  if (col_idx + MAC_CHUNK_SIZE >= num_cols)
+    next_state = (row_idx + 1 < num_rows) ? S_REQ_MAT : S_DONE;
+  else
+    next_state = S_REQ_MAT;
+```
+Index update in S_MAC:
+```systemverilog
+if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+    row_idx <= row_idx + 1;
+    col_idx <= 0;
+end else begin
+    col_idx <= col_idx + MAC_CHUNK_SIZE;
+end
+acc <= acc + mac_result;
+```
+
+✅ Optional: Output Valid Signal for Accumulated Row
+
+If you want to capture when acc is valid for a full row (e.g., to store it):
+```systemverilog
+logic acc_valid;
+
+always_comb begin
+    acc_valid = (state == S_MAC && col_idx + MAC_CHUNK_SIZE >= num_cols);
+end
+```
+
+You can latch the final result to a result buffer when acc_valid goes high.
+
+Would you like me to help rewrite the full always_ff and always_comb blocks with these fixes consolidated?
+
+Prompt: 1. I believe you're correct about adjusting the unconditional incrementing of `col_idx`, but you said this code is checking `col_idx >= num_cols` after already increasing, which I don't think is true. Also, I need more explanation on why you're using the `(col_idx + MAC_CHUNK_SIZE >= num_cols)` conditional in multiple places. I'm not sure why that would be applicable here - in the case of updating the row index, we need to make that update when the column index is at the end, right?
+2. I don't know what you're referencing in discussing a transition directly from S_MAC to S_MAC - I don't think that's currently happening. Similar question here as above regarding the `(col_idx + MAC_CHUNK_SIZE >= num_cols)` conditional. Except in this case, we need to request another chunk of the matrix values only when we've exhausted the current values, which will happen when the matrix_addr for the current matrix_data is col_idx * row_idx - BANDWIDTH - does that seem correct? Is there a better way to calculate that? I don't think it's necessarily true that we need to request more data any time the column index + MAC_CHUNK_SIZE is greater than the number of columns.
+3. This bounds checking seems reasonable.
+Regarding the optional recommendation - we have the following output logic:
+```
+always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            result_out   <= 0;
+            result_valid <= 0;
+        end else if (state == S_MAC &&
+                     row_idx == num_rows &&
+                     col_idx + BANDWIDTH >= num_cols) begin
+            result_out   <= acc[27:12]; // Take middle 16 bits for Q4.12
+            result_valid <= 1;
+        end else begin
+            result_valid <= 0;
+        end
+    end
+```
+This sets a `result_valid` signal when we're in the last row and some column index in relation to the number of columns (I think this part should be changed though, maybe just when `col_idx >= num_cols`)
+
+Response: Thanks — you're absolutely right to push for precision here. Let’s go point by point and clear up the confusion, especially around col_idx, data fetch timing, and termination logic.
+
+✅ 1. On col_idx updates and use of (col_idx + MAC_CHUNK_SIZE >= num_cols)
+
+You're correct that in your posted code, the check:
+```systemverilog
+if (col_idx >= num_cols)
+```
+is not occurring after incrementing col_idx—the increment happens after the check. I misspoke there. Good catch.
+
+Now, let’s address the main question:
+
+    Why use (col_idx + MAC_CHUNK_SIZE >= num_cols)?
+
+⚠️ Problem with only checking col_idx >= num_cols:
+
+This would skip the final partial chunk if num_cols is not a multiple of MAC_CHUNK_SIZE.
+
+Example:
+If num_cols = 10, MAC_CHUNK_SIZE = 4, and col_idx = 8,
+you still need to process 2 more values:
+→ col_idx + MAC_CHUNK_SIZE = 12 > 10, but col_idx (8) < 10
+
+So this partial chunk (cols 8 and 9) would be skipped if you only check col_idx >= num_cols.
+
+Hence:
+```systemverilog
+if (col_idx + MAC_CHUNK_SIZE >= num_cols)
+```
+is the correct check to detect "this is the final chunk of the row" — even partial ones.
+✔️ Use it in two places:
+
+    State transition from S_MAC: do we continue this row or move to the next?
+
+    Index update: if this is the final chunk, go to row 1, col 0.
+
+✅ 2. Clarifying S_MAC to S_MAC transitions and matrix_data requests
+
+You're right again: your state machine never transitions from S_MAC to S_MAC directly — it always goes back to S_REQ_MAT.
+
+My earlier comment was meant more as a hypothetical "don’t do this" warning, not a critique of your current logic.
+
+Now onto your key question:
+
+    Should we fetch a new matrix chunk only when we’ve used the current one, not on every MAC cycle?
+
+Yes, you're absolutely right.
+
+Fetching new data only when it’s needed is preferred.
+
+Let’s define:
+
+    matrix_data holds 4 values, indexed by col_idx, for the current row.
+
+    The MAC chunk uses these 4.
+
+    Therefore, you only need to fetch new data when you're done with the current chunk.
+
+If your current memory fetch logic loads:
+```systemverilog
+matrix_data[0] = matrix_mem[row_idx * num_cols + col_idx + 0];
+matrix_data[1] = matrix_mem[row_idx * num_cols + col_idx + 1];
+matrix_data[2] = matrix_mem[row_idx * num_cols + col_idx + 2];
+matrix_data[3] = matrix_mem[row_idx * num_cols + col_idx + 3];
+```
+Then you're exactly right that the next fetch should be when:
+```systemverilog
+matrix_addr = row_idx * num_cols + col_idx;
+```
+And that fetch should happen every time you advance col_idx (i.e., each MAC chunk).
+
+So this logic:
+
+    "we need to request another chunk only when we’ve exhausted the current values"
+
+is satisfied by requesting on each entry into S_REQ_MAT, which you already do.
+
+So:
+
+✔️ Use:
+```systemverilog
+matrix_addr = row_idx * num_cols + col_idx;
+```
+Don’t attempt to subtract BANDWIDTH from col_idx to determine fetch address. That would actually be off by one cycle unless carefully pipelined.
+
+✅ 3. Bounds Checking — Agreed
+
+Yes, your matrix access should zero-pad out-of-bounds rows with:
+```systemverilog
+if (col_idx + i < num_cols)
+    use matrix_data[i] and vector_buffer[col_idx + i];
+else
+    use 0;
+```
+This avoids garbage data in partial MACs.
+
+✅ 4. Output Logic (Final result_valid)
+
+You posted:
+```systemverilog
+else if (state == S_MAC &&
+         row_idx == num_rows &&
+         col_idx + BANDWIDTH >= num_cols)
+```
+Problems:
+
+    You should never see row_idx == num_rows unless you’ve already passed the last row (off-by-one).
+
+    And col_idx + BANDWIDTH >= num_cols should be rephrased.
+
+Fix:
+
+Change to:
+```systemverilog
+else if (state == S_MAC &&
+         row_idx == num_rows - 1 &&
+         col_idx + MAC_CHUNK_SIZE >= num_cols)
+```
+This triggers output when you finish the last chunk of the last row.
+
+Also make sure to latch the value of acc before you reset it or move to S_IDLE.
+
+✅ Summary
+| Topic                         | Correct Approach                                                                          |
+| ----------------------------- | ----------------------------------------------------------------------------------------- |
+| `col_idx` update              | Use `col_idx + MAC_CHUNK_SIZE >= num_cols` to detect end of row (including partial chunk) |
+| State transition from `S_MAC` | Move to `S_REQ_MAT` after each chunk; go to `S_DONE` only after last row                  |
+| Matrix fetch address          | `matrix_addr = row_idx * num_cols + col_idx`                                              |
+| Bounds check                  | Pad with zeros if `col_idx + i >= num_cols`                                               |
+| Output logic                  | Check `row_idx == num_rows - 1` and `col_idx + MAC_CHUNK_SIZE >= num_cols`                |
+
+Would you like me to rewrite your always_ff and always_comb blocks with these corrections integrated?
+
+Prompt: 1. I don't think this is checking "is this the final chunk of the row", it's checking "have we already completed the final chunk of the row". That is the conditional for when to increment the row_idx and reset the col_idx, so if we're in the final chunk of the row, we're going to skip the last items. Review this block:
+```
+if (col_idx >= num_cols) begin
+                row_idx <= row_idx + 1;
+                col_idx <= 0;
+            end else begin
+              col_idx <= col_idx + MAC_CHUNK_SIZE;
+            end
+            acc <= acc + mac_result;
+```
+2. You said "matrix_data holds 4 values", which is not correct - it holds `BANDWIDTH` values, which defaults to 16. We need to fetch data after 4 MAC operations on the current matrix chunk. I'm not suggesting we subtract BANDWIDTH to determine the fetch address, but to determine when we've processed the entire chunk. Another way to think of it is that `matrix_addr` plus BANDWIDTH is the `row_idx` * `num_cols` + `col_idx` value at which we need more data.
+4. Ok, I think I meant `row_idx == num_row - 1`. I still don't see the logic in checking `col_idx + MAC_CHUNK_SIZE`
+
+Prompt: Excellent clarifications — you're right to call out these distinctions. Let’s address each of your points with precision, refining the earlier logic and making sure everything lines up with your goals and structure.
+
+✅ 1. Clarifying When to Increment row_idx and Reset col_idx
+
+You're absolutely right:
+```systemverilog
+if (col_idx >= num_cols) begin
+    row_idx <= row_idx + 1;
+    col_idx <= 0;
+end else begin
+    col_idx <= col_idx + MAC_CHUNK_SIZE;
+end
+```
+This executes the increment after the MAC is done — so if col_idx == num_cols - MAC_CHUNK_SIZE, you’d do one last MAC and then col_idx = num_cols + MAC_CHUNK_SIZE, which overruns the row and triggers the row increment too late (i.e., after attempting a bogus MAC).
+
+So yes — this is not guarding the last valid chunk, it's reacting after the last one is already processed.
+🔧 Correct condition:
+
+What you really want to know is:
+
+    "Is the current chunk the last one for this row?"
+
+That happens when:
+```systemverilog
+col_idx + MAC_CHUNK_SIZE >= num_cols
+```
+
+✅ Corrected logic:
+```systemverilog
+if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+    row_idx <= row_idx + 1;
+    col_idx <= 0;
+end else begin
+    col_idx <= col_idx + MAC_CHUNK_SIZE;
+end
+acc <= acc + mac_result;
+```
+This ensures that:
+
+    The last chunk is processed (even if partial)
+
+    The next cycle, you move on to the next row or finish
+
+✅ 2. Matrix Fetch Granularity: BANDWIDTH vs MAC_CHUNK_SIZE
+
+You’re 100% right:
+
+    matrix_data holds a full chunk of BANDWIDTH = 16 values
+
+    But mac4 only processes 4 values per MAC cycle
+
+    Therefore, you need 4 MAC cycles to consume one matrix_data block
+
+So the fetch condition is:
+
+    "Have we processed all 16 values of the current matrix_data?"
+
+You correctly propose:
+🔧 Fetch condition:
+```systemverilog
+(row_idx * num_cols + col_idx) >= (matrix_addr + BANDWIDTH)
+```
+Alternative formulation (equivalent):
+```systemverilog
+col_idx >= matrix_offset + BANDWIDTH
+```
+Assuming matrix_offset is row_idx * num_cols, then:
+```systemverilog
+matrix_addr = matrix_offset + col_idx;
+```
+So once col_idx >= BANDWIDTH, you’ve consumed the current block.
+
+Thus, your S_REQ_MAT transition should happen:
+
+    Whenever col_idx % BANDWIDTH == 0, or
+
+    Whenever (col_idx - matrix_offset) % BANDWIDTH == 0
+
+This signals "next 16 needed".
+✅ Recommended: Track matrix_block_offset = row_idx * num_cols
+
+```systemverilog
+logic [ADDR_WIDTH-1:0] matrix_block_offset;
+assign matrix_addr = matrix_block_offset + col_idx;
+```
+Update matrix_block_offset in S_REQ_MAT:
+```
+matrix_block_offset <= row_idx * num_cols;
+```
+Then, when col_idx - matrix_block_offset >= BANDWIDTH, fetch the next block.
+
+✅ 4. Output Logic: Avoiding Redundant Use of col_idx + MAC_CHUNK_SIZE >= num_cols
+
+You're right to be skeptical of using col_idx + MAC_CHUNK_SIZE in the output-valid condition.
+
+The correct way to trigger result_valid is:
+
+    After completing the last chunk of the last row
+
+    Which is when you're in the last row, and you've just processed the last valid chunk
+
+If we latch acc in S_MAC, right after a MAC on the last chunk, then:
+```systemverilog
+if (state == S_MAC &&
+    row_idx == num_rows - 1 &&
+    col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+    result_valid <= 1;
+end
+```
+
+But if col_idx is updated after the MAC, and you want to trigger result_valid in the next cycle, then:
+```systemverilog
+if (state == S_REQ_MAT &&
+    row_idx == num_rows &&
+    col_idx == 0) begin
+    result_valid <= 1;
+end
+```
+Either is fine — just depends when acc is considered finalized. But your original instinct to change it to col_idx >= num_cols was not far off — it's just too late, since that happens after the last MAC.
+
+So again, the preferred and exact logic is:
+```systemverilog
+if (state == S_MAC &&
+    row_idx == num_rows - 1 &&
+    col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+    result_valid <= 1;
+end
+```
+This triggers right after the final MAC, before row_idx increments.
+
+🧾 Summary of Fixes and Clarifications
+| Aspect                  | Fix / Explanation                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| Row increment condition | Use `col_idx + MAC_CHUNK_SIZE >= num_cols` to catch the final chunk                    |
+| Matrix fetch timing     | Fetch new `matrix_data` after every `BANDWIDTH/MAC_CHUNK_SIZE` MACs                    |
+| Fetch condition         | Track `matrix_offset = row_idx * num_cols`; fetch when `col_idx - offset >= BANDWIDTH` |
+| Output valid signal     | Trigger when `row_idx == num_rows - 1 && col_idx + MAC_CHUNK_SIZE >= num_cols`         |
+
+Would you like me to consolidate all of this into updated always_ff, always_comb, and FSM blocks?
+
+Prompt: 1. Ok, I can see that. Previously, the acc addition happened inside an else, which I think means we'd still need that additional iteration. But this seems to make sense, that we increment the row, then perform one last MAC.
+2. Your alternative formulation is not equivalent, you're not handling all the terms. Since `matrix_addr` is a continuous assign, I'm wondering if we either need to save the matrix address or column index at the time of matrix data retrieval, or just have a counter that starts at 0 when we enter the S_MAC state and counts up by MAC_CHUNK_SIZE until reaching BANDWIDTH. If we had something like alignment guarantees, we could just use col_idx, but I think it's possible we'll have offsets. So for example, it would be possible to start a new matrix data chunk at a col_idx > 0.
+4. Similarly, this can use the counter mentioned above
+
+this is my refined logic:
+next state logic:
+```
+always_comb begin
+        next_state = state;
+        case (state)
+            S_IDLE:      if (start) next_state = S_VLOAD;
+            S_VLOAD:     if (vector_loaded) next_state = S_REQ_MAT;
+            S_REQ_MAT:   next_state = S_WAIT_MAT;
+            S_WAIT_MAT:  if (matrix_ready) next_state = S_MAC;
+            S_MAC:       if (col_idx >= num_cols)
+                             next_state = (row_idx + 1 < num_rows) ? S_REQ_MAT : S_DONE;
+                         else
+                             next_state = S_REQ_MAT;
+            S_DONE:      next_state = S_IDLE;
+        endcase
+    end
+```
+MAC accumulation
+```
+always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            acc <= 0;
+            col_idx <= 0;
+            row_idx <= 0;
+            num_ops <= 0;
+        end else if (state == S_MAC) begin
+            // If the next MAC operation will be the last for this row, update the
+            // row_idx and col_idx on the next clock cycle. Do this until the final
+            // increment of row_idx will reach the last row.
+            if (col_idx + MAC_CHUNK_SIZE >= num_cols && row_idx < (num_rows - 1)) begin
+                row_idx <= row_idx + 1;
+                col_idx <= 0;
+            end else begin
+              col_idx <= col_idx + MAC_CHUNK_SIZE;
+            end
+            acc <= acc + mac_result;
+            num_ops <= num_ops + MAC_CHUNK_SIZE;
+        // end else if (state == S_REQ_MAT) begin
+        //     if (col_idx == 0) acc <= 0;
+        end else if (state == S_IDLE) begin
+            col_idx <= 0;
+            row_idx <= 0;
+        end
+    end
+```
+final output:
+```
+always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            result_out   <= 0;
+            result_valid <= 0;
+        // When acc has the final valid value clocked in, row_idx should have been held
+        // at num_row - 1. col_idx should increase by MAC_CHUNK_SIZE until the below condition.
+        end else if (state == S_MAC &&
+                     row_idx == num_rows - 1 &&
+                     num_ops >= BANDWIDTH) begin
+            // TODO? This should *maybe* just be the 16 LSBs, not middle...
+            result_out   <= acc[27:12]; // Take middle 16 bits for Q4.12
+            result_valid <= 1;
+        end else begin
+            result_valid <= 0;
+        end
+    end
+```
+
+Response: This is excellent logic — you’ve identified the nuances and refined the system to be both precise and robust, especially in the presence of potential offsets or partial chunks. Let's walk through each of your updates with specific validation, refinement, and a few small recommendations.
+
+✅ 1. FSM and col_idx/row_idx Update Logic
+
+Your current S_MAC next-state logic:
+```systemverilog
+if (col_idx >= num_cols)
+    next_state = (row_idx + 1 < num_rows) ? S_REQ_MAT : S_DONE;
+```
+And this update:
+```systemverilog
+if (col_idx + MAC_CHUNK_SIZE >= num_cols && row_idx < (num_rows - 1)) begin
+    row_idx <= row_idx + 1;
+    col_idx <= 0;
+end else begin
+    col_idx <= col_idx + MAC_CHUNK_SIZE;
+end
+acc <= acc + mac_result;
+num_ops <= num_ops + MAC_CHUNK_SIZE;
+```
+✅ This now:
+
+    Handles partial chunks without skipping
+
+    Ensures that final row and col index remain valid long enough for output
+
+    Updates acc with the last valid mac_result
+
+💡 Small note: on the final row, if col_idx + MAC_CHUNK_SIZE >= num_cols, then you want to avoid resetting col_idx until after result_valid is asserted. But you’ve handled that by checking row_idx < num_rows - 1, which is perfect.
+
+So this structure is solid and self-contained.
+
+✅ 2. num_ops Counter for Chunk Progress
+
+This is a great solution to the original problem: tracking how many MACs have been done since the last matrix chunk load.
+
+✅ Advantages:
+
+    Independent of col_idx alignment
+
+    Works even when starting col_idx > 0 (e.g., non-aligned fetch)
+
+    Can be easily reset on entry into S_MAC
+
+💡 Recommended: reset num_ops <= 0 in S_WAIT_MAT → guarantees a fresh count each time you enter S_MAC.
+```systemverilog
+else if (state == S_WAIT_MAT && matrix_ready) begin
+    num_ops <= 0;
+end
+```
+
+✅ 3. Final Output Logic
+```systemverilog
+if (state == S_MAC &&
+    row_idx == num_rows - 1 &&
+    num_ops >= BANDWIDTH)
+```
+✅ This condition is exactly correct:
+
+    You’ve accumulated all BANDWIDTH values
+
+    You’re still in S_MAC and row_idx hasn’t been bumped
+
+💡 Clarification: If you only want to latch acc once, and not on multiple cycles (e.g. due to rounding from >=), consider changing:
+```systemverilog
+num_ops == BANDWIDTH
+```
+Instead of >=, unless you expect possible overshoot.
+
+✅ 4. Comment about acc[27:12] and Q4.12
+
+You're right to flag this:
+```systemverilog
+result_out <= acc[27:12]; // Take middle 16 bits for Q4.12
+```
+If:
+
+    product = Q2.14 × Q4.12 = Q6.26
+
+    acc accumulates these → has format Q(6+log₂N).26
+
+Then you’re right to shift right by 14 bits to return to Q4.12.
+
+💡 Just make sure acc is wide enough to hold all accumulated Q6.26 values without overflow.
+
+With BANDWIDTH = 16, peak sum is:
+```
+(max_val)^2 * 16 → worst case = (32767 * 4095) * 16 = ~2.1e9
+Needs 32 bits min
+```
+
+So using acc[27:12] is good as long as acc is ≥ 32 bits.
+
+If you want to saturate or round, you can always:
+```systemverilog
+result_out <= acc[27:12] + acc[11]; // round last dropped bit
+```
+
+✅ Summary
+| Area                         | Status                                      |
+| ---------------------------- | ------------------------------------------- |
+| State transitions            | ✅ Correct and minimal                       |
+| col\_idx and row\_idx update | ✅ Precise with proper final-row handling    |
+| num\_ops                     | ✅ Clean and generalizes to unaligned chunks |
+| result\_valid                | ✅ Triggers at exactly the right time        |
+| acc result extraction        | ✅ Sound; small room for rounding tweak      |
+
+Would you like a cleaned-up consolidated version of the updated matvec_mult behavior (FSM, MAC control, matrix fetch logic) with all this embedded for integration or testing?
+
+Prompt: Regarding point 4 - let's talk more about possible overflow. The mac4 modules uses 32-bit registers to get the Q6.26 product results from each Q2.14 value times Q4.12 value. Then it right shifts those by 14 bits and sums them, in a 32-bit register. It returns the lowest 16 bits of that value. Should that instead return the full 32-bit value? Then the register sizes for the corresponding values and output in matvec_mult would also need to be updated
+
+Response: Yes — this is a critical point, and you're right to question it. Let’s break it down carefully and go through the implications of using 16-bit vs 32-bit accumulator values, especially in terms of overflow, truncation, and correctness.
+
+🔢 Fixed-Point Format Recap
+
+    matrix_data[i]: Q2.14 (signed 16-bit)
+
+    vector_buffer[i]: Q4.12 (signed 16-bit)
+
+⏱ MAC Operation:
+```
+product = matrix_data[i] * vector_buffer[i]  // Q2.14 × Q4.12 = Q6.26
+scaled = product >>> 14                      // Back to Q4.12
+acc += scaled
+```
+
+🚨 Problem With Returning Only Lower 16 Bits from mac4
+
+If mac4:
+```systemverilog
+output logic [15:0] result;  // bad
+```
+Then:
+
+    You're throwing away high-order bits of each shifted product
+
+    If the sum of partial results exceeds ±32,767 (Q4.12’s range), you’ll overflow
+
+    This means:
+
+        Data loss
+
+        Wraparound bugs
+
+        Unpredictable behavior as inputs grow
+
+Even though each product is right-shifted, the sum of multiple shifted products (e.g., 16 of them per row) can absolutely overflow a signed 16-bit Q4.12 result.
+
+✅ Solution: Return Full 32-Bit Accumulated Result from mac4
+Change mac4 interface:
+```systemverilog
+output logic signed [31:0] result;  // full 32-bit scaled partial sum
+```
+Now the accumulator in matvec_mult holds the full precision sum.
+Why this is safe:
+
+    Each scaled product is:
+
+        Q6.26 → shift by 14 → Q6.12
+
+    Sum of 16 such terms is still Q6.12, but magnitude can grow:
+
+        max = 16 × (32767 × 4095 >> 14) ≈ 2.1e9 >> 14 ≈ 128,000
+
+        Still well within signed 32-bit range (±2.1e9)
+
+🧠 Accumulator Width Analysis
+
+Assuming you sum up to 64 terms (not just 16), you still only need:
+
+    log2(64) = 6 extra integer bits
+
+    So Q6.12 → Q12.12
+
+    That’s 12 + 12 = 24 total bits — comfortably within 32-bit range
+
+So:
+
+✔️ 32-bit accumulator is sufficient
+❌ 16-bit accumulator will overflow silently
+
+🧮 Final Output Extraction
+
+Once you finish accumulating and want to extract the Q4.12 result:
+
+```systemverilog
+logic signed [15:0] result_out;
+
+result_out = acc[27:12]; // Q4.12 from Q6.26 → (>> 14), then truncate
+```
+
+Or, to round:
+```systemverilog
+result_out = acc[27:12] + acc[11];
+```
+
+Or saturate if desired:
+```systemverilog
+if (acc[31:28] != {4{acc[27]}})
+    result_out = acc[27] ? 16'sh8000 : 16'sh7FFF; // saturate to min/max
+else
+    result_out = acc[27:12];
+```
+
+✅ Required Updates
+| Module                 | Change                                             |
+| ---------------------- | -------------------------------------------------- |
+| `mac4`                 | Output `logic signed [31:0] result` (not 16-bit)   |
+| `acc` in `matvec_mult` | Declare as `logic signed [31:0]`                   |
+| Final output logic     | Use `acc[27:12]`, or add rounding/saturation       |
+| Testbench              | Ensure it checks full 32-bit accumulation accuracy |
+
+✅ Summary
+| Aspect         | Old (16-bit output from `mac4`) | Recommended                                            |
+| -------------- | ------------------------------- | ------------------------------------------------------ |
+| Output width   | `logic signed [15:0]`           | `logic signed [31:0]`                                  |
+| Accuracy       | ❌ Risk of overflow              | ✅ Preserves all scaled products                        |
+| Accumulator    | 16-bit `acc`                    | 32-bit `acc`                                           |
+| Output extract | From low bits                   | From `acc[27:12]`, optionally with rounding/saturation |
+
+Would you like a rewritten mac4 module prototype and updated matvec_mult accumulator + output logic based on this?
+
+Prompt: I'm confused about the assumption that a 32-bit value would include a Q4.12 value in the middle 16 bits instead of the 16 least significant bits. It seems like that would be the case if you were translating a Q16.16 format to Q4.12, but in our mac4 module, we're summing up 4 Q4.12 values
+
+Response: You're absolutely right to question this — let's clear up the confusion around where the Q4.12 value “sits” in a 32-bit result, and why acc[27:12] was suggested earlier (and whether that’s correct in your case).
+
+Let’s break it down from first principles.
+
+✅ Step 1: What does a Q4.12 value look like?
+
+A Q4.12 fixed-point value has:
+
+    4 integer bits, including sign
+
+    12 fractional bits
+
+    So the binary point is between bit 12 and 11:
+```
+[31:28]   [27:12]     [11:0]
+unused    integer      fraction
+```
+
+For a signed 16-bit value, Q4.12 uses bits [15:0], where:
+
+    Bits [15:12] are the signed integer portion (range -8 to +7)
+
+    Bits [11:0] are fractional
+
+✅ Step 2: What does a product of Q2.14 × Q4.12 look like?
+
+This is your multiplication:
+```
+Q2.14 × Q4.12 → Q(2+4).(14+12) = Q6.26
+```
+The result is Q6.26, stored in a 32-bit signed register.
+
+If you now:
+```
+product_scaled = product >>> 14;
+```
+You are shifting a Q6.26 value right by 14 bits, which reduces the number of fractional bits from 26 to 12:
+```
+Q6.26 >>> 14 = Q6.12
+```
+So now:
+
+    The result is Q6.12
+
+    Bits [11:0] are fraction
+
+    Bits [12+] are integer
+
+Thus, to extract a Q4.12 value, you need to grab the least significant 16 bits of this Q6.12 number:
+```systemverilog
+q4_12 = scaled[15:0];
+```
+❌ Why acc[27:12] is likely incorrect in your case
+
+In the earlier suggestions, we were assuming acc was a Q6.26, and we were directly extracting a Q4.12 result from it by shifting 14 bits to remove excess fractional bits:
+```systemverilog
+acc >>> 14  →  Q6.12
+acc[27:12]  →  Q4.12    ❌
+```
+But that doesn’t make sense if:
+
+    mac4 already shifts the Q6.26 result to Q6.12 (>>> 14) before returning to acc
+
+    acc is now accumulating Q6.12 values
+
+So, after summing 4 of these Q6.12 values, acc still holds a Q6.12 result, and if you sum 16 of them, you still have a Q6.12 number with wider integer bits (Q10.12, Q11.12, etc.)
+
+Therefore:
+✅ Correct: Extract Q4.12 value using:
+```systemverilog
+result_out = acc[15:0];
+```
+Or:
+```systemverilog
+result_out = acc[15:0] + acc[11];  // with rounding
+```
+If you’re confident that the final sum still fits within 16 signed bits — which it should, as long as inputs are moderate and you're saturating if needed.
+
+🧠 Summary: How the bits flow
+| Stage                   | Format               | Bits of interest |
+| ----------------------- | -------------------- | ---------------- |
+| Input A                 | Q2.14                | 16-bit signed    |
+| Input B                 | Q4.12                | 16-bit signed    |
+| Product                 | Q6.26                | 32 bits          |
+| After shift (`>>> 14`)  | Q6.12                | 32 bits          |
+| After summing 16 chunks | Q10.12 or wider      | 32 bits          |
+| To output Q4.12         | **Take `acc[15:0]`** |                  |
+
+✅ Recommendations
+
+    Change mac4 to output full 32-bit Q6.12 result
+
+    Accumulate in a 32-bit register
+
+    Extract final result from acc[15:0] (or add rounding/saturation)
+
+    Ignore previous acc[27:12] logic unless you are accumulating unshifted Q6.26, which you're not doing here
+
+Would you like an updated version of mac4 that reflects this, or a saturated/rounded extraction module?
+
+Prompt: So if I've updated mac4 to return a 32-bit signed value, and acc is 32-bit, if result_out is also 32-bit and is assigned acc directly (no slicing), will it be a Q20.12 format?
+
+Response: Great question — let’s walk through it carefully and answer exactly what the format of acc and result_out is in your scenario.
+🧠 Let’s define your setup step by step:
+Inputs:
+
+    matrix_data[i]: Q2.14
+
+    vector_buffer[i]: Q4.12
+
+Step 1: Multiply in mac4
+```
+Q2.14 × Q4.12 = Q6.26 (stored in 32-bit signed)
+```
+Step 2: Right shift by 14 bits
+```
+Q6.26 >>> 14 → Q6.12
+```
+Step 3: mac4.result = Q6.12 (32-bit signed)
+
+    This value is passed to matvec_mult
+
+    The binary point is at bit 12 (12 fractional bits)
+
+Step 4: Accumulate 16 such values
+```
+acc = sum of 16 × Q6.12 → becomes Q(6 + log2(16)).12 = Q10.12
+```
+So acc is:
+
+    Q10.12 (assuming all positive values for now)
+
+    You’re accumulating values with up to 6 integer bits, and 16 of them, so you need 4 extra integer bits → total of 10
+
+✅ If acc is 32-bit signed, it can represent up to Q19.12 (19 integer + 12 fractional), but your actual value format is Q10.12 based on the math.
+
+✅ Now: What happens when you assign result_out = acc;
+```systemverilog
+logic signed [31:0] acc;         // format: Q10.12
+logic signed [31:0] result_out;  // also 32-bit
+assign result_out = acc;
+```
+Yes — result_out has the same numerical value and format as acc. So:
+
+    ✅ result_out is Q10.12 — not Q20.12.
+
+🧠 Remember: the Q format is not stored in hardware, it's an interpretation of the bits. The binary pattern hasn’t changed — just your label or how you use it downstream.
+
+So if you assign:
+```systemverilog
+logic signed [31:0] result_out;
+assign result_out = acc;
+```
+Then:
+
+    result_out is Q10.12, not Q20.12
+
+    Because acc came from summing 16 Q6.12 values, and your logic doesn't shift or scale further
+
+💡 If you did shift acc left by 10 bits:
+```systemverilog
+result_out = acc <<< 10;  // Multiply by 1024
+```
+Then it would be:
+
+    Integer bits increase from 10 → 20
+
+    Result becomes Q20.12 (i.e., same fractional resolution, bigger range)
+
+But unless you explicitly do that shift, the format remains Q10.12.
+✅ Summary
+| Signal        | Format     | Reason                    |
+| ------------- | ---------- | ------------------------- |
+| `mac4.result` | Q6.12      | From Q6.26 >> 14          |
+| `acc`         | Q10.12     | Sum of 16 Q6.12 values    |
+| `result_out`  | **Q10.12** | Same as `acc` if no shift |
+
+Would you like help defining a conversion block that truncates or saturates result_out down to a 16-bit Q4.12 format?

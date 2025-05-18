@@ -27,7 +27,7 @@ module matvec_tb;
     logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1];
     logic matrix_ready;
 
-    logic signed [DATA_WIDTH-1:0] result_out;
+    logic signed [(DATA_WIDTH*2)-1:0] result_out;
     logic result_valid;
     logic busy;
 

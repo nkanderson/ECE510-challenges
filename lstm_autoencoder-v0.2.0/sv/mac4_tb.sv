@@ -6,7 +6,7 @@ module mac4_tb;
     logic signed [15:0] a1, b1;
     logic signed [15:0] a2, b2;
     logic signed [15:0] a3, b3;
-    logic signed [15:0] result;
+    logic signed [31:0] result;
 
     // Instantiate DUT
     mac4 dut (
@@ -52,7 +52,7 @@ module mac4_tb;
         #1;
 
         // Expect 6 in Q4.12 = 6 * 4096 = 24576 = 16'b0110_0000_0000_0000
-        if (result === 16'b0110_0000_0000_0000) begin
+        if (result === 32'b0000_0000_0000_0000_0110_0000_0000_0000) begin
             $display("✅ PASS: result = %0d (Q4.12)", result);
         end else begin
             $display("❌ FAIL: result = %0d, expected 10240", result);
@@ -82,11 +82,13 @@ module mac4_tb;
         #1;
 
         // Expect -0.75 in Q4.12 = -0.75 * 4096 = -3072 = 16'b1111_0100_0000_0000
-        if (result === 16'b1111_0100_0000_0000) begin
+        if (result === 32'b1111_1111_1111_1111_1111_0100_0000_0000) begin
             $display("✅ PASS: result = %0d (Q4.12)", result);
         end else begin
             $display("❌ FAIL: result = %0d, expected -3072", result);
         end
+
+        // TODO: Add overflow test case(s)
 
         $finish;
     end

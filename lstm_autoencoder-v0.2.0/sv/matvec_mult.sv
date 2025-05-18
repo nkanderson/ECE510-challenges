@@ -21,14 +21,13 @@ module matvec_multiplier #(
     input  logic signed [15:0] vector_in [0:BANDWIDTH-1], // Q4.12
 
     // Matrix SRAM interface
-    // TODO: matrix_addr port size mismatch when testing a small matrix
     output logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr,
     output logic matrix_enable,
     input  logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1], // Q2.14
     input  logic matrix_ready,
 
     // Result output
-    output logic signed [DATA_WIDTH-1:0] result_out, // Q4.12
+    output logic signed [(DATA_WIDTH*2)-1:0] result_out, // Q20.12 (see note below)
     output logic result_valid,
     output logic busy
 );
@@ -47,6 +46,8 @@ module matvec_multiplier #(
     // Internal loop counters
     logic [$clog2(MAX_ROWS)-1:0] row_idx;
     logic [$clog2(MAX_COLS)-1:0] col_idx;
+    localparam MAC_CHUNK_SIZE = 4;
+    logic [BANDWIDTH-1:0] num_ops;
 
     logic signed [31:0] acc;
     logic signed [DATA_WIDTH-1:0] vector_buffer [0:MAX_COLS-1];
@@ -54,7 +55,8 @@ module matvec_multiplier #(
     // Vector load control
     logic vector_loaded;
 
-    logic signed [31:0] product;
+    // MAC result
+    logic signed [(DATA_WIDTH*2)-1:0] mac_result;
 
     // Output logic
     assign busy = (state != S_IDLE);
@@ -75,7 +77,7 @@ module matvec_multiplier #(
             S_VLOAD:     if (vector_loaded) next_state = S_REQ_MAT;
             S_REQ_MAT:   next_state = S_WAIT_MAT;
             S_WAIT_MAT:  if (matrix_ready) next_state = S_MAC;
-            S_MAC:       if (col_idx + BANDWIDTH >= num_cols)
+            S_MAC:       if (col_idx >= num_cols)
                              next_state = (row_idx + 1 < num_rows) ? S_REQ_MAT : S_DONE;
                          else
                              next_state = S_REQ_MAT;
@@ -118,25 +120,52 @@ module matvec_multiplier #(
             acc <= 0;
             col_idx <= 0;
             row_idx <= 0;
+            num_ops <= 0;
         end else if (state == S_MAC) begin
-            if (col_idx + BANDWIDTH >= num_cols) begin
+            // If the next MAC operation will be the last for this row, update the
+            // row_idx and col_idx on the next clock cycle. Do this until the final
+            // increment of row_idx will reach the last row.
+            if (col_idx + MAC_CHUNK_SIZE >= num_cols && row_idx < (num_rows - 1)) begin
                 row_idx <= row_idx + 1;
                 col_idx <= 0;
+            end else begin
+              col_idx <= col_idx + MAC_CHUNK_SIZE;
             end
-            for (int i = 0; i < BANDWIDTH; i++) begin
-                if (col_idx + i < num_cols) begin
-                    product = matrix_data[i] * vector_buffer[col_idx + i]; // Q2.14 × Q4.12 = Q6.26
-                    acc <= acc + (product >>> 14); // Shift back to Q4.12
-                end
-            end
-            col_idx <= col_idx + BANDWIDTH;
-        end else if (state == S_REQ_MAT) begin
-            if (col_idx == 0) acc <= 0;
+            acc <= acc + mac_result;
+            num_ops <= num_ops + MAC_CHUNK_SIZE;
+        end else if (state == S_WAIT_MAT) begin
+            num_ops <= 0;
         end else if (state == S_IDLE) begin
             col_idx <= 0;
             row_idx <= 0;
-            // TODO: Reset acc here too?
+            num_ops <= 0;
         end
+    end
+
+    // MAC result
+    always_comb begin
+      if (state == S_MAC) begin
+        for (int i = 0; i < MAC_CHUNK_SIZE; i++) begin
+            int mat_idx = row_idx * num_cols + col_idx + i;
+            int vec_idx = col_idx + i;
+
+            if ((col_idx + i) < num_cols) begin
+                a[i] = matrix_data[mat_idx];
+                b[i] = vector_buffer[vec_idx];
+            end else begin
+                a[i] = 0;
+                b[i] = 0;
+            end
+        end
+
+        mac4(
+              .a0(a[0]), .b0(b[0]),
+              .a1(a[1]), .b1(b[1]),
+              .a2(a[2]), .b2(b[2]),
+              .a3(a[3]), .b3(b[3]),
+              .result(mac_result)
+            );
+      end
     end
 
     // Output logic
@@ -144,8 +173,18 @@ module matvec_multiplier #(
         if (!rst_n) begin
             result_out   <= 0;
             result_valid <= 0;
-        end else if (state == S_MAC && col_idx + BANDWIDTH >= num_cols) begin
-            result_out   <= acc[27:12]; // Take middle 16 bits for Q4.12
+        // When acc has the final valid value clocked in, row_idx should have been held
+        // at num_(row - 1). col_idx should increase by MAC_CHUNK_SIZE until the below condition.
+        // num_ops increments by MAC_CHUNK_SIZE, so it may overshoot BANDWIDTH if it's not
+        // evenly divisible by MAC_CHUNK_SIZE.
+        end else if (state == S_MAC &&
+                     row_idx == num_rows - 1 &&
+                     num_ops >= BANDWIDTH) begin
+            // TODO: Decide if this format should be adjusted - right now it allows
+            // for overflow of the Q4.12 fixed point. I think this final format then
+            // is Q20.12. We may want to saturdate or truncate instead, but in that case
+            // we need to handle overflow and signedness appropriately.
+            result_out   <= acc;
             result_valid <= 1;
         end else begin
             result_valid <= 0;

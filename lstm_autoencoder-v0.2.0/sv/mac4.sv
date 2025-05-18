@@ -26,7 +26,8 @@ module mac4 #(
     logic signed [31:0] sum;
     assign sum = s0 + s1 + s2 + s3;
 
-    // Final output (lower 16 bits of Q4.12)
-    assign result = sum[15:0];
+    // Final output - lower 16 bits contain Q4.12, returning 32-bit
+    // value to account for any possible overflow
+    assign result = sum[31:0];
 
 endmodule
