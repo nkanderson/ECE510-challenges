@@ -43,10 +43,7 @@ module matrix_loader #(
                 matrix_data[i] <= '0;
             end
         end else begin
-            // Figure out how to prevent loading from going high
-            // one cycle too early. Or maybe it's going low too
-            // early, which prompts it to go high again too soon?
-            if (enable && !loading) begin
+            if (enable && !loading &&!ready) begin
                 addr_reg <= matrix_addr;
                 chunk_offset <= 0;
                 loading <= 1'b1;
