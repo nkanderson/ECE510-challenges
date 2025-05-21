@@ -41,6 +41,10 @@ module mac4 (
 	assign s2 = p2 >>> 14;
 	assign s3 = p3 >>> 14;
 	wire signed [RESULT_WIDTH - 1:0] sum;
-	assign sum = ((s0 + s1) + s2) + s3;
+	wire signed [RESULT_WIDTH - 1:0] adder_tree_1;
+	wire signed [RESULT_WIDTH - 1:0] adder_tree_2;
+	assign adder_tree_1 = s0 + s1;
+	assign adder_tree_2 = s2 + s3;
+	assign sum = adder_tree_1 + adder_tree_2;
 	assign result = sum[RESULT_WIDTH - 1:0];
 endmodule
