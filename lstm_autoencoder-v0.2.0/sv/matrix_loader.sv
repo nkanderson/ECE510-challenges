@@ -24,7 +24,11 @@ module matrix_loader #(
     // Initialize with placeholder ramp values
     initial begin
         for (int i = 0; i < (1<<ADDR_WIDTH); i++) begin
-            matrix_mem[i] = $signed(i << 14);
+            // Cast to 16 bits before sign-extending, worth trying
+            // after troubleshooting the current issues
+            // matrix_mem[i] = $signed(16'(i << 14));
+            // For now, load alternating rows of 1s and 0s
+            matrix_mem[i] = (i % (BANDWIDTH * 2) < BANDWIDTH) ? $signed(16'(1'b1 << 14)) : '0;
         end
     end
 
@@ -39,6 +43,9 @@ module matrix_loader #(
                 matrix_data[i] <= '0;
             end
         end else begin
+            // Figure out how to prevent loading from going high
+            // one cycle too early. Or maybe it's going low too
+            // early, which prompts it to go high again too soon?
             if (enable && !loading) begin
                 addr_reg <= matrix_addr;
                 chunk_offset <= 0;

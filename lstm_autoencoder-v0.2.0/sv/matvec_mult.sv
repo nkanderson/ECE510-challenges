@@ -49,7 +49,7 @@ module matvec_multiplier #(
     localparam MAC_CHUNK_SIZE = 4;
     logic [BANDWIDTH-1:0] num_ops;
 
-    logic signed [31:0] acc;
+    logic signed [(DATA_WIDTH*2):0] acc;
     logic signed [DATA_WIDTH-1:0] vector_buffer [0:MAX_COLS-1];
 
     // Vector load control
@@ -87,7 +87,9 @@ module matvec_multiplier #(
             S_VLOAD:     if (vector_loaded) next_state = S_REQ_MAT;
             S_REQ_MAT:   next_state = S_WAIT_MAT;
             S_WAIT_MAT:  if (matrix_ready) next_state = S_MAC;
-            S_MAC:       if (col_idx >= num_cols)
+            // FIXME: Need a correct "end of columns" check when evenly divisible
+            // Original conditional included (col_idx >= num_cols)
+            S_MAC:       if (num_ops + MAC_CHUNK_SIZE >= BANDWIDTH)
                              next_state = (row_idx + 1 < num_rows) ? S_REQ_MAT : S_DONE;
                          else
                              next_state = S_REQ_MAT;
@@ -143,6 +145,7 @@ module matvec_multiplier #(
             end
             acc <= acc + mac_result;
             num_ops <= num_ops + MAC_CHUNK_SIZE;
+            acc <= acc + mac_result;
         end else if (state == S_WAIT_MAT) begin
             num_ops <= 0;
         end else if (state == S_IDLE) begin
@@ -150,12 +153,22 @@ module matvec_multiplier #(
             row_idx <= 0;
             num_ops <= 0;
         end
-    end
+        // FIXME: Need acc reset logic that allows result_out to get the final value
+        // Reset acc if we're at the end of the columns. Current issue is that acc
+        // doesn't have the value that result_out needs until the same cycle we want
+        // result_out to be value with data_ready going high
+        // This might need to be within another conditional related to state
+        if (col_idx + num_ops >= num_cols) begin
+            acc <= 0;
+        end
+end
 
     // MAC result
     generate
         for (genvar i = 0; i < MAC_CHUNK_SIZE; i++) begin
-            assign a[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? matrix_data[row_idx * num_cols + col_idx + i] : '0;
+            // TODO: Does the col_idx + 1 expression get optimized to a single calculation, or do
+            // we need to do that optimization explicitly?
+            assign a[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? matrix_data[col_idx + i] : '0;
             assign b[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? vector_buffer[col_idx + i] : '0;
         end
     endgenerate
@@ -169,14 +182,15 @@ module matvec_multiplier #(
         // at num_(row - 1). col_idx should increase by MAC_CHUNK_SIZE until the below condition.
         // num_ops increments by MAC_CHUNK_SIZE, so it may overshoot BANDWIDTH if it's not
         // evenly divisible by MAC_CHUNK_SIZE.
+        // FIXME: num_ops is becoming BANDWIDTH value 1 cycle too late for this to work
         end else if (state == S_MAC &&
-                     row_idx == num_rows - 1 &&
-                     num_ops >= BANDWIDTH) begin
+                    //  row_idx == num_rows - 1 &&
+                     num_ops + MAC_CHUNK_SIZE >= BANDWIDTH) begin
             // TODO: Decide if this format should be adjusted - right now it allows
             // for overflow of the Q4.12 fixed point. I think this final format then
             // is Q20.12. We may want to saturdate or truncate instead, but in that case
             // we need to handle overflow and signedness appropriately.
-            result_out   <= acc;
+            result_out   <= acc + mac_result;
             result_valid <= 1;
         end else begin
             result_valid <= 0;
