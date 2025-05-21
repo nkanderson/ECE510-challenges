@@ -1,0 +1,8 @@
+{
+  "DESIGN_NAME": "mac4",
+  "VERILOG_FILES": [
+    "dir::mac4.v"
+  ],
+  "CLOCK_PERIOD": 22.0,
+  "CLOCK_PORT": "clk"
+}
