@@ -32,7 +32,7 @@ Parallelized bubble sort implementation using a 1D systolic array. ([link](./cha
 Initial attempt to generate a physical transistor configuration from the HDL main project SystemVerilog code. ([link](./challenge-18/README.md))
 
 **Challenge 22: Review and Discussion of _Neuromorphic computing at scale_ (2025)**  
-(In progress) Discussion of Kudithipudi, Schuman, & Vineyard 2025 paper _Neuromorphic computing at scale_. ([link](./challenge-22/README.md))
+Includes discussion of neuromorphic computing software frameworks, describing the current state of the ecosystem, as well as possibilities for the future. References Kudithipudi, Schuman, & Vineyard 2025 paper _Neuromorphic computing at scale_. ([link](./challenge-22/README.md))
 
 **Challenge 23: Week 7 Project Checkpoint**  
 An overview of current project status and challenges. Includes a list of next steps for iterating on the current design. ([link](./challenge-23/README.md))
