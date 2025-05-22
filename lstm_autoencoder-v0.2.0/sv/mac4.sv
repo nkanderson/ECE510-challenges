@@ -26,12 +26,7 @@ module mac4 #(
 
     // Accumulate
     logic signed [RESULT_WIDTH-1:0] sum;
-    logic signed [RESULT_WIDTH-1:0] adder_tree_1;
-    logic signed [RESULT_WIDTH-1:0] adder_tree_2;
-    assign adder_tree_1 = s0 + s1;
-    assign adder_tree_2 = s2 + s3;
-    assign sum  = adder_tree_1 + adder_tree_2;
-    // assign sum = s0 + s1 + s2 + s3;
+    assign sum = s0 + s1 + s2 + s3;
 
     // Final output - lower 16 bits contain Q4.12, returning 32-bit
     // value to account for any possible overflow

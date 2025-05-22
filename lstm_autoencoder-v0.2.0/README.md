@@ -44,3 +44,17 @@ TODO:
 - Will want to flatten the 2D input ports prior to synthesis. It should have flattened wires or packed arrays for all inputs and outputs.
 - In simulation, the shared memory (sram) can be a logic signed [15:0] sram[0:4095] array instantiated in the testbench and passed by reference to both matrix_loader and matvec_tm_multiplier.
   - In synthesis, we'll eventually replace this with a dual-port SRAM macro (e.g., sky130_sram_1rw1r_32x1024_8) and mux the address/data paths between reader and writer. (Though I'm not sure we'll need a writer, so this part may be simplified.)
+
+### OpenLane2 Synthesis
+
+Synthesized the mac4 SystemVerilog by first generating verilog code using the sv2v CLI tool, then creating a minimal `config.json` file. Results from initial synthesis indicate timing closure was achieved with a clock period of 40ns for this combinational circuit, resulting in a max clock frequency of 25MHz. In intepreting the `metrics.json output`, ChatGPT noted the critical path was around 26ns. It seems like it would be possible to optimize the design to get closer to a 26ns clock period, but may take significant time configuring settings.
+
+ChatGPT noted the following metrics to review from the `metrics.json` in order to interpret timing data:
+- `timing__setup_ws` - worst-case setup path delay, which should be close to the actual critical path
+- Timing violations:
+  - `timing__setup_vio__count`
+  - `timing__hold_vio__count`
+  - `timing__setup_wns`
+  - `timing__tns`
+
+There may also be design rule violations, related to max slew constraints.

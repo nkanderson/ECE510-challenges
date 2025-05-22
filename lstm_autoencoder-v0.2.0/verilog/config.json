@@ -3,6 +3,7 @@
   "VERILOG_FILES": [
     "dir::mac4.v"
   ],
-  "CLOCK_PERIOD": 24.0,
-  "CLOCK_PORT": "clk"
+  "CLOCK_PERIOD": 40.0,
+  "CLOCK_PORT": "clk",
+  "FIX_SLEW": 1
 }
