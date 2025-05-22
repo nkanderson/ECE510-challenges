@@ -145,7 +145,6 @@ module matvec_multiplier #(
             end
             acc <= acc + mac_result;
             num_ops <= num_ops + MAC_CHUNK_SIZE;
-            acc <= acc + mac_result;
         end else if (state == S_WAIT_MAT) begin
             num_ops <= 0;
         end else if (state == S_IDLE) begin
