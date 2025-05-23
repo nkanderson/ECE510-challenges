@@ -22,7 +22,7 @@ Includes training an LSTM Autoencoder model and creation of a pure-Python infere
 **Challenges 10 and 11: Identification of Computational Bottlenecks and GPU Acceleration**  
 Identification and discussion of computational bottlenecks in a FrozenLake Q learning algorithm (Challenge 10) and optimization of the algorithm of execution on a GPU (Challenge 11). ([link](./challenge-10/README.md))
 
-**Challenge 15: Hardware Implementation of Main Project**  
+**Challenge 15: RTL Implementation of Main Project**  
 Creation of SystemVerilog modules corresponding to initial hardware chosen for implementation based on the SW / HW boundary determined in Challenges 9 and 12. ([link](./challenge-15/README.md))
 
 **Challenge 17: Sorting on a Systolic Array**  
