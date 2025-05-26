@@ -37,6 +37,9 @@ Includes discussion of neuromorphic computing software frameworks, describing th
 **Challenge 23: Week 7 Project Checkpoint**  
 An overview of current project status and challenges. Includes a list of next steps for iterating on the current design. ([link](./challenge-23/README.md))
 
+**Challenge 24: Running code on neuromorphic hardware**  
+Using a platform provided by EBRAINS, attempted to run small demo workloads on neuromorphic hardware. ([link](./challenge-24/README.md))
+
 ## Annotated Bibliography
 
 **[1]** J. Wang, Z. Zhao, Z. Wang, and H. Jiang, “Designing Silicon Brains using LLM: Leveraging ChatGPT for Automated Description of a Spiking Neuron Array,” arXiv preprint arXiv:2402.10920, Feb. 2024. [Online]. Available: https://arxiv.org/abs/2402.10920
