@@ -3,135 +3,216 @@
 module matvec_tb;
 
     // Parameters
-    localparam ROWS = 4;
-    localparam COLS = 4;
-    localparam BANDWIDTH = 4;
+    localparam MIN_ROWS = 4;
+    localparam MIN_COLS = 4;
+    localparam MAX_ROWS = 64;
+    localparam MAX_COLS = 64;
+    localparam BANDWIDTH_4X4 = 4;
+    localparam BANDWIDTH_64X64 = 16;
     localparam DATA_WIDTH = 16;
     localparam ADDR_WIDTH = 12;
 
+    //
+    // === Signals ===
+    //
     // Clock and reset
     logic clk = 0;
     logic rst_n = 0;
     always #5 clk = ~clk;
 
-    // Test signals
-    logic start;
-    logic [$clog2(ROWS):0] num_rows = ROWS;
-    logic [$clog2(COLS):0] num_cols = COLS;
-    logic vector_write_enable;
-    logic [$clog2(COLS)-1:0] vector_base_addr;
-    logic signed [DATA_WIDTH-1:0] vector_in [0:BANDWIDTH-1];
+    // DUT 4x4 signals
+    logic start_4x4;
+    logic [$clog2(MIN_ROWS):0] num_rows_4x4;
+    logic [$clog2(MIN_COLS):0] num_cols_4x4;
+    logic vector_write_enable_4x4;
+    logic [$clog2(MIN_COLS)-1:0] vector_base_addr_4x4;
+    logic signed [DATA_WIDTH-1:0] vector_in_4x4 [0:BANDWIDTH_4X4-1];
+    logic [$clog2(MIN_ROWS*MIN_COLS)-1:0] matrix_addr_4x4;
+    logic matrix_enable_4x4;
+    logic signed [DATA_WIDTH-1:0] matrix_data_4x4 [0:BANDWIDTH_4X4-1];
+    logic matrix_ready_4x4;
+    logic signed [(DATA_WIDTH*2)-1:0] result_out_4x4;
+    logic result_valid_4x4;
+    logic busy_4x4;
 
-    logic [$clog2(ROWS*COLS)-1:0] matrix_addr;
-    logic matrix_enable;
-    logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1];
-    logic matrix_ready;
+    // DUT 64x64 signals
+    logic start_64x64;
+    logic [$clog2(MAX_ROWS):0] num_rows_64x64;
+    logic [$clog2(MAX_COLS):0] num_cols_64x64;
+    logic vector_write_enable_64x64;
+    logic [$clog2(MAX_COLS)-1:0] vector_base_addr_64x64;
+    logic signed [DATA_WIDTH-1:0] vector_in_64x64 [0:BANDWIDTH_64X64-1];
+    logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr_64x64;
+    logic matrix_enable_64x64;
+    logic signed [DATA_WIDTH-1:0] matrix_data_64x64 [0:BANDWIDTH_64X64-1];
+    logic matrix_ready_64x64;
+    logic signed [(DATA_WIDTH*2)-1:0] result_out_64x64;
+    logic result_valid_64x64;
+    logic busy_64x64;
 
-    logic signed [(DATA_WIDTH*2)-1:0] result_out;
-    logic result_valid;
-    logic busy;
-
-    // DUT instantiation
+    //
+    // === DUT instantiations ===
+    //
+    // For 4x4
     matvec_multiplier #(
-        .MAX_ROWS(ROWS),
-        .MAX_COLS(COLS),
-        .BANDWIDTH(BANDWIDTH)
-    ) dut (
-        .clk(clk),
-        .rst_n(rst_n),
-        .start(start),
-        .num_rows(num_rows),
-        .num_cols(num_cols),
-        .vector_write_enable(vector_write_enable),
-        .vector_base_addr(vector_base_addr),
-        .vector_in(vector_in),
-        .matrix_addr(matrix_addr),
-        .matrix_enable(matrix_enable),
-        .matrix_data(matrix_data),
-        .matrix_ready(matrix_ready),
-        .result_out(result_out),
-        .result_valid(result_valid),
-        .busy(busy)
+        .MAX_ROWS(MIN_ROWS),
+        .MAX_COLS(MIN_COLS),
+        .BANDWIDTH(BANDWIDTH_4X4)
+    ) dut_4x4 (
+        .clk(clk), .rst_n(rst_n), .start(start_4x4),
+        .num_rows(num_rows_4x4), .num_cols(num_cols_4x4),
+        .vector_write_enable(vector_write_enable_4x4),
+        .vector_base_addr(vector_base_addr_4x4),
+        .vector_in(vector_in_4x4),
+        .matrix_addr(matrix_addr_4x4),
+        .matrix_enable(matrix_enable_4x4),
+        .matrix_data(matrix_data_4x4),
+        .matrix_ready(matrix_ready_4x4),
+        .result_out(result_out_4x4),
+        .result_valid(result_valid_4x4),
+        .busy(busy_4x4)
     );
 
-    // Matrix loader
     matrix_loader #(
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH),
-        .BANDWIDTH(BANDWIDTH)
-    ) loader (
-        .clk(clk),
-        .rst_n(rst_n),
-        .enable(matrix_enable),
-        .matrix_addr(matrix_addr),
-        .matrix_data(matrix_data),
-        .ready(matrix_ready)
+        .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .BANDWIDTH(BANDWIDTH_4X4)
+    ) loader_4x4 (
+        .clk(clk), .rst_n(rst_n),
+        .enable(matrix_enable_4x4),
+        .matrix_addr(matrix_addr_4x4),
+        .matrix_data(matrix_data_4x4),
+        .ready(matrix_ready_4x4)
     );
 
-    // Test vector (Q4.12 format)
-    logic signed [DATA_WIDTH-1:0] test_vector [0:COLS-1];
+    // For 64x64
+    matvec_multiplier #(
+        .MAX_ROWS(MAX_ROWS),
+        .MAX_COLS(MAX_COLS),
+        .BANDWIDTH(BANDWIDTH_64X64)
+    ) dut_64x64 (
+        .clk(clk), .rst_n(rst_n), .start(start_64x64),
+        .num_rows(num_rows_64x64), .num_cols(num_cols_64x64),
+        .vector_write_enable(vector_write_enable_64x64),
+        .vector_base_addr(vector_base_addr_64x64),
+        .vector_in(vector_in_64x64),
+        .matrix_addr(matrix_addr_64x64),
+        .matrix_enable(matrix_enable_64x64),
+        .matrix_data(matrix_data_64x64),
+        .matrix_ready(matrix_ready_64x64),
+        .result_out(result_out_64x64),
+        .result_valid(result_valid_64x64),
+        .busy(busy_64x64)
+    );
 
-    // Expected result (Q20.12 format)
-    logic signed [(DATA_WIDTH*2)-1:0] expected_result [0:ROWS-1];
-    integer pass_count = 0;
+    matrix_loader #(
+        .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .BANDWIDTH(BANDWIDTH_64X64)
+    ) loader_64x64 (
+        .clk(clk), .rst_n(rst_n),
+        .enable(matrix_enable_64x64),
+        .matrix_addr(matrix_addr_64x64),
+        .matrix_data(matrix_data_64x64),
+        .ready(matrix_ready_64x64)
+    );
 
-    initial begin
+    //
+    // === Test Tasks ===
+    //
+    task run_4x4_test();
         automatic int row = 0;
-        // Reset
-        rst_n = 0;
-        start = 0;
-        vector_write_enable = 0;
-        #20;
-        rst_n = 1;
-        #20;
+        automatic integer pass_count = 0;
+
+        // Test vector (Q4.12 format)
+        logic signed [DATA_WIDTH-1:0] test_vector [0:MIN_COLS-1];
+
+        // Expected result (Q20.12 format)
+        logic signed [(DATA_WIDTH*2)-1:0] expected_result [0:MIN_ROWS-1];
 
         // Define test vector: [1, 2, 3, 4] in Q4.12
         test_vector[0] = 16'sd4096;   // 1.0
         test_vector[1] = 16'sd8192;   // 2.0
         test_vector[2] = 16'sd12288;  // 3.0
         test_vector[3] = 16'sd16384;  // 4.0
-
-        // Start operation
-        start = 1;
-        @(posedge clk);
-        start = 0;
-
-        // Load test vector into DUT
-        for (int i = 0; i < COLS; i += BANDWIDTH) begin
-            vector_base_addr = i;
-            for (int j = 0; j < BANDWIDTH; j++) begin
-                vector_in[j] = test_vector[i + j];
-            end
-            vector_write_enable = 1;
-            @(posedge clk);
-            // TODO: Is it necessary to drop this signal between chunks?
-            // Seems like it would make matvec_mul switch between idle and
-            // vector load states, which does not seem like it's quite what
-            // we want, even though it may work
-            vector_write_enable = 0;
-            @(posedge clk);
-        end
-
-        // Manually define expected result from known matrix (ramp: [0...15])
-        // Each row of the matrix is:
-        // [0 1 2 3] → dot [1 2 3 4] = 0*1 + 1*2 + 2*3 + 3*4 = 20 → 20.0 in Q4.12
-        // [4 5 6 7] → dot [1 2 3 4] = 4*1 + 5*2 + 6*3 + 7*4 = 56 → 56.0
-        // [8 9 10 11] = 92.0, [12 13 14 15] = 128.0
-        // expected_result[0] = 16'sd81920;   // 20.0 * 4096 = 81920
-        // expected_result[1] = 16'sd229376;  // 56.0
-        // expected_result[2] = 16'sd376832;  // 92.0
-        // expected_result[3] = 16'sd524288;  // 128.0
+        // Expected results
         expected_result[0] = 32'sd40960;   // 10.0 * 4096 = 40960
         expected_result[1] = 32'sd0;  // 0.0
         expected_result[2] = 32'sd40960;  // 10.0 * 4096 = 40960
         expected_result[3] = 32'sd0;  // 0.0
 
-        // Wait and check results
-        while (row < ROWS) begin
+        num_rows_4x4 = 4;
+        num_cols_4x4 = 4;
+
+        rst_n = 0; start_4x4 = 0; vector_write_enable_4x4 = 0;
+        repeat (2) @(posedge clk);
+        rst_n = 1;
+        repeat (2) @(posedge clk);
+
+        start_4x4 = 1;
+        @(posedge clk);
+        start_4x4 = 0;
+
+        vector_base_addr_4x4 = 0;
+        for (int i = 0; i < BANDWIDTH_4X4; i++) begin
+            vector_in_4x4[i] = test_vector[i];
+        end
+        vector_write_enable_4x4 = 1;
+        @(posedge clk);
+        vector_write_enable_4x4 = 0;
+        @(posedge clk);
+
+        while (row < MIN_ROWS) begin
             @(posedge clk);
-            if (result_valid) begin
-                $display("Row %0d: Got %0d, Expected %0d", row, result_out, expected_result[row]);
-                if (result_out === expected_result[row]) begin
+            if (result_valid_4x4) begin
+                $display("[4x4] Row %0d: Got %0d, Expected %0d", row, result_out_4x4, expected_result[row]);
+                if (result_out_4x4 === expected_result[row]) begin
+                    $display("✅ PASS");
+                    pass_count++;
+                end else begin
+                     $display("❌ FAIL");
+                end
+                row++;
+            end
+        end
+        $display("[4x4] Test complete: %0d/4 passed", pass_count);
+    endtask
+
+    task run_64x64_test();
+        automatic int row = 0;
+        automatic integer pass_count = 0;
+        automatic int expected;
+
+        // Test vector (Q4.12 format)
+        logic signed [DATA_WIDTH-1:0] test_vector [0:MAX_COLS-1];
+
+        // Test vector (Q4.12 format)
+        for (int i = 0; i < 64; i++) test_vector[i] = 16'sd4096;
+
+        num_rows_64x64 = 64;
+        num_cols_64x64 = 64;
+
+        rst_n = 0; start_64x64 = 0; vector_write_enable_64x64 = 0;
+        repeat (2) @(posedge clk);
+        rst_n = 1;
+        repeat (2) @(posedge clk);
+
+        start_64x64 = 1;
+        @(posedge clk);
+        start_64x64 = 0;
+
+        for (int i = 0; i < MAX_COLS; i += BANDWIDTH_64X64) begin
+            vector_base_addr_64x64 = i;
+            for (int j = 0; j < BANDWIDTH_64X64; j++)
+                vector_in_64x64[j] = test_vector[i + j];
+            vector_write_enable_64x64 = 1;
+            @(posedge clk);
+            vector_write_enable_64x64 = 0;
+            @(posedge clk);
+        end
+
+        while (row < MAX_ROWS) begin
+            @(posedge clk);
+            if (result_valid_64x64) begin
+                expected = (row % 2 == 0) ? (64 * 4096) : 0;
+                $display("[64x64] Row %0d: Got %0d, Expected %0d", row, result_out_64x64, expected);
+                if (result_out_64x64 === expected) begin
                     $display("✅ PASS");
                     pass_count++;
                 end else begin
@@ -140,8 +221,13 @@ module matvec_tb;
                 row++;
             end
         end
+        $display("[64x64] Test complete: %0d/64 passed", pass_count);
+    endtask
 
-        $display("Test complete: %0d/%0d passed", pass_count, ROWS);
+    initial begin
+        run_4x4_test();
+        repeat (5) @(posedge clk);
+        run_64x64_test();
         $finish;
     end
 
