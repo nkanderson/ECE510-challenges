@@ -5,10 +5,12 @@ module matvec_tb;
     // Parameters
     localparam MIN_ROWS = 4;
     localparam MIN_COLS = 4;
+    localparam HALF_ROWS = 32;
+    localparam HALF_COLS = 32;
     localparam MAX_ROWS = 64;
     localparam MAX_COLS = 64;
     localparam BANDWIDTH_4X4 = 4;
-    localparam BANDWIDTH_64X64 = 16;
+    localparam MAX_BANDWIDTH = 16;
     localparam DATA_WIDTH = 16;
     localparam ADDR_WIDTH = 12;
 
@@ -35,16 +37,31 @@ module matvec_tb;
     logic result_valid_4x4;
     logic busy_4x4;
 
+    // DUT 32x32 signals
+    logic start_32x32;
+    logic [$clog2(HALF_ROWS):0] num_rows_32x32;
+    logic [$clog2(HALF_COLS):0] num_cols_32x32;
+    logic vector_write_enable_32x32;
+    logic [$clog2(HALF_COLS)-1:0] vector_base_addr_32x32;
+    logic signed [DATA_WIDTH-1:0] vector_in_32x32 [0:MAX_BANDWIDTH-1];
+    logic [$clog2(HALF_ROWS*HALF_COLS)-1:0] matrix_addr_32x32;
+    logic matrix_enable_32x32;
+    logic signed [DATA_WIDTH-1:0] matrix_data_32x32 [0:MAX_BANDWIDTH-1];
+    logic matrix_ready_32x32;
+    logic signed [(DATA_WIDTH*2)-1:0] result_out_32x32;
+    logic result_valid_32x32;
+    logic busy_32x32;
+
     // DUT 64x64 signals
     logic start_64x64;
     logic [$clog2(MAX_ROWS):0] num_rows_64x64;
     logic [$clog2(MAX_COLS):0] num_cols_64x64;
     logic vector_write_enable_64x64;
     logic [$clog2(MAX_COLS)-1:0] vector_base_addr_64x64;
-    logic signed [DATA_WIDTH-1:0] vector_in_64x64 [0:BANDWIDTH_64X64-1];
+    logic signed [DATA_WIDTH-1:0] vector_in_64x64 [0:MAX_BANDWIDTH-1];
     logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr_64x64;
     logic matrix_enable_64x64;
-    logic signed [DATA_WIDTH-1:0] matrix_data_64x64 [0:BANDWIDTH_64X64-1];
+    logic signed [DATA_WIDTH-1:0] matrix_data_64x64 [0:MAX_BANDWIDTH-1];
     logic matrix_ready_64x64;
     logic signed [(DATA_WIDTH*2)-1:0] result_out_64x64;
     logic result_valid_64x64;
@@ -83,11 +100,41 @@ module matvec_tb;
         .ready(matrix_ready_4x4)
     );
 
+    // For 32x32
+    matvec_multiplier #(
+        .MAX_ROWS(HALF_ROWS),
+        .MAX_COLS(HALF_COLS),
+        .BANDWIDTH(MAX_BANDWIDTH)
+    ) dut_32x32 (
+        .clk(clk), .rst_n(rst_n), .start(start_32x32),
+        .num_rows(num_rows_32x32), .num_cols(num_cols_32x32),
+        .vector_write_enable(vector_write_enable_32x32),
+        .vector_base_addr(vector_base_addr_32x32),
+        .vector_in(vector_in_32x32),
+        .matrix_addr(matrix_addr_32x32),
+        .matrix_enable(matrix_enable_32x32),
+        .matrix_data(matrix_data_32x32),
+        .matrix_ready(matrix_ready_32x32),
+        .result_out(result_out_32x32),
+        .result_valid(result_valid_32x32),
+        .busy(busy_32x32)
+    );
+
+    matrix_loader #(
+        .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .BANDWIDTH(MAX_BANDWIDTH)
+    ) loader_32x32 (
+        .clk(clk), .rst_n(rst_n),
+        .enable(matrix_enable_32x32),
+        .matrix_addr(matrix_addr_32x32),
+        .matrix_data(matrix_data_32x32),
+        .ready(matrix_ready_32x32)
+    );
+
     // For 64x64
     matvec_multiplier #(
         .MAX_ROWS(MAX_ROWS),
         .MAX_COLS(MAX_COLS),
-        .BANDWIDTH(BANDWIDTH_64X64)
+        .BANDWIDTH(MAX_BANDWIDTH)
     ) dut_64x64 (
         .clk(clk), .rst_n(rst_n), .start(start_64x64),
         .num_rows(num_rows_64x64), .num_cols(num_cols_64x64),
@@ -104,7 +151,7 @@ module matvec_tb;
     );
 
     matrix_loader #(
-        .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .BANDWIDTH(BANDWIDTH_64X64)
+        .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .BANDWIDTH(MAX_BANDWIDTH)
     ) loader_64x64 (
         .clk(clk), .rst_n(rst_n),
         .enable(matrix_enable_64x64),
@@ -174,6 +221,58 @@ module matvec_tb;
         $display("[4x4] Test complete: %0d/4 passed", pass_count);
     endtask
 
+    task run_32x32_test();
+        automatic int row = 0;
+        automatic integer pass_count = 0;
+        automatic int expected;
+
+        // Test vector (Q4.12 format)
+        logic signed [DATA_WIDTH-1:0] test_vector [0:HALF_COLS-1];
+
+        // Test vector (Q4.12 format)
+        for (int i = 0; i < HALF_COLS; i++) test_vector[i] = 16'sd4096 * 3;
+
+        num_rows_32x32 = HALF_ROWS;
+        num_cols_32x32 = HALF_COLS;
+
+        rst_n = 0; start_32x32 = 0; vector_write_enable_32x32 = 0;
+        repeat (2) @(posedge clk);
+        rst_n = 1;
+        repeat (2) @(posedge clk);
+
+        start_32x32 = 1;
+        @(posedge clk);
+        start_32x32 = 0;
+
+        for (int i = 0; i < HALF_COLS; i += MAX_BANDWIDTH) begin
+            vector_base_addr_32x32 = i;
+            for (int j = 0; j < MAX_BANDWIDTH; j++)
+                vector_in_32x32[j] = test_vector[i + j];
+            vector_write_enable_32x32 = 1;
+            @(posedge clk);
+            vector_write_enable_32x32 = 0;
+            @(posedge clk);
+        end
+
+        while (row < HALF_ROWS) begin
+            @(posedge clk);
+            if (result_valid_32x32) begin
+                // Each row has half 1s and half 0s; Vector is all 3s
+                // We should come up with a more varied set of matrix data at some point
+                expected = 16 * 3 * 4096;
+                $display("[32x32] Row %0d: Got %0d, Expected %0d", row, result_out_32x32, expected);
+                if (result_out_32x32 === expected) begin
+                    $display("✅ PASS");
+                    pass_count++;
+                end else begin
+                    $display("❌ FAIL");
+                end
+                row++;
+            end
+        end
+        $display("[32x32] Test complete: %0d/32 passed", pass_count);
+    endtask
+
     task run_64x64_test();
         automatic int row = 0;
         automatic integer pass_count = 0;
@@ -197,9 +296,9 @@ module matvec_tb;
         @(posedge clk);
         start_64x64 = 0;
 
-        for (int i = 0; i < MAX_COLS; i += BANDWIDTH_64X64) begin
+        for (int i = 0; i < MAX_COLS; i += MAX_BANDWIDTH) begin
             vector_base_addr_64x64 = i;
-            for (int j = 0; j < BANDWIDTH_64X64; j++)
+            for (int j = 0; j < MAX_BANDWIDTH; j++)
                 vector_in_64x64[j] = test_vector[i + j];
             vector_write_enable_64x64 = 1;
             @(posedge clk);
@@ -228,6 +327,8 @@ module matvec_tb;
 
     initial begin
         run_4x4_test();
+        repeat (5) @(posedge clk);
+        run_32x32_test();
         repeat (5) @(posedge clk);
         run_64x64_test();
         $finish;

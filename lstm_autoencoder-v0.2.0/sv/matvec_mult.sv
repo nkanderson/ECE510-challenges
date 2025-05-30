@@ -60,6 +60,7 @@ module matvec_multiplier #(
     logic [DATA_WIDTH-1:0] a [MAC_CHUNK_SIZE-1:0];
     logic [DATA_WIDTH-1:0] b [MAC_CHUNK_SIZE-1:0];
 
+    // TODO: Consider using multiple MACs in parallel to improve throughput
     mac4 mac(
               .a0(a[0]), .b0(b[0]),
               .a1(a[1]), .b1(b[1]),
@@ -86,16 +87,11 @@ module matvec_multiplier #(
             S_IDLE:      if (start) next_state = S_VLOAD;
             S_VLOAD:     if (vector_loaded) next_state = S_REQ_MAT;
             S_REQ_MAT:   next_state = S_WAIT_MAT;
-            // FIXME: We should ideally start mutiplying while we are streaming in
-            // matrix data, especially since we can't get more than BANDWIDTH values
-            // at once.
+            // TODO: We should ideally start mutiplying while we are streaming in
+            // matrix data, since we can't get more than BANDWIDTH values at once.
             S_WAIT_MAT:  if (matrix_ready) next_state = S_MAC;
-            // FIXME: Need a correct "end of columns" check when evenly divisible
-            // Original conditional included (col_idx >= num_cols)
             // From S_MAC: If done with the current matrix chunk, either we need another chunk
             // or we're done (if we're at the last row).
-            // If not done with the current chunk, would we ever want to request more?
-            // S_MAC:       if (num_ops + MAC_CHUNK_SIZE >= num_cols)
             S_MAC:       if (num_ops + MAC_CHUNK_SIZE >= BANDWIDTH)
                              next_state = (row_idx < num_rows) ? S_REQ_MAT : S_DONE;
                          else
@@ -113,10 +109,6 @@ module matvec_multiplier #(
         if (!rst_n) begin
             vector_loaded <= 0;
         end else if (vector_write_enable) begin
-            // TODO: BANDWIDTH is set at instantiation, so we need to make sure having
-            // a value of 16 here will work for all of our cases. Maybe we can do some
-            // special casing where if num_rows and num_cols are less than BANDWIDTH,
-            // we can jump straight to S_MAC state
             for (int i = 0; i < BANDWIDTH; i++) begin
                 vector_buffer[vector_base_addr + i] <= vector_in[i];
             end
@@ -128,8 +120,9 @@ module matvec_multiplier #(
     end
 
     // Matrix fetch signals
-    // TODO: Do we want to clock in matrix_data so we're not relying on matrix_loader
-    // to hold the data on the wires?
+    // TODO: We should clock in matrix_data so we're not relying on matrix_loader
+    // to hold the data on the wires. This would allow for beginning multiplication
+    // while continuing to retrieve more matrix data.
     assign matrix_enable = (state == S_REQ_MAT || state == S_WAIT_MAT);
     assign matrix_addr   = row_idx * num_cols + col_idx;
 
@@ -159,13 +152,7 @@ module matvec_multiplier #(
             row_idx <= 0;
             num_ops <= 0;
         end
-        // FIXME: Need acc reset logic that allows result_out to get the final value
-        // Reset acc if we're at the end of the columns. Current issue is that acc
-        // doesn't have the value that result_out needs until the same cycle we want
-        // result_out to be value with data_ready going high
-        // This might need to be within another conditional related to state
-        // if (col_idx + num_ops >= num_cols) begin
-        // if (col_idx >= num_cols) begin
+        // If the current MAC is the last, reset the acc next cycle
         if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
             acc <= 0;
         end
@@ -174,9 +161,9 @@ end
     // MAC result
     generate
         for (genvar i = 0; i < MAC_CHUNK_SIZE; i++) begin
-            // TODO: Does the col_idx + 1 expression get optimized to a single calculation, or do
-            // we need to do that optimization explicitly?
-            // I think we need col_idx modulo 16
+            // Since we have the full vector, we can simply use the col_idx here. matrix_data is used in
+            // BANDWIDTH-sized chunks, so we need to modulo the col_idx by BANDWIDTH to get the index for
+            // the current chunk.
             assign a[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? matrix_data[(col_idx % BANDWIDTH) + i] : '0;
             assign b[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? vector_buffer[col_idx + i] : '0;
         end
@@ -187,19 +174,12 @@ end
         if (!rst_n) begin
             result_out   <= 0;
             result_valid <= 0;
-        // When acc has the final valid value clocked in, row_idx should have been held
-        // at num_(row - 1). col_idx should increase by MAC_CHUNK_SIZE until the below condition.
-        // num_ops increments by MAC_CHUNK_SIZE, so it may overshoot BANDWIDTH if it's not
-        // evenly divisible by MAC_CHUNK_SIZE.
-        // FIXME: num_ops is becoming BANDWIDTH value 1 cycle too late for this to work
+        // Stream out the result after each row is completed
         end else if (state == S_MAC &&
-                    //  row_idx == num_rows - 1 &&
-                    //  num_ops + MAC_CHUNK_SIZE >= BANDWIDTH) begin
                     col_idx + MAC_CHUNK_SIZE >= num_cols) begin
-                    // col_idx + num_ops >= num_cols) begin
             // TODO: Decide if this format should be adjusted - right now it allows
-            // for overflow of the Q4.12 fixed point. I think this final format then
-            // is Q20.12. We may want to saturate or truncate instead, but in that case
+            // for overflow of the Q4.12 fixed point. This final format is Q20.12.
+            // We may want to saturate or truncate instead, but in that case
             // we need to handle overflow and signedness appropriately.
             result_out   <= acc + mac_result;
             result_valid <= 1;
