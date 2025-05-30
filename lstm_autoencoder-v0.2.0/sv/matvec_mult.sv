@@ -86,13 +86,20 @@ module matvec_multiplier #(
             S_IDLE:      if (start) next_state = S_VLOAD;
             S_VLOAD:     if (vector_loaded) next_state = S_REQ_MAT;
             S_REQ_MAT:   next_state = S_WAIT_MAT;
+            // FIXME: We should ideally start mutiplying while we are streaming in
+            // matrix data, especially since we can't get more than BANDWIDTH values
+            // at once.
             S_WAIT_MAT:  if (matrix_ready) next_state = S_MAC;
             // FIXME: Need a correct "end of columns" check when evenly divisible
             // Original conditional included (col_idx >= num_cols)
+            // From S_MAC: If done with the current matrix chunk, either we need another chunk
+            // or we're done (if we're at the last row).
+            // If not done with the current chunk, would we ever want to request more?
+            // S_MAC:       if (num_ops + MAC_CHUNK_SIZE >= num_cols)
             S_MAC:       if (num_ops + MAC_CHUNK_SIZE >= BANDWIDTH)
-                             next_state = (row_idx + 1 < num_rows) ? S_REQ_MAT : S_DONE;
+                             next_state = (row_idx < num_rows) ? S_REQ_MAT : S_DONE;
                          else
-                             next_state = S_REQ_MAT;
+                             next_state = S_MAC;
             S_DONE:      next_state = S_IDLE;
         endcase
     end
@@ -157,7 +164,9 @@ module matvec_multiplier #(
         // doesn't have the value that result_out needs until the same cycle we want
         // result_out to be value with data_ready going high
         // This might need to be within another conditional related to state
-        if (col_idx + num_ops >= num_cols) begin
+        // if (col_idx + num_ops >= num_cols) begin
+        // if (col_idx >= num_cols) begin
+        if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
             acc <= 0;
         end
 end
@@ -167,7 +176,8 @@ end
         for (genvar i = 0; i < MAC_CHUNK_SIZE; i++) begin
             // TODO: Does the col_idx + 1 expression get optimized to a single calculation, or do
             // we need to do that optimization explicitly?
-            assign a[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? matrix_data[col_idx + i] : '0;
+            // I think we need col_idx modulo 16
+            assign a[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? matrix_data[(col_idx % BANDWIDTH) + i] : '0;
             assign b[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? vector_buffer[col_idx + i] : '0;
         end
     endgenerate
@@ -184,10 +194,12 @@ end
         // FIXME: num_ops is becoming BANDWIDTH value 1 cycle too late for this to work
         end else if (state == S_MAC &&
                     //  row_idx == num_rows - 1 &&
-                     num_ops + MAC_CHUNK_SIZE >= BANDWIDTH) begin
+                    //  num_ops + MAC_CHUNK_SIZE >= BANDWIDTH) begin
+                    col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+                    // col_idx + num_ops >= num_cols) begin
             // TODO: Decide if this format should be adjusted - right now it allows
             // for overflow of the Q4.12 fixed point. I think this final format then
-            // is Q20.12. We may want to saturdate or truncate instead, but in that case
+            // is Q20.12. We may want to saturate or truncate instead, but in that case
             // we need to handle overflow and signedness appropriately.
             result_out   <= acc + mac_result;
             result_valid <= 1;

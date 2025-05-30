@@ -8,7 +8,9 @@ module matrix_loader #(
     input  logic clk,
     input  logic rst_n,
     input  logic enable,
-    input  logic [$clog2(ADDR_WIDTH)-1:0] matrix_addr, // Base address from multiplier
+    // TODO: May want to base ADDR_WIDTH on set rows and columns from matvec_multiplier
+    // rather than a specific address width
+    input  logic [ADDR_WIDTH-1:0] matrix_addr, // Base address from multiplier
     output logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1],
     output logic ready
 );
@@ -27,7 +29,8 @@ module matrix_loader #(
             // Cast to 16 bits before sign-extending, worth trying
             // after troubleshooting the current issues
             // matrix_mem[i] = $signed(16'(i << 14));
-            // For now, load alternating rows of 1s and 0s
+            // For now, load alternating BANDWIDTH-sized chunks of 1s and 0s
+            // If we want to do full rows, we need to know the number of columns
             matrix_mem[i] = (i % (BANDWIDTH * 2) < BANDWIDTH) ? $signed(16'(1'b1 << 14)) : '0;
         end
     end

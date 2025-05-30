@@ -137,8 +137,8 @@ module matvec_tb;
         expected_result[2] = 32'sd40960;  // 10.0 * 4096 = 40960
         expected_result[3] = 32'sd0;  // 0.0
 
-        num_rows_4x4 = 4;
-        num_cols_4x4 = 4;
+        num_rows_4x4 = MIN_ROWS;
+        num_cols_4x4 = MIN_COLS;
 
         rst_n = 0; start_4x4 = 0; vector_write_enable_4x4 = 0;
         repeat (2) @(posedge clk);
@@ -183,10 +183,10 @@ module matvec_tb;
         logic signed [DATA_WIDTH-1:0] test_vector [0:MAX_COLS-1];
 
         // Test vector (Q4.12 format)
-        for (int i = 0; i < 64; i++) test_vector[i] = 16'sd4096;
+        for (int i = 0; i < MAX_COLS; i++) test_vector[i] = 16'sd4096;
 
-        num_rows_64x64 = 64;
-        num_cols_64x64 = 64;
+        num_rows_64x64 = MAX_ROWS;
+        num_cols_64x64 = MAX_COLS;
 
         rst_n = 0; start_64x64 = 0; vector_write_enable_64x64 = 0;
         repeat (2) @(posedge clk);
@@ -210,7 +210,9 @@ module matvec_tb;
         while (row < MAX_ROWS) begin
             @(posedge clk);
             if (result_valid_64x64) begin
-                expected = (row % 2 == 0) ? (64 * 4096) : 0;
+                // Each row has half 1s and half 0s
+                // We should come up with a more varied set of matrix data at some point
+                expected = 32 * 4096;
                 $display("[64x64] Row %0d: Got %0d, Expected %0d", row, result_out_64x64, expected);
                 if (result_out_64x64 === expected) begin
                     $display("✅ PASS");
