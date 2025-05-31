@@ -16,7 +16,7 @@ module matvec_multiplier #(
     // NOTE: Client is required to convert vector values to Q4.12
     input  logic vector_write_enable,
     input  logic [$clog2(MAX_COLS)-1:0] vector_base_addr,
-    input  wire logic signed [15:0] vector_in [0:BANDWIDTH-1], // Q4.12
+    input  wire logic signed [DATA_WIDTH*BANDWIDTH:0] vector_in, // Q4.12
 
     // Matrix SRAM interface
     output logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr,
@@ -55,15 +55,15 @@ module matvec_multiplier #(
 
     // MAC calculation and result
     logic signed [(DATA_WIDTH*2)-1:0] mac_result;
-    logic [DATA_WIDTH-1:0] a [MAC_CHUNK_SIZE-1:0];
-    logic [DATA_WIDTH-1:0] b [MAC_CHUNK_SIZE-1:0];
+    logic [DATA_WIDTH*MAC_CHUNK_SIZE-1:0] a;
+    logic [DATA_WIDTH*MAC_CHUNK_SIZE-1:0] b;
 
     // TODO: Consider using multiple MACs in parallel to improve throughput
     mac4 mac(
-              .a0(a[0]), .b0(b[0]),
-              .a1(a[1]), .b1(b[1]),
-              .a2(a[2]), .b2(b[2]),
-              .a3(a[3]), .b3(b[3]),
+              .a0(a[0*DATA_WIDTH +: DATA_WIDTH]), .b0(b[0*DATA_WIDTH +: DATA_WIDTH]),
+              .a1(a[1*DATA_WIDTH +: DATA_WIDTH]), .b1(b[1*DATA_WIDTH +: DATA_WIDTH]),
+              .a2(a[2*DATA_WIDTH +: DATA_WIDTH]), .b2(b[2*DATA_WIDTH +: DATA_WIDTH]),
+              .a3(a[3*DATA_WIDTH +: DATA_WIDTH]), .b3(b[3*DATA_WIDTH +: DATA_WIDTH]),
               .result(mac_result)
             );
 
@@ -108,7 +108,7 @@ module matvec_multiplier #(
             vector_loaded <= 0;
         end else if (vector_write_enable) begin
             for (int i = 0; i < BANDWIDTH; i++) begin
-                vector_buffer[vector_base_addr + i] <= vector_in[i];
+                vector_buffer[vector_base_addr + i] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
             end
             if (vector_base_addr + BANDWIDTH >= num_cols)
                 vector_loaded <= 1;
@@ -162,9 +162,9 @@ end
             // Since we have the full vector, we can simply use the col_idx here. matrix_data is used in
             // BANDWIDTH-sized chunks, so we need to modulo the col_idx by BANDWIDTH to get the index for
             // the current chunk.
-            assign a[i] = (state == S_MAC && ((col_idx + 1) < num_cols))
+            assign a[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + 1) < num_cols))
                          ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
-            assign b[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? vector_buffer[col_idx + i] : '0;
+            assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? vector_buffer[col_idx + i] : '0;
         end
     endgenerate
 
