@@ -16,7 +16,7 @@ module matvec_multiplier #(
     // NOTE: Client is required to convert vector values to Q4.12
     input  logic vector_write_enable,
     input  logic [$clog2(MAX_COLS)-1:0] vector_base_addr,
-    input  wire logic signed [DATA_WIDTH*BANDWIDTH:0] vector_in, // Q4.12
+    input  wire logic signed [DATA_WIDTH*BANDWIDTH-1:0] vector_in, // Q4.12
 
     // Matrix SRAM interface
     output logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr,
@@ -162,9 +162,9 @@ end
             // Since we have the full vector, we can simply use the col_idx here. matrix_data is used in
             // BANDWIDTH-sized chunks, so we need to modulo the col_idx by BANDWIDTH to get the index for
             // the current chunk.
-            assign a[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + 1) < num_cols))
+            assign a[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols))
                          ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
-            assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? vector_buffer[col_idx + i] : '0;
+            assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols)) ? vector_buffer[col_idx + i] : '0;
         end
     endgenerate
 

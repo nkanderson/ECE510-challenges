@@ -28,7 +28,7 @@ module matvec_tb;
     logic [$clog2(MIN_COLS):0] num_cols_4x4;
     logic vector_write_enable_4x4;
     logic [$clog2(MIN_COLS)-1:0] vector_base_addr_4x4;
-    logic signed [DATA_WIDTH-1:0] vector_in_4x4 [0:BANDWIDTH_4X4-1];
+    logic signed [DATA_WIDTH*BANDWIDTH_4X4-1:0] vector_in_4x4;
     logic [$clog2(MIN_ROWS*MIN_COLS)-1:0] matrix_addr_4x4;
     logic matrix_enable_4x4;
     logic signed [DATA_WIDTH*BANDWIDTH_4X4-1:0] matrix_data_4x4;
@@ -43,7 +43,7 @@ module matvec_tb;
     logic [$clog2(HALF_COLS):0] num_cols_32x32;
     logic vector_write_enable_32x32;
     logic [$clog2(HALF_COLS)-1:0] vector_base_addr_32x32;
-    logic signed [DATA_WIDTH-1:0] vector_in_32x32 [0:MAX_BANDWIDTH-1];
+    logic signed [DATA_WIDTH*MAX_BANDWIDTH-1:0] vector_in_32x32;
     logic [$clog2(HALF_ROWS*HALF_COLS)-1:0] matrix_addr_32x32;
     logic matrix_enable_32x32;
     logic signed [DATA_WIDTH*MAX_BANDWIDTH-1:0] matrix_data_32x32;
@@ -58,7 +58,7 @@ module matvec_tb;
     logic [$clog2(MAX_COLS):0] num_cols_64x64;
     logic vector_write_enable_64x64;
     logic [$clog2(MAX_COLS)-1:0] vector_base_addr_64x64;
-    logic signed [DATA_WIDTH-1:0] vector_in_64x64 [0:MAX_BANDWIDTH-1];
+    logic signed [DATA_WIDTH*MAX_BANDWIDTH-1:0] vector_in_64x64;
     logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr_64x64;
     logic matrix_enable_64x64;
     logic signed [DATA_WIDTH*MAX_BANDWIDTH-1:0] matrix_data_64x64;
@@ -198,7 +198,7 @@ module matvec_tb;
 
         vector_base_addr_4x4 = 0;
         for (int i = 0; i < BANDWIDTH_4X4; i++) begin
-            vector_in_4x4[i] = test_vector[i];
+            vector_in_4x4[i*DATA_WIDTH +: DATA_WIDTH] = test_vector[i];
         end
         vector_write_enable_4x4 = 1;
         @(posedge clk);
@@ -247,7 +247,7 @@ module matvec_tb;
         for (int i = 0; i < HALF_COLS; i += MAX_BANDWIDTH) begin
             vector_base_addr_32x32 = i;
             for (int j = 0; j < MAX_BANDWIDTH; j++)
-                vector_in_32x32[j] = test_vector[i + j];
+                vector_in_32x32[j*DATA_WIDTH +: DATA_WIDTH] = test_vector[i + j];
             vector_write_enable_32x32 = 1;
             @(posedge clk);
             vector_write_enable_32x32 = 0;
@@ -299,7 +299,7 @@ module matvec_tb;
         for (int i = 0; i < MAX_COLS; i += MAX_BANDWIDTH) begin
             vector_base_addr_64x64 = i;
             for (int j = 0; j < MAX_BANDWIDTH; j++)
-                vector_in_64x64[j] = test_vector[i + j];
+                vector_in_64x64[j*DATA_WIDTH +: DATA_WIDTH] = test_vector[i + j];
             vector_write_enable_64x64 = 1;
             @(posedge clk);
             vector_write_enable_64x64 = 0;

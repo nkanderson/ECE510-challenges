@@ -8163,4 +8163,196 @@ vector_buffer[vector_base_addr + i] <= vector_in[i];
 
 Let me know if you'd like to double-check any other internal signals or port flattening.
 
-Prompt:
+Prompt: Ok, great. Next we need to make sure the `mac4` module is ok, and update the testbench. You mentioned needing to update the `mac4` module, but I don't see any 2D arrays. How does this look?
+```
+module mac4 #(
+    parameter DATA_WIDTH = 16
+)(
+    input  logic signed [DATA_WIDTH-1:0] a0, b0,
+    input  logic signed [DATA_WIDTH-1:0] a1, b1,
+    input  logic signed [DATA_WIDTH-1:0] a2, b2,
+    input  logic signed [DATA_WIDTH-1:0] a3, b3,
+    output logic signed [(DATA_WIDTH*2)-1:0] result  // Q4.12
+);
+
+    localparam RESULT_WIDTH = 2*DATA_WIDTH;
+
+    // Internal products: Q6.26
+    logic signed [RESULT_WIDTH-1:0] p0, p1, p2, p3;
+    assign p0 = a0 * b0;
+    assign p1 = a1 * b1;
+    assign p2 = a2 * b2;
+    assign p3 = a3 * b3;
+
+    // Shifted to Q4.12
+    logic signed [RESULT_WIDTH-1:0] s0, s1, s2, s3;
+    assign s0 = p0 >>> 14;
+    assign s1 = p1 >>> 14;
+    assign s2 = p2 >>> 14;
+    assign s3 = p3 >>> 14;
+
+    // Accumulate
+    logic signed [RESULT_WIDTH-1:0] sum;
+    assign sum = s0 + s1 + s2 + s3;
+
+    // Final output - lower 16 bits contain Q4.12, returning 32-bit
+    // value to account for any possible overflow
+    assign result = sum[RESULT_WIDTH-1:0];
+
+endmodule
+```
+
+Response: You're right to double-check, and this version of mac4 looks great for synthesis and correctness. ✅ Here's a full review:
+✅ No Flattening Needed
+
+There are no 2D arrays or unpacked structs in this module. All inputs and outputs are scalar signals ([DATA_WIDTH-1:0]), so there's no need for flattening for synthesis or tool compatibility.
+✅ Correct Use of Fixed-Point Arithmetic
+
+You’ve done the following right:
+
+    Multiplies two Q-format numbers: signed × signed → full-width result
+
+    Each product is shifted right by 14 bits (>>> 14) to align to Q4.12 output format
+
+    Accumulated into a 32-bit result to avoid overflow
+
+    Returned as-is, with sum[RESULT_WIDTH-1:0] ensuring full-width output
+
+That’s the correct approach for a fixed-point Multiply-Accumulate (MAC) block.
+✅ Synthesis-Friendly Design
+
+    No clocks or FSMs — purely combinational
+
+    All operations are bit-precise, so synthesis tools will infer multipliers and adders with known widths
+
+    Output port is sized large enough to carry full-precision result (32-bit from 16×16 multiplication and accumulation)
+
+Optional Suggestion
+
+If you're using this in synthesis-heavy blocks and want to ensure pipelining later, consider registering result on a clock edge — but only if throughput or timing becomes an issue. As written, it's fully combinational.
+✅ Verdict:
+
+No changes needed. mac4 is synthesis-safe and correct as-is.
+
+Let me know when you’re ready to move on to the testbench update!
+
+Prompt: Ok, let's look at the testbench. I updated the instantiations, e.g. `logic signed [DATA_WIDTH*MAX_BANDWIDTH-1:0] vector_in_64x64;`. But we need to look at the loading the of vectors with data. This is the loop for the smallest test case, a 4x4 matrix:
+```
+for (int i = 0; i < BANDWIDTH_4X4; i++) begin
+            vector_in_4x4[i] = test_vector[i];
+        end
+```
+And this is for a 32x32:
+```
+for (int i = 0; i < HALF_COLS; i += MAX_BANDWIDTH) begin
+            vector_base_addr_32x32 = i;
+            for (int j = 0; j < MAX_BANDWIDTH; j++)
+                vector_in_32x32[j] = test_vector[i + j];
+            vector_write_enable_32x32 = 1;
+            @(posedge clk);
+            vector_write_enable_32x32 = 0;
+            @(posedge clk);
+        end
+```
+There's a 64x64, but it's basically the same as 32x32
+
+Response: Great — you're already adjusting the declaration of the flattened vectors. The key thing now is to rewrite your testbench loops to bit-slice into the flattened vector_in_* signals properly.
+🛠 Here's what to update:
+✅ For 4x4 case:
+
+Current (old style):
+```systemverilog
+for (int i = 0; i < BANDWIDTH_4X4; i++) begin
+    vector_in_4x4[i] = test_vector[i];
+end
+```
+
+Updated (flattened style):
+```systemverilog
+for (int i = 0; i < BANDWIDTH_4X4; i++) begin
+    vector_in_4x4[i*DATA_WIDTH +: DATA_WIDTH] = test_vector[i];
+end
+```
+
+✅ For 32x32 case:
+
+Current (old style):
+```systemverilog
+for (int j = 0; j < MAX_BANDWIDTH; j++)
+    vector_in_32x32[j] = test_vector[i + j];
+```
+
+Updated:
+```systemverilog
+for (int j = 0; j < MAX_BANDWIDTH; j++) begin
+    vector_in_32x32[j*DATA_WIDTH +: DATA_WIDTH] = test_vector[i + j];
+end
+```
+The rest of the structure (looping over i, toggling vector_write_enable, etc.) can remain unchanged.
+
+🚨 Reminder: Index Safety
+
+Make sure:
+
+    test_vector[] is declared large enough (MAX_COLS size)
+
+    No out-of-bounds indexing when i + j >= MAX_COLS
+
+✅ Same change for 64x64
+
+Just apply the same slicing pattern for:
+```systemverilog
+vector_in_64x64[j*DATA_WIDTH +: DATA_WIDTH] = test_vector[i + j];
+```
+
+Let me know if you want help auto-updating the whole testbench with those changes!
+
+Prompt: Ok, last thing is that it looks like the `b` values are not being set correctly. This is how it's currently assigned:
+`assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? vector_buffer[col_idx + i] : '0;`
+
+Response: Yes — that assignment is likely incorrect due to how col_idx + i is being used.
+
+Here are two issues:
+
+🧨 1. Off-by-one bug: col_idx + 1 < num_cols
+
+This conditional:
+
+```systemverilog
+(state == S_MAC && ((col_idx + 1) < num_cols))
+```
+…only checks one element ahead (col_idx + 1), not whether col_idx + i is within bounds. It will prematurely zero out many b[i].
+
+🧨 2. No bounds check on col_idx + i
+
+You're indexing:
+```systemverilog
+vector_buffer[col_idx + i]
+```
+…but not checking whether col_idx + i < num_cols. This may:
+
+    Read undefined data near the end of a row
+
+    Cause incorrect values in your MAC inputs
+
+✅ Fix: add proper bounds check
+
+Update to:
+```systemverilog
+assign b[i*DATA_WIDTH +: DATA_WIDTH] =
+    (state == S_MAC && (col_idx + i) < num_cols) ?
+        vector_buffer[col_idx + i] : '0;
+```
+This now checks the actual index you're accessing, not just col_idx + 1.
+
+
+✅ Want symmetry?
+
+You may also want to apply the same fix to a[i*DATA_WIDTH +: DATA_WIDTH], even if the matrix loader zero-pads beyond bounds. Example:
+```systemverilog
+assign a[i*DATA_WIDTH +: DATA_WIDTH] =
+    (state == S_MAC && (col_idx + i) < num_cols) ?
+        matrix_data[i*DATA_WIDTH +: DATA_WIDTH] : '0;
+```
+
+Let me know if you’d like help sweeping those changes through the module.
