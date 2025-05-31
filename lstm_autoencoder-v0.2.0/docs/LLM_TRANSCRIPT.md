@@ -4074,3 +4074,1462 @@ But unless you explicitly do that shift, the format remains Q10.12.
 | `result_out`  | **Q10.12** | Same as `acc` if no shift |
 
 Would you like help defining a conversion block that truncates or saturates result_out down to a 16-bit Q4.12 format?
+
+## Fixing Weight .mem Files
+
+Prompt: I need to understand the sizes and dimensions of LSTM model weights I have saved in an .npz file. The model is made up of 4 LSTM layers and 1 dense layer. This is the instantiation of the model, for reference:
+```
+model = models.Sequential(
+        [
+            layers.Input(shape=(timesteps, features)),
+            layers.LSTM(64, activation="tanh", return_sequences=True),
+            layers.LSTM(32, activation="tanh", return_sequences=False),
+            layers.RepeatVector(timesteps),
+            layers.LSTM(32, activation="tanh", return_sequences=True),
+            layers.LSTM(64, activation="tanh", return_sequences=True),
+            layers.TimeDistributed(layers.Dense(features)),
+        ]
+    )
+```
+This is the call to build the model:
+```
+model = build_lstm_autoencoder(WINDOW_SIZE, sequences.shape[2])
+```
+And this is how the weights were saved:
+```
+weights = model.get_weights()
+weights_path = os.path.join(MODEL_SAVE_DIR, "lstm_weights.npz")
+np.savez_compressed(weights_path, *weights)
+```
+I have the following script to inspect the weights:
+```
+"""Basic script to inspect the weights of the saved model"""
+
+import numpy as np
+import sys
+
+if len(sys.argv) < 2:
+    print("Usage: python inspect_weights.py path/to/weights.npz")
+    sys.exit(1)
+
+weights_path = sys.argv[1]
+weights = np.load(weights_path)
+
+print(f"\nContents of: {weights_path}\n")
+for name in weights.files:
+    arr = weights[name]
+    print(f"{name}: shape={arr.shape}, dtype={arr.dtype}")
+    if arr.size == 0:
+        print("  ⚠️  WARNING: empty array!")
+        continue
+
+    min_val = arr.min()
+    max_val = arr.max()
+    print(f"  min = {min_val:.6f}, max = {max_val:.6f}")
+```
+and this script to generate .mem files, 1 for each weight (W, U, and b) for each gate (i, f, c, and o) for each layer (2 encoders, 2 decoders), plus W and b for the dense layer:
+```
+import os
+import numpy as np
+import argparse
+from utils import save_mem_file
+
+GATE_NAMES = ["i", "f", "c", "o"]  # input, forget, cell, output
+
+
+def save_lstm_weights(weights, prefix, output_dir):
+    W, U, b = weights  # W: input weights, U: recurrent weights, b: biases
+    hidden_size = b.shape[0] // 4
+    os.makedirs(output_dir, exist_ok=True)
+
+    for idx, gate in enumerate(GATE_NAMES):
+        # input weights
+        save_mem_file(
+            W[:, idx * hidden_size : (idx + 1) * hidden_size],
+            os.path.join(output_dir, f"{prefix}_W_{gate}.mem"),
+        )
+
+        # recurrent weights
+        save_mem_file(
+            U[:, idx * hidden_size : (idx + 1) * hidden_size],
+            os.path.join(output_dir, f"{prefix}_U_{gate}.mem"),
+        )
+
+        # biases
+        save_mem_file(
+            b[idx * hidden_size : (idx + 1) * hidden_size],
+            os.path.join(output_dir, f"{prefix}_b_{gate}.mem"),
+        )
+
+
+def save_dense_weights(weights, prefix, output_dir):
+    W, b = weights
+    os.makedirs(output_dir, exist_ok=True)
+    save_mem_file(W, os.path.join(output_dir, f"{prefix}_W.mem"))
+    save_mem_file(b, os.path.join(output_dir, f"{prefix}_b.mem"))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--npz",
+        type=str,
+        default="saved_model/lstm_weights.npz",
+        help="Path to .npz weights file",
+    )
+    parser.add_argument(
+        "--outdir", type=str, default="weights", help="Output directory for .mem files"
+    )
+    args = parser.parse_args()
+
+    data = np.load(args.npz, allow_pickle=True)
+    weights = list(data.values())
+
+    # Expected order based on build_lstm_autoencoder
+    layer_mapping = [
+        ("enc1", save_lstm_weights),
+        ("enc2", save_lstm_weights),
+        ("dec1", save_lstm_weights),
+        ("dec2", save_lstm_weights),
+        ("dense", save_dense_weights),
+    ]
+
+    i = 0
+    for prefix, save_func in layer_mapping:
+        if save_func == save_lstm_weights:
+            save_func(weights[i : i + 3], prefix, args.outdir)
+            i += 3
+        elif save_func == save_dense_weights:
+            save_func(weights[i : i + 2], prefix, args.outdir)
+            i += 2
+
+
+if __name__ == "__main__":
+    main()
+```
+What I want right now is to modify the script used to inspect the weights so that it I can see which shape corresponds with which layer (I believe it may be aggregated at the layer level, but we should confirm), and ideally break it down further to be able to see the dimensions for each weight and each gate. I ultimately need to ensure the .mem files that have been generated have been created correctly - in my inference script, the dimensions for the weights were transposed. Since I believe these .mem files flattened the matrices, I'm not sure if that matters, but we need to confirm.
+
+Response: Great — you have a well-structured pipeline already. To help you confidently inspect and validate each weight’s shape and ensure it matches the expected dimensions for your .mem files, we’ll enhance your inspect_weights.py script to:
+
+    Label each weight by its associated layer (enc1, enc2, etc.).
+
+    Differentiate between LSTM gates (i, f, c, o) and weight types (W, U, b).
+
+    Show whether transposing affects correctness, since .mem files likely store flattened data in row-major order.
+
+✅ Understanding LSTM Weight Shapes
+
+Each LSTM layer has:
+
+    W: shape (input_size, 4 * hidden_size)
+
+    U: shape (hidden_size, 4 * hidden_size)
+
+    b: shape (4 * hidden_size,)
+
+Each gate (i, f, c, o) gets a slice along axis 1 (for W and U) or axis 0 (for b) — as your .mem script does.
+
+🛠️ Modified inspect_weights.py
+
+Here's an enhanced version of your script that labels each part and inspects gate-level slices too:
+```python
+import numpy as np
+import sys
+
+GATE_NAMES = ["i", "f", "c", "o"]
+
+# Match order in which weights are returned by model.get_weights()
+LAYER_MAPPING = [
+    ("enc1", "lstm"),
+    ("enc2", "lstm"),
+    ("dec1", "lstm"),
+    ("dec2", "lstm"),
+    ("dense", "dense"),
+]
+
+def print_lstm_weights(W, U, b, prefix):
+    hidden_size = b.shape[0] // 4
+    print(f"\nLayer: {prefix}")
+    print(f"  W shape (input -> 4*hidden): {W.shape}")
+    print(f"  U shape (hidden -> 4*hidden): {U.shape}")
+    print(f"  b shape: {b.shape} -> hidden size: {hidden_size}")
+
+    for idx, gate in enumerate(GATE_NAMES):
+        W_gate = W[:, idx * hidden_size : (idx + 1) * hidden_size]
+        U_gate = U[:, idx * hidden_size : (idx + 1) * hidden_size]
+        b_gate = b[idx * hidden_size : (idx + 1) * hidden_size]
+        print(f"    Gate '{gate}':")
+        print(f"      W[:, {idx}*{hidden_size}:{(idx+1)*hidden_size}] → shape: {W_gate.shape}")
+        print(f"      U[:, {idx}*{hidden_size}:{(idx+1)*hidden_size}] → shape: {U_gate.shape}")
+        print(f"      b[{idx}*{hidden_size}:{(idx+1)*hidden_size}] → shape: {b_gate.shape}")
+
+def print_dense_weights(W, b, prefix):
+    print(f"\nLayer: {prefix}")
+    print(f"  Dense W shape: {W.shape}")
+    print(f"  Dense b shape: {b.shape}")
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python inspect_weights.py path/to/weights.npz")
+        sys.exit(1)
+
+    weights_path = sys.argv[1]
+    data = np.load(weights_path, allow_pickle=True)
+    weights = list(data.values())
+
+    print(f"\nInspecting weights in: {weights_path}")
+    
+    i = 0
+    for prefix, layer_type in LAYER_MAPPING:
+        if layer_type == "lstm":
+            W, U, b = weights[i : i + 3]
+            print_lstm_weights(W, U, b, prefix)
+            i += 3
+        elif layer_type == "dense":
+            W, b = weights[i : i + 2]
+            print_dense_weights(W, b, prefix)
+            i += 2
+
+if __name__ == "__main__":
+    main()
+```
+
+🔍 How to Validate .mem File Correctness
+
+    You said the inference script uses transposed weights. This means:
+
+    If your .mem files flatten row-major (C-style) without transposing, but your inference code expects column-major (e.g., np.dot(W.T, x)), then the .mem files must be transposed before flattening to match.
+
+Suggested Fix:
+
+In save_mem_file, ensure you either:
+
+    Explicitly transpose before flattening if that’s what inference needs.
+
+    Or match your inference code to expect row-major layout.
+
+You can also modify save_mem_file to print a warning if the input array has a shape that looks "backward" from expectations.
+
+✅ Next Steps for Confidence
+
+    Run the updated script and confirm the expected shapes match the layout assumptions in save_lstm_weights.
+
+    For each .mem file:
+
+        Confirm the output matrix shape before flattening.
+
+        Confirm whether .T (transpose) is needed before flattening based on the expected dot-product logic.
+
+If you share how the inference code uses these weights (e.g., np.dot(x, W.T)), I can confirm the .mem orientation required.
+
+Would you like me to also help generate a script that compares values in .mem files to their expected numpy slices to confirm they match?
+
+Prompt: I might want that script to compare .mem files to expected numpy slices, but first I want to clarify. This is the section of the inference code where the 4 layers are instantiated with their weights. It uses `np.load` to retrieve the weights from the same file we ran the weight inspect script on, but I previously determined that the initial implementation had transposed weights, resulting in an error. This code transposes the loaded weights to achieve the correct result:
+```
+class LSTMAutoencoder:
+    def __init__(self, weights_path):
+        weights = np.load(weights_path, allow_pickle=True)
+        weights = [w.tolist() for w in weights.values()]
+
+        def T(mat):  # safe transpose helper
+            return list(map(list, zip(*mat)))
+
+        # Transpose all weight matrices
+        self.W1 = T(weights[0])
+        self.U1 = T(weights[1])
+        self.b1 = weights[2]
+
+        self.W2 = T(weights[3])
+        self.U2 = T(weights[4])
+        self.b2 = weights[5]
+
+        self.W3 = T(weights[6])
+        self.U3 = T(weights[7])
+        self.b3 = weights[8]
+
+        self.W4 = T(weights[9])
+        self.U4 = T(weights[10])
+        self.b4 = weights[11]
+
+        self.Wd = T(weights[12])
+        self.bd = weights[13]
+
+        input_size = len(self.W1[0])
+        self.hidden1 = len(self.b1) // 4
+        self.hidden2 = len(self.b2) // 4
+        self.hidden3 = len(self.b3) // 4
+        self.hidden4 = len(self.b4) // 4
+
+        self.lstm1 = LSTMCell(input_size, self.hidden1, self.W1, self.U1, self.b1)
+        self.lstm2 = LSTMCell(self.hidden1, self.hidden2, self.W2, self.U2, self.b2)
+        self.lstm3 = LSTMCell(self.hidden2, self.hidden2, self.W3, self.U3, self.b3)
+        self.lstm4 = LSTMCell(self.hidden2, self.hidden1, self.W4, self.U4, self.b4)
+        self.dense = Dense(self.Wd, self.bd)
+```
+My systemverilog code that uses the .mem file assumes row major, and I want to make sure the .mem file is correct.
+
+Response: Perfect — thanks for the clarification.
+✅ Summary of What You Just Said:
+
+    Your Python inference code expects transposed weight matrices, because Keras saves them in column-major layout ((input_dim, 4*hidden)).
+
+    Your SystemVerilog design assumes row-major layout — i.e., the flattened .mem file should store weights as-is, with the shape preserved in row-major layout.
+
+    The current .mem generation script does not transpose — it slices like W[:, i*hidden:(i+1)*hidden] and flattens.
+
+⚠️ Why Transposition Matters Here
+
+Keras stores weight matrices as:
+
+    W: (input_dim, 4 * hidden) — rows are inputs, columns are gates.
+
+    You index gates along axis 1, and each gate matrix is still (input_dim, hidden).
+
+When you transpose W, you get shape (4 * hidden, input_dim), which reverses row/column.
+
+If .mem files flatten without transposing, they write the weights in row-major order. If your Verilog code then assumes:
+```verilog
+sum += matrix[i][j] * vector[j];
+```
+then the .mem file must match Python's non-transposed layout. Since your Python code needs transposition to work, that means the .mem file must not be transposed.
+
+✅ Therefore:
+
+    Your .mem files are correct for SystemVerilog as-is, assuming:
+
+        They’re created without transposing (.T).
+
+        Your Verilog modules read weights as W[i][j] = mem[i * cols + j].
+
+    Your Python inference code must transpose because it's working with Keras-style (input_dim, hidden) → it wants (hidden, input_dim) for the dot product logic used in Dense or LSTMCell.
+
+🔍 Suggestion for Sanity Check
+
+If you want to verify the .mem file matches the correct slice of the original weight matrix in row-major order, I can help you write this Python script:
+🔧 verify_mem_file.py (outline)
+```python
+import numpy as np
+
+def load_mem_file(path):
+    with open(path) as f:
+        hex_vals = [line.strip() for line in f if line.strip()]
+    return [int(val, 16) for val in hex_vals]
+
+def flatten_row_major(mat):
+    return [int(round(x * (1 << 12))) & 0xFFFF for row in mat for x in row]  # Q4.12
+
+def verify_mem(mem_path, expected_slice):
+    mem_data = load_mem_file(mem_path)
+    expected = flatten_row_major(expected_slice)
+    
+    if len(mem_data) != len(expected):
+        print(f"❌ Size mismatch: {len(mem_data)} vs {len(expected)}")
+        return
+
+    mismatches = [(i, m, e) for i, (m, e) in enumerate(zip(mem_data, expected)) if m != e]
+    if not mismatches:
+        print(f"✅ Match for {mem_path}")
+    else:
+        print(f"❌ {len(mismatches)} mismatches in {mem_path}")
+        for i, m, e in mismatches[:10]:  # show first 10
+            print(f"  index {i}: mem = {m:#06x}, expected = {e:#06x}")
+
+# Example use
+weights = np.load("saved_model/lstm_weights.npz")
+W_enc1 = weights["arr_0"]  # adjust based on .npz ordering
+gate = 0  # 0 = i, 1 = f, 2 = c, 3 = o
+hidden_size = W_enc1.shape[1] // 4
+
+W_i = W_enc1[:, gate * hidden_size : (gate + 1) * hidden_size]
+verify_mem("weights/enc1_W_i.mem", W_i)
+```
+
+✅ Summary
+| Component        | Keras Format            | SystemVerilog Expects | Action Needed                |
+| ---------------- | ----------------------- | --------------------- | ---------------------------- |
+| `W` / `U`        | `(in, 4*hidden)`        | Flattened row-major   | ✅ No transpose before `.mem` |
+| Bias `b`         | `(4*hidden,)`           | Flattened 1D          | ✅ Use as-is                  |
+| Python inference | `W.T @ x`               | column-major math     | ✅ Needs `W.T`                |
+| Verilog          | `sum += W[i][j] * v[j]` | row-major traversal   | ✅ Needs untransposed weights |
+
+Prompt: Sure, let's get a full `verify_mem_file.py` script. I'd like to confirm some of the precise mechanics of the weight manipulation in my code though too. Does it seem to be the case that the following Python code from the LSTMCell class is responsible for the reliance on transposed weights (because `_split` assumes row major order)?
+```
+def __init__(self, input_size, hidden_size, W, U, b):
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.W_i, self.W_f, self.W_c, self.W_o = self._split(W)
+        self.U_i, self.U_f, self.U_c, self.U_o = self._split(U)
+        self.b_i, self.b_f, self.b_c, self.b_o = self._split(b)
+        # print(f"W_i: {np.shape(self.W_i)}, b_i: {np.shape(self.b_i)}")
+
+    def _split(self, mat):
+        size = self.hidden_size
+        return (
+            mat[:size],
+            mat[size : 2 * size],
+            mat[2 * size : 3 * size],
+            mat[3 * size : 4 * size],
+        )
+```
+And in revisiting the `save_lstm_weights` function from my .mem generation script above, is it the case that this line `W[:, idx * hidden_size : (idx + 1) * hidden_size]` is traversing in column major order?
+
+Response: Great questions — let’s clarify both the Python slicing mechanics and how that relates to weight format assumptions. Then I’ll provide the full verify_mem_file.py script.
+
+🔍 1. Why the Python LSTMCell class needs transposed weights
+Let's inspect your _split logic:
+```python
+def _split(self, mat):
+    size = self.hidden_size
+    return (
+        mat[:size],
+        mat[size : 2 * size],
+        mat[2 * size : 3 * size],
+        mat[3 * size : 4 * size],
+    )
+```
+This assumes that mat is a row-major flattened view of shape (4*hidden_size, input_size) — i.e., each row corresponds to one gate’s weights.
+
+Example case:
+
+Suppose W has shape (4*hidden_size, input_size), then:
+
+    W[:size] gets W_i, with shape (hidden_size, input_size)
+
+    But that only makes sense if the original W was transposed from Keras's (input_size, 4*hidden) to (4*hidden, input_size).
+
+So yes: ✅ Your LSTMCell assumes each gate's weights are grouped row-wise, hence:
+
+    You must transpose the weights after model.get_weights() to satisfy that layout.
+
+🔍 2. Column slicing in save_lstm_weights
+```python
+W[:, idx * hidden_size : (idx + 1) * hidden_size]
+```
+This is slicing columns of the weight matrix. Because:
+
+    W has shape (input_size, 4*hidden_size) in Keras
+
+    You're extracting gate idx’s weight matrix of shape (input_size, hidden_size)
+
+This slicing is row-major, but the result is still in column-major gate layout unless you transpose before flattening.
+
+→ You’re correct that if you don’t transpose, then W[i][j] means: input i, gate-unit j.
+
+So again: ✅ This slicing assumes Keras-style layout, which works if your .mem consumer expects row-major traversal like [i][j] = input_i × unit_j.
+
+✅ Summary
+| Operation                                           | Interpretation                                                  | Correct? |
+| --------------------------------------------------- | --------------------------------------------------------------- | -------- |
+| `model.get_weights()`                               | Keras: `(input_dim, 4*hidden)`                                  | ✅        |
+| `W[:, idx * hidden_size : (idx + 1) * hidden_size]` | Extracts gate-slice from columns                                | ✅        |
+| `.T` in Python inference                            | Needed to switch to `(4*hidden, input_dim)`                     | ✅        |
+| `_split(mat)`                                       | Assumes gate weights are **stacked vertically**, i.e., row-wise | ✅        |
+| SystemVerilog `.mem`                                | Uses weights as-is, in **row-major order**                      | ✅        |
+
+🧪 verify_mem_file.py
+
+This script will:
+
+    Load .npz
+
+    Slice out the relevant gate
+
+    Flatten in row-major
+
+    Compare against .mem contents
+
+```python
+import os
+import argparse
+import numpy as np
+
+GATES = ["i", "f", "c", "o"]
+
+def load_mem_file(path):
+    with open(path) as f:
+        hex_vals = [line.strip() for line in f if line.strip()]
+    return [int(val, 16) for val in hex_vals]
+
+def flatten_row_major(arr):
+    # Assume arr is 2D or 1D. Convert to flat list of Q4.12 integers
+    if arr.ndim == 1:
+        return [float_to_q412(x) for x in arr]
+    elif arr.ndim == 2:
+        return [float_to_q412(x) for row in arr for x in row]
+    else:
+        raise ValueError("Unexpected array shape")
+
+def float_to_q412(x):
+    val = int(round(x * (1 << 12)))
+    val &= 0xFFFF  # 16-bit two's complement wrap
+    return val
+
+def verify(mem_path, expected, label):
+    actual = load_mem_file(mem_path)
+    expected_flat = flatten_row_major(expected)
+    
+    print(f"\nVerifying: {mem_path} [{label}]")
+    if len(actual) != len(expected_flat):
+        print(f"❌ Size mismatch: mem={len(actual)}, expected={len(expected_flat)}")
+        return
+
+    mismatches = [(i, a, e) for i, (a, e) in enumerate(zip(actual, expected_flat)) if a != e]
+    if not mismatches:
+        print("✅ Match")
+    else:
+        print(f"❌ {len(mismatches)} mismatches")
+        for i, a, e in mismatches[:10]:
+            print(f"  idx {i}: mem = {a:#06x}, expected = {e:#06x}")
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--npz", type=str, required=True, help="Path to weights.npz")
+    parser.add_argument("--outdir", type=str, required=True, help="Directory with .mem files")
+    args = parser.parse_args()
+
+    weights = np.load(args.npz, allow_pickle=True)
+    wlist = list(weights.values())
+
+    layers = [
+        ("enc1", wlist[0:3]),
+        ("enc2", wlist[3:6]),
+        ("dec1", wlist[6:9]),
+        ("dec2", wlist[9:12]),
+    ]
+
+    for layer_name, (W, U, b) in layers:
+        hidden = b.shape[0] // 4
+        for idx, gate in enumerate(GATES):
+            W_gate = W[:, idx * hidden : (idx + 1) * hidden]
+            U_gate = U[:, idx * hidden : (idx + 1) * hidden]
+            b_gate = b[idx * hidden : (idx + 1) * hidden]
+
+            verify(
+                os.path.join(args.outdir, f"{layer_name}_W_{gate}.mem"),
+                W_gate,
+                f"{layer_name} W_{gate}",
+            )
+            verify(
+                os.path.join(args.outdir, f"{layer_name}_U_{gate}.mem"),
+                U_gate,
+                f"{layer_name} U_{gate}",
+            )
+            verify(
+                os.path.join(args.outdir, f"{layer_name}_b_{gate}.mem"),
+                b_gate,
+                f"{layer_name} b_{gate}",
+            )
+
+    # Dense layer
+    Wd, bd = wlist[12:14]
+    verify(os.path.join(args.outdir, "dense_W.mem"), Wd, "dense W")
+    verify(os.path.join(args.outdir, "dense_b.mem"), bd, "dense b")
+
+if __name__ == "__main__":
+    main()
+```
+
+Let me know if you want:
+
+    Hex formatting to support signed values.
+
+    A report file output (e.g., CSV/JSON).
+
+    Batch-mode testing across multiple .npz files or .mem directories.
+
+Prompt: Let's discuss a bit more about what you said about the column slicing in `save_lstm_weights`: "This slicing is row-major, but the result is still in column-major gate layout unless you transpose before flattening." Why does column-major gate layout work if we plan on row-major traversal to perform a matrix-vector multiply? Feel free to use some visual representation with a smaller scale example than what we are using here
+
+Response: Great — this is the heart of the matter when you're exporting matrices from Python and consuming them in SystemVerilog. Let's walk through what’s really happening when you slice without transposing, what "column-major gate layout" means, and how this works with row-major traversal in your Verilog matrix-vector multiply.
+
+✅ Assumptions Recap
+
+Let’s simplify:
+
+    Let’s say input_size = 3, hidden_size = 2
+
+    So Keras W shape = (3, 4 * 2) = (3, 8)
+
+        3 input features
+
+        4 gates × 2 hidden units = 8 output neurons
+
+    Slicing: W[:, 0:2] gives gate i's weights (still shape (3, 2))
+
+  🧠 Visualization: Keras Weight Matrix Layout
+
+Keras stores weight matrix W like this:
+```
+         | i_0 i_1 | f_0 f_1 | c_0 c_1 | o_0 o_1 |
+Inputs   -----------------------------------------
+x_0      | w00 w01 | w02 w03 | w04 w05 | w06 w07 |
+x_1      | w10 w11 | w12 w13 | w14 w15 | w16 w17 |
+x_2      | w20 w21 | w22 w23 | w24 w25 | w26 w27 |
+```
+
+Shape: (3, 8)
+
+Each pair of columns is one gate (e.g., i → cols 0–1)
+
+So for i gate: W[:, 0:2] gives:
+```
+        i_0 i_1
+x_0     w00 w01
+x_1     w10 w11
+x_2     w20 w21
+```
+This is the input → output matrix for gate i.
+
+🧮 Row-Major Flattening (for .mem)
+
+Let’s say we flatten this submatrix row-major:
+```
+flat = [
+  w00, w01,   # row 0
+  w10, w11,   # row 1
+  w20, w21    # row 2
+]
+```
+
+This layout implies that Verilog will read it as:
+```
+mem[0] = w00; // row 0, col 0
+mem[1] = w01; // row 0, col 1
+mem[2] = w10; // row 1, col 0
+mem[3] = w11; // row 1, col 1
+mem[4] = w20; // row 2, col 0
+mem[5] = w21; // row 2, col 1
+```
+So you can access it in Verilog like:
+```
+W[i][j] = mem[i * cols + j];
+```
+→ Which works perfectly for matrix-vector multiply:
+```
+for (j = 0; j < 2; j++)
+  out[j] = W[0][j] * x_0 + W[1][j] * x_1 + W[2][j] * x_2;
+```
+Bingo! ✅
+
+🔁 Now What Happens If You Transpose Before Flattening?
+
+Let’s say you transpose this W[:, 0:2]:
+```
+        x_0 x_1 x_2
+i_0     w00 w10 w20
+i_1     w01 w11 w21
+```
+Flatten row-major:
+```
+flat = [
+  w00, w10, w20,   # i_0 row
+  w01, w11, w21    # i_1 row
+]
+```
+In this layout:
+```
+mem[0] = w00;
+mem[1] = w10;
+mem[2] = w20;
+mem[3] = w01;
+mem[4] = w11;
+mem[5] = w21;
+```
+Now your Verilog matrix multiply will be incorrect, unless you also transpose your logic (i.e., access as mem[j * rows + i]).
+
+✅ So Why Doesn’t the Column-Gate Layout Break It?
+
+Because you're slicing a gate’s columns:
+```
+W[:, idx * hidden_size : (idx + 1) * hidden_size]
+```
+→ That slice already gives you a full matrix for one gate, of shape (input_size, hidden_size)
+→ As long as you don’t transpose, row-major flattening works for Verilog.
+
+✅ Conclusion
+| Operation                         | Result                              | Good for Verilog? |
+| --------------------------------- | ----------------------------------- | ----------------- |
+| `W[:, idx*hidden:(idx+1)*hidden]` | Gate matrix of shape `(in, hidden)` | ✅ Yes             |
+| Flatten row-major (no `.T`)       | `[row0..., row1..., ...]`           | ✅ Yes             |
+| Transpose before flatten          | `[col0..., col1..., ...]`           | ❌ Wrong layout    |
+
+So your current save_lstm_weights() is correct for SystemVerilog if:
+
+    Your Verilog consumes weights row-wise: W[i][j] * x[j]
+
+    The weights were not transposed
+
+Let me know if you want a version of save_mem_file() that logs shape and first row to double-check each write.
+
+## Incorporating SRAM
+
+Prompt: I have the following `matrix_loader.sv` module, which currently produces fixed matrix values for testing a matrix vector multiplier module. I need to replace the fixed values with values read in from .mem files. I want help planning the SRAM organization in terms of blocks with the ultimate goal of synthesis.
+```systemverilog
+module matrix_loader #(
+    // TODO: Will need to decide how many blocks of SRAM to use. This will determine
+    // the address width and total size of each block.
+    parameter ADDR_WIDTH = 12, // 2^12 = 4096
+    parameter DATA_WIDTH = 16,
+    parameter BANDWIDTH  = 16
+)(
+    input  logic clk,
+    input  logic rst_n,
+    input  logic enable,
+    // TODO: May want to base ADDR_WIDTH on set rows and columns from matvec_multiplier
+    // rather than a specific address width
+    input  logic [ADDR_WIDTH-1:0] matrix_addr, // Base address from multiplier
+    output logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1],
+    output logic ready
+);
+
+    // Matrix SRAM (placeholder), Q2.14 values
+    logic signed [DATA_WIDTH-1:0] matrix_mem [0:(1<<ADDR_WIDTH)-1];
+
+    // Internal state
+    logic [ADDR_WIDTH-1:0] addr_reg;
+    logic [$clog2(BANDWIDTH):0] chunk_offset;
+    logic loading;
+
+    // Initialize with placeholder ramp values
+    initial begin
+        for (int i = 0; i < (1<<ADDR_WIDTH); i++) begin
+            // Cast to 16 bits before sign-extending, worth trying
+            // after troubleshooting the current issues
+            // matrix_mem[i] = $signed(16'(i << 14));
+            // For now, load alternating BANDWIDTH-sized chunks of 1s and 0s
+            // If we want to do full rows, we need to know the number of columns
+            matrix_mem[i] = (i % (BANDWIDTH * 2) < BANDWIDTH) ? $signed(16'(1'b1 << 14)) : '0;
+        end
+    end
+
+    // FSM to fetch one matrix value per cycle
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            addr_reg <= '0;
+            chunk_offset <= 0;
+            loading <= 1'b0;
+            ready <= 1'b0;
+            for (int i = 0; i < BANDWIDTH; i++) begin
+                matrix_data[i] <= '0;
+            end
+        end else begin
+            if (enable && !loading &&!ready) begin
+                addr_reg <= matrix_addr;
+                chunk_offset <= 0;
+                loading <= 1'b1;
+                ready <= 1'b0;
+            end else if (loading) begin
+                matrix_data[chunk_offset] <= matrix_mem[addr_reg + chunk_offset];
+                chunk_offset <= chunk_offset + 1;
+
+                if (chunk_offset == BANDWIDTH - 1) begin
+                    loading <= 1'b0;
+                    ready <= 1'b1;
+                end else begin
+                    ready <= 1'b0;
+                end
+            end else begin
+                ready <= 1'b0;
+            end
+        end
+    end
+
+endmodule
+```
+The client code in Python makes the following calls:
+```python
+i = vector_sigmoid(
+            elementwise_add(
+                matvec_mul(self.W_i, x),
+                elementwise_add(matvec_mul(self.U_i, h_prev), self.b_i),
+            )
+        )
+        f = vector_sigmoid(
+            elementwise_add(
+                matvec_mul(self.W_f, x),
+                elementwise_add(matvec_mul(self.U_f, h_prev), self.b_f),
+            )
+        )
+        c_tilde = vector_tanh(
+            elementwise_add(
+                matvec_mul(self.W_c, x),
+                elementwise_add(matvec_mul(self.U_c, h_prev), self.b_c),
+            )
+        )
+        o = vector_sigmoid(
+            elementwise_add(
+                matvec_mul(self.W_o, x),
+                elementwise_add(matvec_mul(self.U_o, h_prev), self.b_o),
+            )
+        )
+```
+
+Response: Great — this is a classic design-space tradeoff between area (logic + SRAM), throughput, and control complexity. Since your end goal is synthesis, the key is to start with a simple, synthesizable baseline, while leaving clear extension points for parallelism and optimization. Let’s walk through the SRAM and hardware multiplier organization options and map them to your LSTM gates (i, f, c̃, o).
+
+🔁 Python Call Breakdown
+
+Your Python client performs eight matrix-vector multiplications per LSTM step:
+
+    4 for W_g * x
+
+    4 for U_g * h_prev
+    (for each gate g ∈ {i, f, c, o})
+
+🧠 Key Observations
+
+    Each matrix (W_g and U_g) can be large.
+
+    x and h_prev are vectors, reused across gates.
+
+    The current SystemVerilog matrix_loader can load one BANDWIDTH-sized vector per request.
+
+    SRAMs must store multiple matrices, possibly interleaved or in distinct blocks.
+
+✅ Baseline Synthesizable Setup (Recommended Start)
+🧩 Architecture
+
+    One matvec multiplier module.
+
+    One matrix_loader module.
+
+    Shared SRAM, partitioned into banks (or just logically divided) to store:
+
+        W_i, W_f, W_c, W_o
+
+        U_i, U_f, U_c, U_o
+
+    Use an address map to distinguish matrices:
+
+        Example: 0x0000–0x03FF: W_i, 0x0400–0x07FF: W_f, etc.
+
+🔁 Execution Schedule
+
+    Load W_i, compute W_i·x
+
+    Load U_i, compute U_i·h_prev
+
+    Add bias
+
+    Sigmoid
+
+    Repeat for other gates
+
+📦 SRAM Organization
+
+Each matrix is flattened row-wise into memory. You can:
+
+    Store each row contiguously.
+
+    Address via base + row * num_cols + col
+
+If W_i is 64x6 and you use Q2.14 format:
+
+    Each entry = 2 bytes.
+
+    Total: 64 * 6 * 2 = 768 bytes.
+
+If all 8 matrices are 64x6:
+
+    768 * 8 = 6144 bytes (~6 KB total).
+
+    Easily fits in a single dual-port SRAM block or 8 banks with 1 KB each.
+
+🏗️ SRAM Block Options
+| Option                            | Description                         | Pros                                               | Cons                                             |
+| --------------------------------- | ----------------------------------- | -------------------------------------------------- | ------------------------------------------------ |
+| **Single SRAM block**             | All weights in one flat memory      | Simplest design; easy address mapping              | Needs careful software-side layout               |
+| **Multiple SRAM banks (e.g., 8)** | One per matrix                      | Parallel access possible; clean logical separation | Increases routing/fanout area and complexity     |
+| **Bank-per-gate (4 banks)**       | One bank shared by W and U per gate | Moderate complexity                                | Sequential W and U fetch unless time-multiplexed |
+
+🔄 Control Flow
+
+In the baseline:
+
+    FSM selects W_i, loads it via matrix_loader.
+
+    Matvec op runs.
+
+    FSM selects U_i, loads it.
+
+    Another matvec.
+
+    Accumulate, apply nonlinearity.
+
+    Continue.
+
+This is all time-multiplexed.
+
+🔋 Efficiency Tradeoffs
+| Design Change                                     | Benefit                      | Cost                                         |
+| ------------------------------------------------- | ---------------------------- | -------------------------------------------- |
+| Instantiate 4 hardware multipliers (one per gate) | Parallel gate computation    | 4× area and power usage                      |
+| Separate matrix loaders per multiplier            | Parallel weight loading      | Increased SRAM and routing complexity        |
+| Dual-port SRAM                                    | Parallel read during compute | Synthesis may infer BRAMs with area tradeoff |
+| Pipeline matvec multiplier                        | Higher throughput            | More FSM complexity, may need buffering      |
+
+🧭 Suggested Path Forward
+
+    Start with one matvec unit and one matrix loader.
+
+    Organize SRAM into one block, use address offsets for each matrix.
+
+    Support loading .mem files using $readmemh() for simulation and synthesis prep.
+
+    Design a testbench that runs one LSTM gate (e.g., W_i * x + U_i * h + b_i) to verify correctness.
+
+    Later: add more loaders, separate banks, pipelining, etc.
+
+🧱 SRAM Address Map Example (Assuming 64x6 per matrix)
+```verilog
+// Offsets in terms of matrix rows (each row is 6 values)
+parameter BASE_WI = 0;
+parameter BASE_WF = 64;
+parameter BASE_WC = 128;
+parameter BASE_WO = 192;
+parameter BASE_UI = 256;
+parameter BASE_UF = 320;
+parameter BASE_UC = 384;
+parameter BASE_UO = 448;
+```
+Then for matrix_addr = BASE_WI + row_id with known stride 6 in your loader.
+
+Would you like help generating .mem files from Python, or refactoring the matrix_loader to support $readmemh() and bank switching?
+
+Prompt: Ok, one other factor that needs to be addressed - there are 4 layers plus a final dense layer in the LSTM model, and you can see how each calls the `step` function (which contains the gate calculations from above) here:
+```
+def reconstruct(self, sequence):
+        h1 = [0.0] * self.hidden1
+        c1 = [0.0] * self.hidden1
+        h2 = [0.0] * self.hidden2
+        c2 = [0.0] * self.hidden2
+
+        for x in sequence:
+            h1, c1 = self.lstm1.step(x, h1, c1)
+            h2, c2 = self.lstm2.step(h1, h2, c2)
+
+        repeated = [h2 for _ in range(len(sequence))]
+        h3 = [0.0] * self.hidden3
+        c3 = [0.0] * self.hidden3
+        h4 = [0.0] * self.hidden4
+        c4 = [0.0] * self.hidden4
+
+        output_seq = []
+        for x in repeated:
+            h3, c3 = self.lstm3.step(x, h3, c3)
+            h4, c4 = self.lstm4.step(h3, h4, c4)
+            y = self.dense.forward(h4)
+            output_seq.append(y)
+
+        return output_seq
+```
+Also, the largest weight will be 64x64. Other weights are 32x32, and I think we have a 6x64. We can investigate that more if needed, but just know the largest is 64x64.
+
+I do think the consideration around the 4 gates all using the same `x` and `h_prev` values (the input vector for the matrix vector multiplication) means we will not want one multiplier instance per gate, so that future iterations can buffer those input vectors. But I want to explore the same questions now regarding what resources we need or want for each layer.
+
+Response: Thanks, this is an excellent time to zoom out and consider multi-layer orchestration, memory layout, and multiplier reuse at layer granularity, not just gate granularity.
+
+🧠 What We Know So Far
+
+    LSTM has 4 layers, each with 4 gates (i, f, c̃, o) → 8 matrix-vector products per layer.
+
+    There's also a final dense layer (matrix-vector product).
+
+    Largest matrix is 64×64 → matrix mem per gate ≈ 8 KB (assuming 2B per Q2.14 value).
+
+    Inputs x and h_prev are shared across gates, but not across layers.
+
+    Matrix-vector multiplier is shared across gates in baseline; now we’re deciding how to manage that across layers.
+
+⚙️ High-Level Resource Planning
+
+We can break this into questions for each level of hierarchy:
+
+🔁 Per Layer (LSTM1 to LSTM4)
+| Option                                      | Description                                         | Pros                  | Cons                     |
+| ------------------------------------------- | --------------------------------------------------- | --------------------- | ------------------------ |
+| **Single shared multiplier** for all layers | Fully time-multiplexed                              | Simplest, lowest area | Slowest                  |
+| **One multiplier per layer**                | Parallel layer execution possible (e.g., pipelined) | Higher throughput     | 4× multiplier area       |
+| **Two multipliers, reuse across 4 layers**  | Time-division multiplexing (even vs. odd layers)    | Balanced area/perf    | Scheduling logic needed  |
+| **Replicated matrix loaders per layer**     | Allows staggered prefetch or burst loading          | Reduces contention    | Increased control & area |
+
+✅ Recommendation:
+
+Start with 1 matrix-vector multiplier, and reuse it across all 4 layers. Later, instantiate more for pipelining.
+
+🧱 SRAM Organization: Global Weight Memory
+
+Organize all matrices (W/U/b) for all layers and gates in a single flat memory (or logical banks).
+Suggested SRAM Addressing Scheme:
+
+Let’s define:
+
+    Layer ∈ {1, 2, 3, 4}
+
+    Gate ∈ {i, f, c, o}
+
+    Matrix ∈ {W, U, b}
+
+Then:
+```verilog
+offset = BASE 
+       + LAYER_ID * LAYER_STRIDE 
+       + GATE_ID * GATE_STRIDE 
+       + MATRIX_ID * MATRIX_STRIDE;
+```
+
+Where:
+
+    LAYER_STRIDE = space for 4 gates × 3 matrices (W, U, b) = 12 matrix slots
+
+    GATE_STRIDE = 3 matrices
+
+    MATRIX_STRIDE = rows × cols
+
+Let’s estimate size:
+
+    Largest matrix = 64x64 = 4096 words = 8 KB (16-bit words)
+
+    Let’s reserve space for that for each matrix slot.
+
+    Then total SRAM = 12 matrices/layer × 4 layers × 8 KB = 384 KB
+
+    Add one for dense layer → maybe 392 KB SRAM total
+
+This is well within what synthesis tools will flatten into multiple SRAM macros (e.g., 16 blocks of 32 KB).
+Memory Naming Convention for *.mem files:
+
+    enc1_W_i.mem, enc1_U_i.mem, enc1_b_i.mem
+
+    dec2_W_o.mem, etc.
+
+    dense_W.mem, dense_b.mem
+
+💡 Additional Notes
+
+    Inputs (x, h_prev) can be buffered per layer:
+
+        Since shared across gates, hold in small BRAM/FF buffer while computing all 4 gates.
+
+    Bias values:
+
+        Bias vectors (e.g., b_i) are small (e.g., 64×1) → store in registers or separate small SRAM.
+
+    Dense Layer:
+
+        One additional matrix-vector multiplication.
+
+        Suggest: use same matrix-vector multiplier.
+
+    FSM Scheduling:
+
+        FSM needs to iterate through:
+        For each layer:
+
+            Load W_g → run W_g·x
+
+            Load U_g → run U_g·h_prev
+
+            Add bias
+
+            Nonlinearity
+
+⛳ Path Forward
+Phase 1: Minimal Synthesis-Ready Design
+
+    1 matrix-vector multiplier (hardware block).
+
+    1 matrix_loader module.
+
+    Flat SRAM (or a few logical banks).
+
+    FSM handles all 4 gates and all 4 layers sequentially.
+
+    .mem loader using $readmemh.
+
+Phase 2: Pipelining or Banking
+
+    Add 1 or 2 more matrix loaders to prefetch weights for the next gate/layer.
+
+    Duplicate multiplier for decoder path (lstm3/lstm4), run encoder and decoder in parallel.
+
+Would you like help generating:
+
+    A memory layout file with exact offsets per layer/gate?
+
+    A top-level FSM plan across layers?
+
+    An updated matrix_loader to support memory selection and .mem initialization for all matrices?
+
+Let me know which part you'd like to build out next.
+
+Prompt: There are a couple of things I want to address. First is what the actual instantiation of the SRAM macros will look like, given that I'm targeting Sky130A, and how I can add this to my matrix_loader module while maintaining the ability to simulate with a testbench. The other thing I want to discuss is how this is organized at a high level, and what data needs to be sent from the client in order to specify the weights to use, since we have 4 layers, with 4 gates, and 2 possible weight choices (W vs U) plus if we include the dense layer, 1 additional layer with no gates and only 1 weight. It seems like you're suggesting an FSM that relies on a specific order in which these calls are made, which could be fine for now if it is really the simplest way forward.
+
+I guess one other thing - the matrix vector multiplication operations are not currently using the bias values, so we could leave those out. However, if they are small in size and don't overly complicate the control logic, leaving them in would allow for the possibility of expanding the hardware action in the future to include the elementwise addition that involves the bias.
+
+Response: Excellent — you’re now at the practical convergence of hardware synthesis, testbench simulation, and interface specification for software-hardware coordination. Let's address each topic in depth:
+
+🔧 1. SRAM Macros in Sky130A + Simulation Compatibility
+✅ Goal:
+
+Use real SRAM macros (e.g., from the Sky130A sky130_sram_macros) during synthesis, but allow simulation in testbenches using inferred memory (e.g., an initial $readmemh block).
+
+🧱 SRAM Macro Integration in Sky130A
+
+Sky130A offers various macro sizes, for example:
+
+    sky130_sram_1kbyte_1rw1r_32x256_8 → 32-bit word, 256 rows
+
+    sky130_sram_2kbyte_1rw1r_32x512_8 → 32-bit word, 512 rows
+
+    You can instantiate multiple to store 16-bit values by packing 2 per word or using only lower bits.
+
+🔌 Example Instantiation (Stub Format)
+```verilog
+sky130_sram_1kbyte_1rw1r_32x256_8 sram_inst (
+    .clk0(clk),
+    .csb0(~enable),
+    .web0(~we),
+    .addr0(addr),
+    .din0(din),
+    .dout0(dout),
+    .clk1(1'b0),     // unused
+    .csb1(1'b1),     // unused
+    .addr1('0),      // unused
+    .dout1()         // unused
+);
+```
+🧩 Integration with matrix_loader.sv
+```systemverilog
+`ifdef USE_SRAM_MACRO
+    // Real SRAM instantiation for synthesis
+    logic [31:0] dout_word;
+    assign matrix_data[0] = dout_word[15:0];
+    assign matrix_data[1] = dout_word[31:16];
+
+    // Replace internal matrix_mem with SRAM block
+    sky130_sram_1kbyte_1rw1r_32x256_8 sram_inst (
+        .clk0(clk),
+        .csb0(~enable),
+        .web0(1'b1),          // Read-only
+        .addr0(addr_reg),
+        .din0(32'b0),         // Unused
+        .dout0(dout_word),
+        ...
+    );
+`else
+    // Behavioral memory for simulation
+    logic signed [DATA_WIDTH-1:0] matrix_mem [0:(1<<ADDR_WIDTH)-1];
+
+    initial $readmemh("matrix_weights.mem", matrix_mem);
+
+    always_ff @(posedge clk) begin
+        if (enable) begin
+            for (int i = 0; i < BANDWIDTH; i++) begin
+                matrix_data[i] <= matrix_mem[matrix_addr + i];
+            end
+        end
+    end
+`endif
+```
+Use -DUSE_SRAM_MACRO to toggle at compile time.
+
+🧠 2. High-Level Control: Specifying Weights and Structure
+🎯 Goal:
+
+From the client (Python), specify:
+
+    Which layer (1–4)
+
+    Which gate (i/f/c/o)
+
+    Which matrix (W or U)
+
+    Or: Dense layer
+
+You need a compact protocol from software to hardware.
+
+🗂 Suggested Encodings
+
+Use a control word (ctrl) containing:
+| Bits   | Field   | Description                                  |
+| ------ | ------- | -------------------------------------------- |
+| \[3:2] | `layer` | 0–3 for LSTM layers, 4 for dense             |
+| \[1:0] | `gate`  | 0=i, 1=f, 2=c, 3=o; only used if `layer < 4` |
+| \[4]   | `is_U`  | 0=W, 1=U (dense ignores this)                |
+
+This is just 5 bits of control input. Add it to a register interface or AXI-lite-style bus if you're going formal later.
+
+🧠 FSM Strategy
+
+Yes — a simple FSM works best for now. You can hard-code the order:
+```
+Layer 1:
+    W_i*x
+    U_i*h
+    W_f*x
+    U_f*h
+    ...
+Layer 2:
+    ...
+Dense:
+    W*h4
+```
+
+This avoids needing a full instruction queue or buffer for commands — just feed in x and h values in order, and load the right matrix using ctrl.
+
+The FSM:
+
+    Accepts ctrl, vector_in
+
+    Asserts start
+
+    Matrix loader loads weight based on encoded address offset
+
+    Once loaded, it kicks off multiplication
+
+    Ready flag returns
+
+🎯 3. Bias Support
+
+You're right — biases are small:
+
+    A single vector of up to 64 elements → 128 bytes
+
+    Could live in:
+
+        A separate small SRAM bank
+
+        A register array (if reused often)
+
+        Even concatenated with matrix rows in .mem and split by control logic
+
+💡 Suggested simple path:
+
+    Add bias support but keep it optional via a control bit use_bias
+
+    Keep bias_mem as a separate behavioral memory block now, and leave the computation stubbed
+
+    You’ll be ready to plug in an elementwise adder later
+
+🧭 Summary of Recommendations
+For SRAM & Simulation:
+
+    Use ifdef to swap between inferred memory and SRAM macro.
+
+    Use $readmemh during simulation; instantiate sky130_sram_* macros for synthesis.
+
+For Control Interface:
+
+    5-bit control field: {is_dense, layer[1:0], gate[1:0], is_U}
+
+    Add use_bias bit if needed.
+
+For Bias:
+
+    Keep separate small memory (512 × 16-bit = 1KB max).
+
+    Leave out of computation for now, or stub into the FSM for future support.
+
+Would you like a full control packet definition and FSM pseudocode or SystemVerilog module outline that can sequence through these matrix vector multiplications based on the control signal?
+
+Prompt: In order to explore whether this route will be viable at all, let's start by updating the matrix_loader to use real weights for a single layer, a single gate, and a single weight. We'll target the largest weights to test feasibility. If that is synthesizable, we can estimate execution time and determine if this is work pursuing in more detailed implementation.
+
+Response: Perfect. This is a smart, minimal test case to validate:
+
+    SRAM macro integration with Sky130A
+
+    Synthesis feasibility (area, routing, timing)
+
+    Simulation correctness
+
+    FSM logic to fetch from SRAM
+
+🎯 GOAL: Minimal Synthesizable Test
+
+Target:
+
+    1 LSTM layer
+
+    1 gate (e.g., W_f)
+
+    1 weight matrix (W_f) of size 64×64
+
+    Stored in real SRAM macro
+
+    Loaded into a matrix_data[0:BANDWIDTH-1] port
+
+🧱 SRAM Requirement
+Weight size:
+
+    64 rows × 64 cols = 4096 values
+
+    Each value: Q2.14, 16 bits → 8 KB
+
+Choose SRAM Macro:
+
+For Sky130A, use sky130_sram_2kbyte_1rw1r_32x512_8:
+
+    32-bit words
+
+    512 entries → 2KB
+
+    We need 8KB → 4 macros total
+
+→ You’ll treat each macro as storing a quadrant of the matrix.
+
+🔁 Memory Layout
+
+Store matrix row-major, split across 4 banks:
+
+    Each bank stores 1024 entries (quarter of 64×64 = 4096)
+
+    Bank 0: rows 0–15
+
+    Bank 1: rows 16–31
+
+    Bank 2: rows 32–47
+
+    Bank 3: rows 48–63
+
+✅ Updated matrix_loader Plan
+Parameters:
+```systemverilog
+parameter ADDR_WIDTH = 10;  // Enough for 1024 entries per macro
+parameter ROWS = 64;
+parameter COLS = 64;
+parameter DATA_WIDTH = 16;
+parameter BANDWIDTH = 16;
+```
+
+Ports:
+```systemverilog
+input  logic clk,
+input  logic rst_n,
+input  logic start,
+input  logic [$clog2(ROWS)-1:0] row_index,
+output logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1],
+output logic ready
+```
+
+💾 SRAM Instantiations (Sky130A Macros)
+
+Each bank stores 1024 words (16-bit). We'll group them into 32-bit words (2 per word). Each bank will be used like this:
+```systemverilog
+// Bank 0 for rows 0–15, Bank 1 for 16–31, etc.
+logic [31:0] sram_dout[0:3];
+logic [ADDR_WIDTH-1:0] sram_addr;
+logic csb[0:3];
+
+generate
+    for (genvar i = 0; i < 4; i++) begin : sram_banks
+        sky130_sram_2kbyte_1rw1r_32x512_8 sram (
+            .clk0(clk),
+            .csb0(csb[i]),
+            .web0(1'b1), // read-only
+            .addr0(sram_addr),
+            .din0(32'b0),
+            .dout0(sram_dout[i]),
+            .clk1(1'b0), .csb1(1'b1), .addr1(0), .dout1()
+        );
+    end
+endgenerate
+```
+
+🔄 Logic to Read a Row
+
+For each row_index, we fetch 64 values. We do this in 64 / BANDWIDTH cycles:
+
+    Each cycle loads 16 elements
+
+    Address calculated as:
+    sram_addr = row_index * COLS / 2 + col_offset / 2;
+    (Because each 32-bit word has 2 values)
+
+Only one bank is active at a time depending on row_index.
+
+🧠 Minimal FSM Skeleton
+```systemverilog
+logic [5:0] row_offset;
+logic [5:0] col_offset;
+logic loading;
+logic [$clog2(COLS/BANDWIDTH)-1:0] chunk;
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        ready <= 0;
+        loading <= 0;
+        chunk <= 0;
+        matrix_data <= '{default: 0};
+        csb <= '{default: 1}; // all SRAM disabled
+    end else begin
+        if (start && !loading) begin
+            loading <= 1;
+            chunk <= 0;
+            col_offset <= 0;
+            row_offset <= row_index;
+        end else if (loading) begin
+            int bank = row_offset / 16;
+            csb <= '{default: 1};
+            csb[bank] <= 0;
+            sram_addr <= row_offset * (COLS / 2) + col_offset / 2;
+
+            // Use registered version of sram_dout[bank] next cycle
+            // Example for 2 values per word
+            for (int i = 0; i < BANDWIDTH; i += 2) begin
+                matrix_data[i]     <= sram_dout[bank][15:0];
+                matrix_data[i + 1] <= sram_dout[bank][31:16];
+            end
+
+            chunk <= chunk + 1;
+            col_offset <= col_offset + BANDWIDTH;
+
+            if (chunk == (COLS / BANDWIDTH - 1)) begin
+                loading <= 0;
+                ready <= 1;
+            end
+        end else begin
+            ready <= 0;
+        end
+    end
+end
+```
+
+🧪 Simulation Support
+
+Under ifndef USE_SRAM_MACRO, use:
+```
+logic signed [DATA_WIDTH-1:0] matrix_mem [0:(ROWS*COLS)-1];
+initial $readmemh("wf_layer1.mem", matrix_mem);
+```
+Read directly from matrix_mem[row_index*COLS + col_offset + i]
+
+🧮 Estimating Synthesis Feasibility
+
+What to expect:
+
+    4 SRAM macros
+
+    One FSM with a small counter
+
+    One output register bank for matrix_data
+
+Synthesizable? ✔️ Yes
+
+Even with the 8KB target matrix, this is a trivial amount of logic + 4 SRAM macros. Should easily fit and route on Sky130.
+
+✅ Action Plan
+
+    Create a matrix_loader_one_gate.sv using above FSM and macros
+
+    Simulate using behavioral memory and wf_layer1.mem
+
+    Synthesize with USE_SRAM_MACRO defined and verify
+
+    Evaluate:
+
+        Area from metrics.json
+
+        Clock frequency
+
+        Simulated correctness (row output)
+
+Would you like me to generate the complete SystemVerilog module now (matrix_loader_one_gate.sv) that includes both the FSM and the ifdef for SRAM simulation vs macro?
