@@ -12,18 +12,16 @@ module matvec_multiplier #(
     input  logic [$clog2(MAX_ROWS):0] num_rows,
     input  logic [$clog2(MAX_COLS):0] num_cols,
 
-    // NOTE: vector_in and matrix_data are defaulting to var rather than wire
-    // due to default compile options. Should confirm this is as desired.
     // Vector chunk input
     // NOTE: Client is required to convert vector values to Q4.12
     input  logic vector_write_enable,
     input  logic [$clog2(MAX_COLS)-1:0] vector_base_addr,
-    input  logic signed [15:0] vector_in [0:BANDWIDTH-1], // Q4.12
+    input  wire logic signed [15:0] vector_in [0:BANDWIDTH-1], // Q4.12
 
     // Matrix SRAM interface
     output logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr,
     output logic matrix_enable,
-    input  logic [DATA_WIDTH*BANDWIDTH-1:0] matrix_data, // Q2.14
+    input  wire logic [DATA_WIDTH*BANDWIDTH-1:0] matrix_data, // Q2.14
     input  logic matrix_ready,
 
     // Result output
