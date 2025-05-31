@@ -59,6 +59,8 @@ ChatGPT noted the following metrics to review from the `metrics.json` in order t
 
 There may also be design rule violations, related to max slew constraints.
 
+In order to consider alternate design options, a smaller mac2 variant was created and synthesized using OpenLane2. Clock speed improvements were marginal, with a minimum period somewhere around 30ns. It seems unlikely this approach is worth pursuing, but it may be worth considering if many mac instances may be used in parallel in the matvec_mul module.
+
 ## Future Work
 
 ### Controller for Multiple Layers, Gates, and Weights

@@ -1,0 +1,9 @@
+{
+  "DESIGN_NAME": "mac2",
+  "VERILOG_FILES": [
+    "dir::mac2.v"
+  ],
+  "CLOCK_PERIOD": 25.0,
+  "CLOCK_PORT": "clk",
+  "FIX_SLEW": 1
+}
