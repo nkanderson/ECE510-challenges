@@ -8356,3 +8356,67 @@ assign a[i*DATA_WIDTH +: DATA_WIDTH] =
 ```
 
 Let me know if you’d like help sweeping those changes through the module.
+
+Prompt: Ok, that looks good. The only thing I can think of we still need to add to the loader is the actual initialization with data
+
+Response: You're absolutely right — with the flattened matrix_data working and the SRAM interface in place, the final step is initializing the matrix loader with real weight data, especially for simulation.
+
+Here’s what you need to do:
+✅ 1. Prepare the Flattened .mem File
+
+You already have something like this:
+```
+01E3
+0468
+01F1
+0689
+...
+```
+For the behavioral simulation branch (!USE_SRAM_MACRO), you'll want to load this using $readmemh. But that file should represent individual 16-bit values, one per line (as you have). This is fine as long as you’re doing:
+
+```systemverilog
+logic signed [DATA_WIDTH-1:0] matrix_mem [0:(1<<ADDR_WIDTH)-1];
+initial $readmemh("enc1_U.mem", matrix_mem);
+```
+
+Make sure:
+
+    The file name is correct (relative to simulation path).
+
+    It's declared in the else branch of the ifdef USE_SRAM_MACRO.
+
+✅ 2. Confirm Format for Real Synthesis
+
+For synthesis via OpenLane2:
+
+    You don’t initialize with $readmemh.
+
+    You must preload the SRAM macros via .lef/.lib/.gds black-boxing and separate initialization (e.g., via external memory loading during simulation or synthesis insertion logic).
+
+So:
+```
+// synthesis only cares about wiring; don't include $readmemh here
+```
+
+✅ 3. (Optional) Conditional Filename Macro
+
+You could also make the filename configurable:
+```systemverilog
+`ifndef MEM_FILE
+    `define MEM_FILE "enc1_U.mem"
+`endif
+
+initial $readmemh(`MEM_FILE, matrix_mem);
+```
+Then compile with:
+```
++define+MEM_FILE="enc1_U_large.mem"
+```
+
+✅ 4. Verify Data Width Alignment
+
+    Each line in the .mem file should be exactly one 16-bit hex value.
+
+    No extra whitespace or blank lines at the end (can cause undefined reads).
+
+Let me know if you’d like a one-liner script to flatten a full Python .npz weight matrix into a .mem file for this loader — we can generate one per gate/layer easily.
