@@ -16,18 +16,21 @@ def save_lstm_weights(weights, prefix, output_dir):
         save_mem_file(
             W[:, idx * hidden_size : (idx + 1) * hidden_size],
             os.path.join(output_dir, f"{prefix}_W_{gate}.mem"),
+            q_format=(2, 14),
         )
 
         # recurrent weights
         save_mem_file(
             U[:, idx * hidden_size : (idx + 1) * hidden_size],
             os.path.join(output_dir, f"{prefix}_U_{gate}.mem"),
+            q_format=(2, 14),
         )
 
         # biases
         save_mem_file(
             b[idx * hidden_size : (idx + 1) * hidden_size],
             os.path.join(output_dir, f"{prefix}_b_{gate}.mem"),
+            q_format=(2, 14),
         )
 
 
