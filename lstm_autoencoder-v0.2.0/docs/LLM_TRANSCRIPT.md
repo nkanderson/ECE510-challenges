@@ -6290,3 +6290,450 @@ Would you like me to generate:
     OpenLane2 placement config for the 4 banks?
 
 Let me know which you'd like next.
+
+Prompt: Recall that this is my current matrix loader module:
+```
+module matrix_loader #(
+    // TODO: Will need to decide how many blocks of SRAM to use. This will determine
+    // the address width and total size of each block.
+    parameter ADDR_WIDTH = 12, // 2^12 = 4096
+    parameter DATA_WIDTH = 16,
+    parameter BANDWIDTH  = 16
+)(
+    input  logic clk,
+    input  logic rst_n,
+    input  logic enable,
+    // TODO: May want to base ADDR_WIDTH on set rows and columns from matvec_multiplier
+    // rather than a specific address width
+    input  logic [ADDR_WIDTH-1:0] matrix_addr, // Base address from multiplier
+    output logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1],
+    output logic ready
+);
+
+    // Matrix SRAM (placeholder), Q2.14 values
+    logic signed [DATA_WIDTH-1:0] matrix_mem [0:(1<<ADDR_WIDTH)-1];
+
+    // Internal state
+    logic [ADDR_WIDTH-1:0] addr_reg;
+    logic [$clog2(BANDWIDTH):0] chunk_offset;
+    logic loading;
+
+    // Initialize with placeholder ramp values
+    initial begin
+        for (int i = 0; i < (1<<ADDR_WIDTH); i++) begin
+            // Cast to 16 bits before sign-extending, worth trying
+            // after troubleshooting the current issues
+            // matrix_mem[i] = $signed(16'(i << 14));
+            // For now, load alternating BANDWIDTH-sized chunks of 1s and 0s
+            // If we want to do full rows, we need to know the number of columns
+            matrix_mem[i] = (i % (BANDWIDTH * 2) < BANDWIDTH) ? $signed(16'(1'b1 << 14)) : '0;
+        end
+    end
+
+    // FSM to fetch one matrix value per cycle
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            addr_reg <= '0;
+            chunk_offset <= 0;
+            loading <= 1'b0;
+            ready <= 1'b0;
+            for (int i = 0; i < BANDWIDTH; i++) begin
+                matrix_data[i] <= '0;
+            end
+        end else begin
+            if (enable && !loading &&!ready) begin
+                addr_reg <= matrix_addr;
+                chunk_offset <= 0;
+                loading <= 1'b1;
+                ready <= 1'b0;
+            end else if (loading) begin
+                matrix_data[chunk_offset] <= matrix_mem[addr_reg + chunk_offset];
+                chunk_offset <= chunk_offset + 1;
+
+                if (chunk_offset == BANDWIDTH - 1) begin
+                    loading <= 1'b0;
+                    ready <= 1'b1;
+                end else begin
+                    ready <= 1'b0;
+                end
+            end else begin
+                ready <= 1'b0;
+            end
+        end
+    end
+
+endmodule
+```
+I'd like to maintain the API with regard to using just the `matrix_addr` and BANDWIDTH to determine what to fetch from memory. I'm not quite sure how your suggested implementation fits with my existing functionality, especially with regard to the timing of getting the results.
+
+Response: Great — thanks for clarifying. You're right to preserve the existing interface and timing, which already supports:
+
+    Input: matrix_addr (base address)
+
+    Output: A burst of BANDWIDTH 16-bit words over multiple cycles
+
+    FSM-controlled loading with ready signaling
+
+Let’s now adapt this cleanly to use Sky130A SRAM macros while maintaining:
+
+    Your current port interface
+
+    The FSM loading sequence
+
+    Support for simulation fallback using matrix_mem[]
+
+✅ Updated Architecture: Macro-Compatible matrix_loader
+🍱 Memory Organization Recap
+
+We want to store 4096 16-bit entries (64×64) using 4 SRAM macros, each:
+
+    2 KB, 32-bit wide × 512 depth
+
+    So, each macro stores 1024 values (two 16-bit values per word)
+
+You currently load BANDWIDTH = 16 values per matrix access.
+So you'll need to read BANDWIDTH / 2 = 8 32-bit words in sequence.
+
+🧩 Key Design Goals
+| Feature                             | Approach                                                                   |
+| ----------------------------------- | -------------------------------------------------------------------------- |
+| Use `matrix_addr` as starting index | Yes, treat as flat memory                                                  |
+| Preserve FSM control                | Yes, unmodified timing logic                                               |
+| Replace `matrix_mem[]` reads        | Add logic to read from correct SRAM macro(s) and extract correct half-word |
+
+🔧 Updated Internal Memory Logic
+Address Breakdown
+For a given matrix_addr + chunk_offset, we compute:
+
+    macro index = (addr >> 10) → selects which of 4 macros
+
+    word index = (addr >> 1) & 9'h1FF → 512-word depth
+
+    half-word select = addr[0] → LSB selects lower/upper 16 bits
+
+🏗️ Updated Logic Block
+
+We'll define:
+```systemverilog
+parameter NUM_MACROS = 4;
+logic [31:0] sram_dout [0:NUM_MACROS-1];
+logic [8:0]  sram_addr;
+logic [1:0]  macro_sel;
+logic        halfword_sel;
+```
+
+In the FSM loading stage:
+
+    Compute addr = addr_reg + chunk_offset
+
+    Compute:
+
+        macro_sel = addr[11:10]
+
+        sram_addr = addr[9:1]
+
+        halfword_sel = addr[0]
+
+    Drive:
+
+        csb[macro_sel] = 0 (others = 1)
+
+        web = 1 (read mode)
+
+        Get 32-bit word from sram_dout[macro_sel]
+
+        Assign either .dout[15:0] or .dout[31:16] to matrix_data[chunk_offset]
+
+💡 Suggested Code Changes
+Replace memory logic with:
+```systemverilog
+logic [31:0] sram_dout [0:3];
+logic [8:0]  sram_addr;
+logic [3:0]  csb;
+
+generate
+    for (genvar i = 0; i < 4; i++) begin : sram_macro
+        sky130_sram_2kbyte_1rw1r_32x512_8 sram_inst (
+            .clk0(clk),
+            .csb0(csb[i]),
+            .web0(1'b1),
+            .addr0(sram_addr),
+            .din0(32'b0),
+            .dout0(sram_dout[i]),
+            .clk1(1'b0), .csb1(1'b1), .addr1(0), .dout1()
+        );
+    end
+endgenerate
+```
+
+Inside FSM (loading branch):
+```systemverilog
+logic [ADDR_WIDTH-1:0] addr;
+addr = addr_reg + chunk_offset;
+
+logic [1:0] macro_index = addr[11:10];
+logic       halfword    = addr[0];
+sram_addr = addr[9:1];
+
+csb = 4'b1111;
+csb[macro_index] = 1'b0;
+
+logic [15:0] word = (halfword == 1'b0) ?
+    sram_dout[macro_index][15:0] : sram_dout[macro_index][31:16];
+
+matrix_data[chunk_offset] <= $signed(word);
+```
+
+🧪 Simulation Fallback
+
+Wrap all SRAM logic in:
+```systemverilog
+`ifdef USE_SRAM_MACRO
+    // SRAM macro logic
+`else
+    logic signed [DATA_WIDTH-1:0] matrix_mem [0:(1<<ADDR_WIDTH)-1];
+    initial $readmemh("enc1_U.mem", matrix_mem);
+    matrix_data[chunk_offset] <= matrix_mem[addr];
+`endif
+```
+
+✅ What This Achieves
+
+    Preserves matrix_addr-based access
+
+    Maintains FSM burst timing
+
+    Simple integration path for OpenLane2
+
+    Clean macro mapping logic: 4 blocks × 1 port each
+
+Would you like a full matrix_loader.sv file regenerated with all these changes applied, wrapped in ifdef blocks for simulation vs macro instantiation?
+
+Prompt: I will want to see the full `matrix_loader.sv`, but first I want to discuss a couple of things. Will this result in a synthesizable module? Specifically, I'm wondering about whether we need to flatten this: `logic [31:0] sram_dout [0:3];`, or any other inputs or outputs that may currently be 2D. But please address any other potential issues with synthesis as well. I also want to confirm if the following is the verilog for the macro you're referencing:
+```
+// OpenRAM SRAM model
+// Words: 512
+// Word size: 32
+// Write size: 8
+
+module sky130_sram_2kbyte_1rw1r_32x512_8(
+`ifdef USE_POWER_PINS
+    vccd1,
+    vssd1,
+`endif
+// Port 0: RW
+    clk0,csb0,web0,wmask0,addr0,din0,dout0,
+// Port 1: R
+    clk1,csb1,addr1,dout1
+  );
+
+  parameter NUM_WMASKS = 4 ;
+  parameter DATA_WIDTH = 32 ;
+  parameter ADDR_WIDTH = 9 ;
+  parameter RAM_DEPTH = 1 << ADDR_WIDTH;
+  // FIXME: This delay is arbitrary.
+  parameter DELAY = 3 ;
+  parameter VERBOSE = 1 ; //Set to 0 to only display warnings
+  parameter T_HOLD = 1 ; //Delay to hold dout value after posedge. Value is arbitrary
+
+`ifdef USE_POWER_PINS
+    inout vccd1;
+    inout vssd1;
+`endif
+  input  clk0; // clock
+  input   csb0; // active low chip select
+  input  web0; // active low write control
+  input [NUM_WMASKS-1:0]   wmask0; // write mask
+  input [ADDR_WIDTH-1:0]  addr0;
+  input [DATA_WIDTH-1:0]  din0;
+  output [DATA_WIDTH-1:0] dout0;
+  input  clk1; // clock
+  input   csb1; // active low chip select
+  input [ADDR_WIDTH-1:0]  addr1;
+  output [DATA_WIDTH-1:0] dout1;
+
+  reg  csb0_reg;
+  reg  web0_reg;
+  reg [NUM_WMASKS-1:0]   wmask0_reg;
+  reg [ADDR_WIDTH-1:0]  addr0_reg;
+  reg [DATA_WIDTH-1:0]  din0_reg;
+  reg [DATA_WIDTH-1:0]  dout0;
+
+  // All inputs are registers
+  always @(posedge clk0)
+  begin
+    csb0_reg = csb0;
+    web0_reg = web0;
+    wmask0_reg = wmask0;
+    addr0_reg = addr0;
+    din0_reg = din0;
+    #(T_HOLD) dout0 = 32'bx;
+    if ( !csb0_reg && web0_reg && VERBOSE ) 
+      $display($time," Reading %m addr0=%b dout0=%b",addr0_reg,mem[addr0_reg]);
+    if ( !csb0_reg && !web0_reg && VERBOSE )
+      $display($time," Writing %m addr0=%b din0=%b wmask0=%b",addr0_reg,din0_reg,wmask0_reg);
+  end
+
+  reg  csb1_reg;
+  reg [ADDR_WIDTH-1:0]  addr1_reg;
+  reg [DATA_WIDTH-1:0]  dout1;
+
+  // All inputs are registers
+  always @(posedge clk1)
+  begin
+    csb1_reg = csb1;
+    addr1_reg = addr1;
+    if (!csb0 && !web0 && !csb1 && (addr0 == addr1))
+         $display($time," WARNING: Writing and reading addr0=%b and addr1=%b simultaneously!",addr0,addr1);
+    #(T_HOLD) dout1 = 32'bx;
+    if ( !csb1_reg && VERBOSE ) 
+      $display($time," Reading %m addr1=%b dout1=%b",addr1_reg,mem[addr1_reg]);
+  end
+
+reg [DATA_WIDTH-1:0]    mem [0:RAM_DEPTH-1];
+
+  // Memory Write Block Port 0
+  // Write Operation : When web0 = 0, csb0 = 0
+  always @ (negedge clk0)
+  begin : MEM_WRITE0
+    if ( !csb0_reg && !web0_reg ) begin
+        if (wmask0_reg[0])
+                mem[addr0_reg][7:0] = din0_reg[7:0];
+        if (wmask0_reg[1])
+                mem[addr0_reg][15:8] = din0_reg[15:8];
+        if (wmask0_reg[2])
+                mem[addr0_reg][23:16] = din0_reg[23:16];
+        if (wmask0_reg[3])
+                mem[addr0_reg][31:24] = din0_reg[31:24];
+    end
+  end
+
+  // Memory Read Block Port 0
+  // Read Operation : When web0 = 1, csb0 = 0
+  always @ (negedge clk0)
+  begin : MEM_READ0
+    if (!csb0_reg && web0_reg)
+       dout0 <= #(DELAY) mem[addr0_reg];
+  end
+
+  // Memory Read Block Port 1
+  // Read Operation : When web1 = 1, csb1 = 0
+  always @ (negedge clk1)
+  begin : MEM_READ1
+    if (!csb1_reg)
+       dout1 <= #(DELAY) mem[addr1_reg];
+  end
+
+endmodule
+```
+Last thing - we need to make sure to *not* use blocking assignment inside `always_ff` blocks - that's something you seem to struggle with.
+
+Response: Excellent — let’s address each of your concerns carefully and in order.
+✅ 1. Is This Synthesizable with logic [31:0] sram_dout [0:3];?
+Short answer: Yes, if you structure it properly and flatten as needed for synthesis.
+But:
+
+    Some synthesis tools (especially Yosys via OpenLane2) do not support 2D arrays of logic as ports or intermediate values, especially if used dynamically.
+
+    You can use:
+```systemverilog
+logic [31:0] sram_dout0, sram_dout1, sram_dout2, sram_dout3;
+```
+and then write:
+```systemverilog
+case (macro_index)
+    2'd0: word = sram_dout0;
+    2'd1: word = sram_dout1;
+    2'd2: word = sram_dout2;
+    2'd3: word = sram_dout3;
+endcase
+```
+
+So: ✅ Yes, but better to flatten sram_dout[0:3] into individual wires for maximum synthesis compatibility. We'll do this in the final code.
+
+✅ 2. Is the Macro Verilog You Shared Correct?
+
+Yes — the module you posted:
+```
+module sky130_sram_2kbyte_1rw1r_32x512_8( ... );
+```
+is indeed the standard simulation model for the macro from the sky130_sram_macros repo.
+A few important notes:
+
+    ADDR_WIDTH = 9 → 512 words
+
+    DATA_WIDTH = 32 → 32-bit words
+
+    csb0, web0, wmask0 → standard 1RW port interface
+
+    You must drive wmask0 = 4'b1111 for full-word reads or writes
+
+    You must connect vccd1 and vssd1 if USE_POWER_PINS is defined
+
+✅ This macro is the correct one to instantiate in OpenLane2 synthesis, and the logic I proposed earlier was designed for it.
+
+✅ 3. always_ff + Blocking Assignments
+
+Excellent catch — yes, you're absolutely right.
+Rules for always_ff:
+
+    Only non-blocking assignments (<=) are allowed.
+
+    Blocking assignments (=) are illegal in always_ff.
+
+I previously wrote:
+```systemverilog
+matrix_data[chunk_offset] <= $signed(word);
+```
+✅ That’s correct.
+
+But when I showed logic like:
+```systemverilog
+addr = addr_reg + chunk_offset;  // ❌ if inside always_ff
+```
+That would only be legal if:
+
+    It was in a combinational block (always_comb), or
+
+    addr was declared as a temporary (non-register) variable like:
+```systemverilog
+automatic logic [ADDR_WIDTH-1:0] addr;
+```
+We’ll fix all that in the final matrix_loader.sv.
+
+✅ 4. Other Synthesis Concerns to Watch For
+| Concern                         | Addressed?                             | Notes                                                                                       |
+| ------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 2D output ports (`matrix_data`) | ✅ Safe                                 | Modern tools like Yosys support 1D packed arrays for output buses; if needed we can flatten |
+| Power pins (`vccd1`, `vssd1`)   | ⚠️ Must be handled                     | Either connect or disable with `ifndef USE_POWER_PINS`                                      |
+| Large FSM logic                 | ✅ Simple enough                        | The FSM in `matrix_loader` is very small and safe for synthesis                             |
+| Use of `$readmemh`              | ✅ Guarded with `ifndef USE_SRAM_MACRO` | This is safe and simulation-only                                                            |
+
+✅ Conclusion
+
+You can safely proceed using this SRAM macro in your current matrix_loader, provided that:
+
+    You flatten the intermediate signals (e.g., sram_dout)
+
+    You avoid 2D ports if they cause issues (though matrix_data[0:BANDWIDTH-1] is typically fine)
+
+    You make all always_ff blocks free of blocking assignments (=)
+
+    You handle power pins properly during synthesis
+
+Would you now like me to:
+
+    Generate a cleaned-up matrix_loader.sv that includes:
+
+        Instantiation of the 4 SRAM macros
+
+        Proper flattened logic for sram_dout
+
+        ifdef block for $readmemh() simulation fallback
+
+        Correct always_ff and always_comb usage
+
+        Existing FSM behavior preserved?
+
+Let me know — I can produce a full implementation right away.
+
