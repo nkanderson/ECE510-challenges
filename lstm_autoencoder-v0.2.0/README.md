@@ -58,3 +58,29 @@ ChatGPT noted the following metrics to review from the `metrics.json` in order t
   - `timing__tns`
 
 There may also be design rule violations, related to max slew constraints.
+
+## Future Work
+
+### Controller for Multiple Layers, Gates, and Weights
+
+In order to specify the specific weights to use for a given matrix-vector multiplication option, we will need to allow for a control word to be passed, along with the vector input. The control word should have enough bits to select the appropriate layer (4 options), gate (4 options), and weight (`W` or `U`), as well as one additional option to select the dense layer. This will require 6 bits in order to cover 32 combinations for the main encoder and decoder layers and their gates and weights, plus 1 for the dense layer, or 33 total. There will essentially be a "dense" bit.
+
+Another alternative is to use a basic FSM to select the appriopriate combination from the above in the order called by the algorithm. This may be the simplest next step before implementing a control word. The FSM could be implemented within the SRAM memory controller for loading the weights.
+
+### SRAM Addressing
+
+One possible option would be to organize all matrices (`W` and `U`, may include `b` vector here as well for future usage) for all layers and gates in a single flat memory using multiple SRAM macros to create logical banks. For simplicity, it may be easiest to initially base each layer size on the largest required layer size, which should be one of the layers with a hidden size of 64.
+
+The memory address offset for a given layer, gate, and weight will be calculated in the following manner:
+```
+offset = BASE 
+       + LAYER_ID * LAYER_STRIDE 
+       + GATE_ID * GATE_STRIDE 
+       + MATRIX_ID * MATRIX_STRIDE;
+```
+
+LAYER_STRIDE = Max total layer size = space for 4 gates × 3 matrices (W, U, b) = 12 matrix slots of varying size
+GATE_STRIDE = 3 matrices - TODO: It may be possible to have a base value and scale it depending on the particular layer
+MATRIX_STRIDE = rows × cols - Determined by the client code
+
+This is not the most space-efficient, but could be a relatively simple inital organization.
