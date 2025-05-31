@@ -5533,3 +5533,422 @@ Even with the 8KB target matrix, this is a trivial amount of logic + 4 SRAM macr
         Simulated correctness (row output)
 
 Would you like me to generate the complete SystemVerilog module now (matrix_loader_one_gate.sv) that includes both the FSM and the ifdef for SRAM simulation vs macro?
+
+Prompt: We're going to skip the FSM for now and just focus on the one specific matrix vector multiplication. We're going to use the weight from encoder 1 `U`, because it is 64x64. Tell me more about the specific sram macro you're instantiating here? It seems like it's possible to create sram macros using OpenRAM and specify the word size as 16 bits, which seems to make for simpler logic.
+
+Response: Excellent — focusing on a single 64×64 matrix-vector multiplication using U from encoder layer 1 is the perfect minimal test case. You're absolutely right: using OpenRAM to generate 16-bit-wide macros is both simpler and more aligned with your data format (Q2.14 = 16-bit fixed-point). Let’s compare and clarify both macro options before settling on the cleanest approach for synthesis.
+
+🔍 OPTION 1: Sky130A Prebuilt SRAM Macros
+📦 Example:
+
+sky130_sram_2kbyte_1rw1r_32x512_8
+| Feature       | Value                                              |
+| ------------- | -------------------------------------------------- |
+| Word size     | 32 bits                                            |
+| Address depth | 512                                                |
+| Total size    | 2KB                                                |
+| Ports         | 1RW + 1R                                           |
+| Wrapper       | GDS + LIB + Verilog models available in Sky130 PDK |
+
+✅ Pros:
+
+    Ready to use in the PDK.
+
+    Has synthesis and placement support in OpenLane2.
+
+❌ Cons:
+
+    Word size is 32 bits → you have to pack two 16-bit values per word.
+
+    Adds mux/demux logic to access individual matrix elements.
+
+    You’d need 4 blocks to store 8KB (64×64×2B).
+
+    Not scalable for multiple banks with 16-bit access.
+
+🔍 OPTION 2: Custom OpenRAM-Generated Macros
+
+You can use OpenRAM to generate your own SRAM macros, which gives you control over:
+| Parameter       | Suggested Value |
+| --------------- | --------------- |
+| Word size       | 16 bits         |
+| Number of words | 4096            |
+| Port type       | 1RW or 1RW + 1R |
+
+🔨 Command Example:
+```sh
+python3 openram.py config/sky130_sram_16x4096.py
+```
+And your config file might define:
+```
+word_size = 16
+num_words = 4096
+num_rw_ports = 1
+```
+✅ Pros:
+
+    Word width matches your Q2.14 fixed-point format.
+
+    Access logic is cleaner and faster — no packing/unpacking needed.
+
+    You can size it exactly to your matrix.
+
+❌ Cons:
+
+    You’ll need to integrate the GDS + Verilog into OpenLane yourself.
+
+    Slightly more involved build process (but one-time setup).
+
+    May need to manage SRAM PnR constraints manually.
+
+✅ RECOMMENDATION (for long-term synthesis goals)
+
+If you're planning to:
+
+    Reuse this design across layers/gates,
+
+    Push toward ASIC tape-out or heavy optimization,
+
+then generate the macros with OpenRAM using 16-bit words and 4096-depth. That gives you:
+
+    A single macro for this test (64×64 weights),
+
+    Cleaner SystemVerilog logic,
+
+    Straightforward extension to multiple banks for other layers.
+
+🧩 Sample SRAM Integration in matrix_loader_one_gate.sv
+```systemverilog
+module matrix_loader_one_gate (
+    input  logic clk,
+    input  logic rst_n,
+    input  logic start,
+    input  logic [5:0] row_index,     // 0 to 63
+    input  logic [15:0] vector_in [0:63], // input vector
+    output logic signed [31:0] dot_product,
+    output logic ready
+);
+
+    // Memory-mapped matrix U_enc1[64][64]
+    logic [15:0] matrix_row [0:63];
+
+    // SRAM interface (OpenRAM macro, 16-bit wide, 4096 words)
+    logic [11:0] sram_addr; // 64 rows × 64 cols = 4096 words → 12 bits
+    logic [15:0] sram_dout;
+    logic sram_csb;
+
+    openram_16x4096_sram matrix_sram (
+        .clk(clk),
+        .csb(sram_csb),
+        .web(1'b1),         // read
+        .addr(sram_addr),
+        .din(16'b0),
+        .dout(sram_dout)
+    );
+
+    // Load the matrix row into a buffer
+    logic [5:0] col_idx;
+    logic loading;
+    logic signed [31:0] acc;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            loading <= 0;
+            ready <= 0;
+            col_idx <= 0;
+            acc <= 0;
+            sram_csb <= 1;
+        end else begin
+            if (start && !loading) begin
+                loading <= 1;
+                col_idx <= 0;
+                acc <= 0;
+                sram_csb <= 0;
+                sram_addr <= row_index * 64;
+            end else if (loading) begin
+                acc <= acc + $signed(sram_dout) * $signed(vector_in[col_idx]);
+                col_idx <= col_idx + 1;
+                sram_addr <= sram_addr + 1;
+
+                if (col_idx == 63) begin
+                    loading <= 0;
+                    ready <= 1;
+                    sram_csb <= 1;
+                    dot_product <= acc;
+                end
+            end else begin
+                ready <= 0;
+            end
+        end
+    end
+
+endmodule
+```
+
+🔬 Simulation Mode
+
+Use a define to swap in a behavioral memory:
+```systemverilog
+`ifndef USE_OPENRAM_MACRO
+    logic signed [15:0] matrix_mem [0:4095];
+    initial $readmemh("enc1_U.mem", matrix_mem);
+    assign sram_dout = matrix_mem[sram_addr];
+`endif
+```
+
+✅ Next Steps
+
+Would you like me to:
+
+    Generate a matrix_loader_one_gate.sv file with the clean interface above?
+
+    Help create the .mem file for enc1_U using Python?
+
+    Walk through generating OpenRAM SRAM macros?
+
+Let me know which you'd like to proceed with.
+
+Prompt: I already have a .mem file. How do I get that data into the SRAM? Can I do that when I create the macro, or do I have to have another initialization step to write it in?
+
+Response: Great question — this gets at the key distinction between simulation initialization and physical memory behavior in silicon.
+
+🧠 TL;DR
+
+    During simulation, you can use $readmemh() to preload data into behavioral memory.
+
+    For real SRAM macros (e.g., OpenRAM or Sky130), they do not support initialization via .mem files directly.
+
+    Instead, you must either:
+
+        Inject the memory contents at layout time (e.g., for ROM-style macros), or
+
+        Use a loader FSM to write the data at runtime post-reset.
+
+🔍 In Detail
+1. ✅ Simulation Initialization
+
+For simulation, it's trivial:
+```systemverilog
+`ifndef USE_SRAM_MACRO
+    logic [15:0] matrix_mem [0:4095];
+    initial $readmemh("enc1_U.mem", matrix_mem);
+    assign sram_dout = matrix_mem[sram_addr];
+`endif
+```
+This works only for behavioral memory — not for macro instantiations.
+
+2. ❌ SRAM Macros Do Not Load .mem Directly
+
+OpenRAM macros, once synthesized and instantiated, are just black boxes with ports like addr, din, dout. They don't support loading .mem files.
+
+They represent real SRAM cells, so:
+
+    They are not preloaded with any values.
+
+    At power-on, they typically contain undefined (X) values.
+
+    You need to explicitly write to them during initialization.
+
+✅ OPTIONS for Populating SRAM Macros
+🔁 Option 1: Write Using a Loader FSM (Most Common)
+
+You include a small hardware routine in your design or testbench that, at startup:
+
+    Writes all 4096 values into SRAM using its addr, din, and web ports.
+
+    Disables write-enable and uses read mode after that.
+
+This is the most portable, realistic, and synthesizable way.
+
+🏗️ Loader FSM Structure
+
+Write mode:
+```verilog
+web  = 0;         // write enabled
+csb  = 0;         // chip selected
+addr = i;
+din  = matrix_mem[i];
+```
+Loop for i = 0 to 4095.
+
+Then switch to:
+```verilog
+web = 1;  // read-only mode
+```
+
+You could drive this logic from a small FSM that uses $readmemh() for behavioral preload of a temporary register file used to write the actual SRAM macro.
+
+⚙️ Option 2: Use ROM Instead of RAM (If Truly Fixed)
+
+OpenRAM can generate ROM macros (read-only, initialized once during layout). These:
+
+    Are hardcoded at macro generation time
+
+    Require you to embed your matrix values into the Verilog + GDS
+
+This is great if:
+
+    The weights never change
+
+    You're building a hard-coded accelerator
+
+But:
+
+    You must regenerate the macro every time you change .mem data.
+
+    Not suitable for reconfigurable architectures.
+
+📂 Option 3: Backdoor Preload for Gate-Level Sim (Advanced)
+
+Tools like Verilator, VCS, or ModelSim sometimes allow backdoor memory loading into macros using $readmemh + VPI/VHPI hooks.
+
+This is simulator-specific and not recommended for synthesis-driven development.
+
+✅ Recommended for You
+
+Since you're in the prototyping phase:
+
+    Continue using $readmemh() for simulation via ifndef USE_SRAM_MACRO.
+
+    When targeting synthesis:
+
+        Add a small loader module that:
+
+            Loads values from a small behavioral memory (or from software-driven interface).
+
+            Writes them into the SRAM macro using web = 0.
+
+    Eventually: consider OpenRAM ROM macro if weights will be permanently fixed.
+
+✅ Summary
+| Use Case            | How to Load                                                       |
+| ------------------- | ----------------------------------------------------------------- |
+| **Simulation**      | `$readmemh("enc1_U.mem", ...)` into behavioral memory             |
+| **Synthesis (RAM)** | Use an FSM or loader module to write values at runtime            |
+| **Synthesis (ROM)** | Generate OpenRAM ROM with weights embedded at macro creation time |
+
+Would you like help creating a minimal loader FSM that takes a .mem file and writes it into the SRAM macro during reset?
+
+Prompt: Does it make openlane2 synthesis more difficult if you use a ROM with hard-coded values? Having a ROM might be most ideal for my current intended functionality, but I don't want it to be very difficult to finish synthesis
+
+Prompt: Using a ROM with hard-coded values in OpenLane2 is definitely viable and can be a very clean and efficient solution — but there are a few caveats that are worth understanding before you commit.
+
+✅ Benefits of Using ROM (Especially for LSTM Weights)
+
+    Zero write logic: ROMs are read-only by nature, so you eliminate all write ports, FSMs, or boot-time setup.
+
+    Smaller area: Since write circuitry and wordline drivers are omitted, ROM macros are smaller than equivalent SRAM.
+
+    Faster timing: Simpler cell structures make ROMs slightly faster in some cases.
+
+    Ideal for fixed weights: If you're not updating weights at runtime, ROM is perfect.
+
+⚠️ Challenges with OpenLane2 Synthesis
+1. ❗ ROM Must Be Treated as a Black Box
+
+OpenLane2 will not automatically infer ROM from behavioral SystemVerilog like:
+```verilog
+always_ff @(posedge clk)
+    data <= rom[addr];
+```
+
+This would usually result in synthesis of flip-flop arrays, which defeats the purpose.
+
+Instead, you need to:
+
+    Pre-generate a ROM macro using OpenRAM.
+
+    Provide the following files to OpenLane:
+
+        .lib (timing)
+
+        .lef (layout)
+
+        .gds (physical geometry)
+
+        .verilog (netlist)
+
+    And a corresponding Verilog wrapper like:
+
+```verilog
+module enc1_U_rom (
+    input  wire clk,
+    input  wire [11:0] addr,
+    output wire [15:0] dout
+);
+// Instantiation of OpenRAM-generated ROM
+...
+endmodule
+```
+
+Then instantiate enc1_U_rom in your design and tell OpenLane2 to treat it as a blackbox until placement.
+
+2. 🛠️ Integration in OpenLane2 Requires Setup
+
+You’ll need to:
+
+    Register the ROM macro in config.tcl:
+```tcl
+set macro_placement_cfg "enc1_U_rom lef/placement.cfg"
+set macro_blackbox_list "enc1_U_rom"
+```
+
+Ensure LEF, GDS, and LIB files are in the correct macro directories.
+
+Tell the OpenLane synthesis tool (Yosys) not to flatten the ROM macro, and keep the wrapper intact.
+
+3. 🚧 Simulation Must Use a Model
+
+During simulation, you’ll need a Verilog model of the ROM — either:
+
+    From OpenRAM’s .v netlist
+
+    Or a behavioral replacement using ifdef SIM_ROM_MODEL
+
+✅ Summary: Is ROM Hard in OpenLane2?
+| Task                                     | Difficulty | Notes                                                      |
+| ---------------------------------------- | ---------- | ---------------------------------------------------------- |
+| **Generating ROM macro**                 | ✅ Easy     | Use OpenRAM with `.data` file from `.mem`                  |
+| **Instantiating in SystemVerilog**       | ✅ Easy     | Wrap the module and use `addr -> dout` interface           |
+| **Simulation**                           | ✅ Easy     | Provide a behavioral or OpenRAM-generated Verilog model    |
+| **Integrating in OpenLane2**             | ⚠️ Medium  | Requires blackbox handling and macro setup in `config.tcl` |
+| **Maintaining or reconfiguring weights** | ❌ Hard     | Requires regenerating ROM macro if weights change          |
+
+
+✅ When You Should Use ROM
+
+Choose ROM if:
+
+    Your design is not reconfigurable.
+
+    You're running fixed, pre-trained weights.
+
+    You want synthesis and PnR simplicity, not boot-time loading.
+
+🚀 My Recommendation for You
+
+Given you're just testing feasibility for now:
+
+    Use a ROM for enc1_U — a 64×64 matrix fits neatly in 8KB.
+
+    Use OpenRAM to generate the ROM using:
+
+```sh
+python3 openram.py config/enc1_U_rom_config.py
+```
+
+    Provide .data from your .mem file.
+
+Later, if you want configurability, you can explore:
+
+    SRAM + loader FSM
+
+    Bus-mapped weight interface
+
+Would you like help:
+
+    Generating a ROM .data file from your .mem file?
+
+    Writing the enc1_U_rom_config.py OpenRAM config?
+
+    Creating the wrapper module and integration steps for OpenLane2?
