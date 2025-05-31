@@ -37,8 +37,11 @@ Includes discussion of neuromorphic computing software frameworks, describing th
 **Challenge 23: Week 7 Project Checkpoint**  
 An overview of current project status and challenges. Includes a list of next steps for iterating on the current design. ([link](./challenge-23/README.md))
 
-**Challenge 24: Running code on neuromorphic hardware**  
+**Challenge 24: Running Code on Neuromorphic Hardware**  
 Using a platform provided by EBRAINS, attempted to run small demo workloads on neuromorphic hardware. ([link](./challenge-24/README.md))
+
+**Challenge 25: Simulation with cocotb**  
+(In progress) Perform co-simulation of software and hardware using cocotb. ([link](./challenge-25/README.md))
 
 ## Annotated Bibliography
 
