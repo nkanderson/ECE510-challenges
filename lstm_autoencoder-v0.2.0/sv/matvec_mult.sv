@@ -23,7 +23,7 @@ module matvec_multiplier #(
     // Matrix SRAM interface
     output logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr,
     output logic matrix_enable,
-    input  logic signed [DATA_WIDTH-1:0] matrix_data [0:BANDWIDTH-1], // Q2.14
+    input  logic [DATA_WIDTH*BANDWIDTH-1:0] matrix_data, // Q2.14
     input  logic matrix_ready,
 
     // Result output
@@ -164,7 +164,8 @@ end
             // Since we have the full vector, we can simply use the col_idx here. matrix_data is used in
             // BANDWIDTH-sized chunks, so we need to modulo the col_idx by BANDWIDTH to get the index for
             // the current chunk.
-            assign a[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? matrix_data[(col_idx % BANDWIDTH) + i] : '0;
+            assign a[i] = (state == S_MAC && ((col_idx + 1) < num_cols))
+                         ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
             assign b[i] = (state == S_MAC && ((col_idx + 1) < num_cols)) ? vector_buffer[col_idx + i] : '0;
         end
     endgenerate

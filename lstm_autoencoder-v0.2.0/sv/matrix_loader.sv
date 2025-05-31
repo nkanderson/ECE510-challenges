@@ -102,7 +102,7 @@ module matrix_loader #(
 `ifdef USE_SRAM_MACRO
                 matrix_data[chunk_offset*DATA_WIDTH +: DATA_WIDTH] <= $signed(word);
 `else
-                matrix_data[chunk_offset] <= matrix_mem[addr_reg + chunk_offset];
+                matrix_data[chunk_offset * DATA_WIDTH +: DATA_WIDTH] <= matrix_mem[addr_reg + chunk_offset];
 `endif
                 chunk_offset <= chunk_offset + 1;
 
