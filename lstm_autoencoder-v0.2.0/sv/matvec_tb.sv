@@ -91,7 +91,7 @@ module matvec_tb;
     );
 
     matrix_loader #(
-        .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .BANDWIDTH(BANDWIDTH_4X4)
+        .NUM_ROWS(MIN_ROWS), .NUM_COLS(MIN_COLS), .DATA_WIDTH(DATA_WIDTH), .BANDWIDTH(BANDWIDTH_4X4)
     ) loader_4x4 (
         .clk(clk), .rst_n(rst_n),
         .enable(matrix_enable_4x4),
@@ -121,7 +121,7 @@ module matvec_tb;
     );
 
     matrix_loader #(
-        .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .BANDWIDTH(MAX_BANDWIDTH)
+        .NUM_ROWS(HALF_ROWS), .NUM_COLS(HALF_COLS), .DATA_WIDTH(DATA_WIDTH), .BANDWIDTH(MAX_BANDWIDTH)
     ) loader_32x32 (
         .clk(clk), .rst_n(rst_n),
         .enable(matrix_enable_32x32),
@@ -151,7 +151,7 @@ module matvec_tb;
     );
 
     matrix_loader #(
-        .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .BANDWIDTH(MAX_BANDWIDTH)
+        .NUM_ROWS(MAX_ROWS), .NUM_COLS(MAX_COLS), .DATA_WIDTH(DATA_WIDTH), .BANDWIDTH(MAX_BANDWIDTH)
     ) loader_64x64 (
         .clk(clk), .rst_n(rst_n),
         .enable(matrix_enable_64x64),

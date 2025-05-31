@@ -1,7 +1,9 @@
 module matrix_loader #(
-    parameter ADDR_WIDTH = 12, // 2^12 = 4096
+    parameter int NUM_ROWS = 64,
+    parameter int NUM_COLS = 64,
     parameter DATA_WIDTH = 16,
-    parameter BANDWIDTH  = 16
+    parameter BANDWIDTH  = 16,
+    localparam int ADDR_WIDTH = $clog2(NUM_ROWS * NUM_COLS)
 )(
     input  logic clk,
     input  logic rst_n,
