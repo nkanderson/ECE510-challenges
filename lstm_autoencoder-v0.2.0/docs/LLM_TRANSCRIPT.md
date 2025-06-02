@@ -8420,3 +8420,752 @@ Then compile with:
     No extra whitespace or blank lines at the end (can cause undefined reads).
 
 Let me know if you’d like a one-liner script to flatten a full Python .npz weight matrix into a .mem file for this loader — we can generate one per gate/layer easily.
+
+## Synthesis using OpenLane2
+
+I have a design in verilog that I want to synthesize using OpenLane2. It includes the following modules:
+```
+module mac4 (
+	a0,
+	b0,
+	a1,
+	b1,
+	a2,
+	b2,
+	a3,
+	b3,
+	result
+);
+	parameter DATA_WIDTH = 16;
+	input wire signed [DATA_WIDTH - 1:0] a0;
+	input wire signed [DATA_WIDTH - 1:0] b0;
+	input wire signed [DATA_WIDTH - 1:0] a1;
+	input wire signed [DATA_WIDTH - 1:0] b1;
+	input wire signed [DATA_WIDTH - 1:0] a2;
+	input wire signed [DATA_WIDTH - 1:0] b2;
+	input wire signed [DATA_WIDTH - 1:0] a3;
+	input wire signed [DATA_WIDTH - 1:0] b3;
+	output wire signed [(DATA_WIDTH * 2) - 1:0] result;
+	localparam RESULT_WIDTH = 2 * DATA_WIDTH;
+	wire signed [RESULT_WIDTH - 1:0] p0;
+	wire signed [RESULT_WIDTH - 1:0] p1;
+	wire signed [RESULT_WIDTH - 1:0] p2;
+	wire signed [RESULT_WIDTH - 1:0] p3;
+	assign p0 = a0 * b0;
+	assign p1 = a1 * b1;
+	assign p2 = a2 * b2;
+	assign p3 = a3 * b3;
+	wire signed [RESULT_WIDTH - 1:0] s0;
+	wire signed [RESULT_WIDTH - 1:0] s1;
+	wire signed [RESULT_WIDTH - 1:0] s2;
+	wire signed [RESULT_WIDTH - 1:0] s3;
+	assign s0 = p0 >>> 14;
+	assign s1 = p1 >>> 14;
+	assign s2 = p2 >>> 14;
+	assign s3 = p3 >>> 14;
+	wire signed [RESULT_WIDTH - 1:0] sum;
+	assign sum = ((s0 + s1) + s2) + s3;
+	assign result = sum[RESULT_WIDTH - 1:0];
+endmodule
+```
+
+```
+module matvec_multiplier (
+	clk,
+	rst_n,
+	start,
+	num_rows,
+	num_cols,
+	vector_write_enable,
+	vector_base_addr,
+	vector_in,
+	matrix_addr,
+	matrix_enable,
+	matrix_data,
+	matrix_ready,
+	result_out,
+	result_valid,
+	busy
+);
+	reg _sv2v_0;
+	parameter MAX_ROWS = 64;
+	parameter MAX_COLS = 64;
+	parameter BANDWIDTH = 16;
+	parameter DATA_WIDTH = 16;
+	input wire clk;
+	input wire rst_n;
+	input wire start;
+	input wire [$clog2(MAX_ROWS):0] num_rows;
+	input wire [$clog2(MAX_COLS):0] num_cols;
+	input wire vector_write_enable;
+	input wire [$clog2(MAX_COLS) - 1:0] vector_base_addr;
+	input wire signed [(DATA_WIDTH * BANDWIDTH) - 1:0] vector_in;
+	output wire [$clog2(MAX_ROWS * MAX_COLS) - 1:0] matrix_addr;
+	output wire matrix_enable;
+	input wire [(DATA_WIDTH * BANDWIDTH) - 1:0] matrix_data;
+	input wire matrix_ready;
+	output reg signed [(DATA_WIDTH * 2) - 1:0] result_out;
+	output reg result_valid;
+	output wire busy;
+	reg [5:0] state;
+	reg [5:0] next_state;
+	reg [$clog2(MAX_ROWS) - 1:0] row_idx;
+	reg [$clog2(MAX_COLS) - 1:0] col_idx;
+	localparam MAC_CHUNK_SIZE = 4;
+	reg [BANDWIDTH - 1:0] num_ops;
+	reg signed [DATA_WIDTH * 2:0] acc;
+	reg signed [DATA_WIDTH - 1:0] vector_buffer [0:MAX_COLS - 1];
+	reg vector_loaded;
+	wire signed [(DATA_WIDTH * 2) - 1:0] mac_result;
+	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] a;
+	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] b;
+	mac4 mac(
+		.a0(a[0+:DATA_WIDTH]),
+		.b0(b[0+:DATA_WIDTH]),
+		.a1(a[1 * DATA_WIDTH+:DATA_WIDTH]),
+		.b1(b[1 * DATA_WIDTH+:DATA_WIDTH]),
+		.a2(a[2 * DATA_WIDTH+:DATA_WIDTH]),
+		.b2(b[2 * DATA_WIDTH+:DATA_WIDTH]),
+		.a3(a[3 * DATA_WIDTH+:DATA_WIDTH]),
+		.b3(b[3 * DATA_WIDTH+:DATA_WIDTH]),
+		.result(mac_result)
+	);
+	assign busy = state != 6'b000001;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			state <= 6'b000001;
+		else
+			state <= next_state;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		next_state = state;
+		case (state)
+			6'b000001:
+				if (start)
+					next_state = 6'b000010;
+			6'b000010:
+				if (vector_loaded)
+					next_state = 6'b000100;
+			6'b000100: next_state = 6'b001000;
+			6'b001000:
+				if (matrix_ready)
+					next_state = 6'b010000;
+			6'b010000:
+				if ((num_ops + MAC_CHUNK_SIZE) >= BANDWIDTH)
+					next_state = (row_idx < num_rows ? 6'b000100 : 6'b100000);
+				else
+					next_state = 6'b010000;
+			6'b100000: next_state = 6'b000001;
+		endcase
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			vector_loaded <= 0;
+		else if (vector_write_enable) begin
+			begin : sv2v_autoblock_1
+				reg signed [31:0] i;
+				for (i = 0; i < BANDWIDTH; i = i + 1)
+					vector_buffer[vector_base_addr + i] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
+			end
+			if ((vector_base_addr + BANDWIDTH) >= num_cols)
+				vector_loaded <= 1;
+		end
+		else if (state == 6'b000001)
+			vector_loaded <= 0;
+	assign matrix_enable = (state == 6'b000100) || (state == 6'b001000);
+	assign matrix_addr = (row_idx * num_cols) + col_idx;
+	always @(posedge clk or negedge rst_n) begin
+		if (!rst_n) begin
+			acc <= 0;
+			col_idx <= 0;
+			row_idx <= 0;
+			num_ops <= 0;
+		end
+		else if (state == 6'b010000) begin
+			if (((col_idx + MAC_CHUNK_SIZE) >= num_cols) && (row_idx < (num_rows - 1))) begin
+				row_idx <= row_idx + 1;
+				col_idx <= 0;
+			end
+			else
+				col_idx <= col_idx + MAC_CHUNK_SIZE;
+			acc <= acc + mac_result;
+			num_ops <= num_ops + MAC_CHUNK_SIZE;
+		end
+		else if (state == 6'b001000)
+			num_ops <= 0;
+		else if (state == 6'b000001) begin
+			col_idx <= 0;
+			row_idx <= 0;
+			num_ops <= 0;
+		end
+		if ((col_idx + MAC_CHUNK_SIZE) >= num_cols)
+			acc <= 0;
+	end
+	genvar _gv_i_1;
+	generate
+		for (_gv_i_1 = 0; _gv_i_1 < MAC_CHUNK_SIZE; _gv_i_1 = _gv_i_1 + 1) begin : genblk1
+			localparam i = _gv_i_1;
+			assign a[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
+			assign b[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? vector_buffer[col_idx + i] : {DATA_WIDTH * 1 {1'sb0}});
+		end
+	endgenerate
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			result_out <= 0;
+			result_valid <= 0;
+		end
+		else if ((state == 6'b010000) && ((col_idx + MAC_CHUNK_SIZE) >= num_cols)) begin
+			result_out <= acc + mac_result;
+			result_valid <= 1;
+		end
+		else
+			result_valid <= 0;
+	initial _sv2v_0 = 0;
+endmodule
+```
+
+```
+module matrix_loader (
+	clk,
+	rst_n,
+	enable,
+	matrix_addr,
+	matrix_data,
+	ready
+);
+	reg _sv2v_0;
+	parameter signed [31:0] NUM_ROWS = 64;
+	parameter signed [31:0] NUM_COLS = 64;
+	parameter DATA_WIDTH = 16;
+	parameter BANDWIDTH = 16;
+	localparam signed [31:0] ADDR_WIDTH = $clog2(NUM_ROWS * NUM_COLS);
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	input wire [ADDR_WIDTH - 1:0] matrix_addr;
+	output reg [(DATA_WIDTH * BANDWIDTH) - 1:0] matrix_data;
+	output reg ready;
+	reg [ADDR_WIDTH - 1:0] addr_reg;
+	reg [$clog2(BANDWIDTH):0] chunk_offset;
+	reg loading;
+	wire [31:0] sram_dout0;
+	wire [31:0] sram_dout1;
+	wire [31:0] sram_dout2;
+	wire [31:0] sram_dout3;
+	wire [8:0] sram_addr;
+	wire [3:0] csb;
+	wire [ADDR_WIDTH - 1:0] addr;
+	wire [1:0] macro_index;
+	wire halfword_select;
+	reg [15:0] word;
+	assign addr = addr_reg + chunk_offset;
+	assign macro_index = addr[11:10];
+	assign halfword_select = addr[0];
+	assign sram_addr = addr[9:1];
+	assign csb = 4'b1111 & ~(1'b1 << macro_index);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		case (macro_index)
+			2'd0: word = (halfword_select == 1'b0 ? sram_dout0[15:0] : sram_dout0[31:16]);
+			2'd1: word = (halfword_select == 1'b0 ? sram_dout1[15:0] : sram_dout1[31:16]);
+			2'd2: word = (halfword_select == 1'b0 ? sram_dout2[15:0] : sram_dout2[31:16]);
+			2'd3: word = (halfword_select == 1'b0 ? sram_dout3[15:0] : sram_dout3[31:16]);
+			default: word = 16'hxxxx;
+		endcase
+	end
+	sky130_sram_2kbyte_1rw1r_32x512_8 sram0(
+		.clk0(clk),
+		.csb0(csb[0]),
+		.web0(1'b1),
+		.wmask0(4'b0000),
+		.addr0(sram_addr),
+		.din0(32'b00000000000000000000000000000000),
+		.dout0(sram_dout0),
+		.clk1(1'b0),
+		.csb1(1'b1),
+		.addr1(9'b000000000),
+		.dout1()
+	);
+	sky130_sram_2kbyte_1rw1r_32x512_8 sram1(
+		.clk0(clk),
+		.csb0(csb[1]),
+		.web0(1'b1),
+		.wmask0(4'b0000),
+		.addr0(sram_addr),
+		.din0(32'b00000000000000000000000000000000),
+		.dout0(sram_dout1),
+		.clk1(1'b0),
+		.csb1(1'b1),
+		.addr1(9'b000000000),
+		.dout1()
+	);
+	sky130_sram_2kbyte_1rw1r_32x512_8 sram2(
+		.clk0(clk),
+		.csb0(csb[2]),
+		.web0(1'b1),
+		.wmask0(4'b0000),
+		.addr0(sram_addr),
+		.din0(32'b00000000000000000000000000000000),
+		.dout0(sram_dout2),
+		.clk1(1'b0),
+		.csb1(1'b1),
+		.addr1(9'b000000000),
+		.dout1()
+	);
+	sky130_sram_2kbyte_1rw1r_32x512_8 sram3(
+		.clk0(clk),
+		.csb0(csb[3]),
+		.web0(1'b1),
+		.wmask0(4'b0000),
+		.addr0(sram_addr),
+		.din0(32'b00000000000000000000000000000000),
+		.dout0(sram_dout3),
+		.clk1(1'b0),
+		.csb1(1'b1),
+		.addr1(9'b000000000),
+		.dout1()
+	);
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			addr_reg <= 1'sb0;
+			chunk_offset <= 0;
+			loading <= 1'b0;
+			ready <= 1'b0;
+			begin : sv2v_autoblock_1
+				reg signed [31:0] i;
+				for (i = 0; i < BANDWIDTH; i = i + 1)
+					matrix_data[i * DATA_WIDTH+:DATA_WIDTH] <= 1'sb0;
+			end
+		end
+		else if ((enable && !loading) && !ready) begin
+			addr_reg <= matrix_addr;
+			chunk_offset <= 0;
+			loading <= 1'b1;
+			ready <= 1'b0;
+		end
+		else if (loading) begin
+			matrix_data[chunk_offset * DATA_WIDTH+:DATA_WIDTH] <= $signed(word);
+			chunk_offset <= chunk_offset + 1;
+			if (chunk_offset == (BANDWIDTH - 1)) begin
+				loading <= 1'b0;
+				ready <= 1'b1;
+			end
+			else
+				ready <= 1'b0;
+		end
+		else
+			ready <= 1'b0;
+	initial _sv2v_0 = 0;
+endmodule
+```
+
+You can see that `matrix_loader` uses an SRAM macro. I want to understand what configuration and files I need in place in order to synthesize. Some considerations I have are which macro files are needed and where to place them, what the OpenLane2 configuration should look like (e.g. within the config.json and / or config.tcl), the floorplan configuration, and how to handle the power pins on the SRAM macro. If there are additional considerations, I'd also like to address those as well.
+
+Response: To synthesize your design in OpenLane2 with a custom SRAM macro (sky130_sram_2kbyte_1rw1r_32x512_8), you'll need to set up several things carefully:
+
+✅ 1. Required Macro Files
+
+You need to have the following files for the SRAM macro:
+| File Type       | File Path (typical)                                              |
+| --------------- | ---------------------------------------------------------------- |
+| LEF             | `sky130_sram_macros/lef/sky130_sram_2kbyte_1rw1r_32x512_8.lef`   |
+| GDS             | `sky130_sram_macros/gds/sky130_sram_2kbyte_1rw1r_32x512_8.gds`   |
+| Liberty         | `sky130_sram_macros/lib/sky130_sram_2kbyte_1rw1r_32x512_8.lib`   |
+| Verilog Model   | `sky130_sram_macros/verilog/sky130_sram_2kbyte_1rw1r_32x512_8.v` |
+| Power Pins Info | `.lef` and `.lib` must define power pins correctly               |
+
+👉 Tip: These are usually provided in the SkyWater PDK's SRAM macro repo or via openlane/macro packaging scripts.
+
+✅ 2. Directory Layout
+
+Your macro files should be placed like so within your OpenLane design directory:
+```
+designs/matvec/
+├── config.json
+├── config.tcl
+├── src/
+│   ├── matvec_multiplier.v
+│   ├── mac4.v
+│   ├── matrix_loader.v
+│   └── sky130_sram_2kbyte_1rw1r_32x512_8.v
+└── macro/
+    └── sky130_sram_2kbyte_1rw1r_32x512_8/
+        ├── sky130_sram_2kbyte_1rw1r_32x512_8.lef
+        ├── sky130_sram_2kbyte_1rw1r_32x512_8.gds
+        ├── sky130_sram_2kbyte_1rw1r_32x512_8.lib
+```
+
+✅ 3. config.tcl Settings
+
+Here’s a minimal config.tcl tailored for a design using macros:
+```tcl
+set ::env(DESIGN_NAME) matvec_multiplier
+
+set ::env(VERILOG_FILES) [glob $::env(DESIGN_DIR)/src/*.v]
+set ::env(CLOCK_PORT) "clk"
+set ::env(CLOCK_PERIOD) "10.0"
+
+# Floorplanning
+set ::env(FP_CORE_UTIL) 40
+set ::env(FP_ASPECT_RATIO) 1.0
+set ::env(FP_CORE_MARGIN) 2
+
+# Macro definition
+set ::env(MACRO_PLACEMENT_CFG) $::env(DESIGN_DIR)/macro_placement.cfg
+set ::env(PL_MACROS_GRID) 1
+
+# SRAM macro paths
+set ::env(EXTRA_LEFS) $::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef
+set ::env(EXTRA_GDS_FILES) $::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds
+
+# Power pins
+set ::env(VDD_PIN) [list VPWR]
+set ::env(GND_PIN) [list VGND]
+```
+
+✅ 4. macro_placement.cfg
+
+Specify hard macro placement manually or let OpenLane handle it. To fix location and orientation:
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 0 0 N
+sky130_sram_2kbyte_1rw1r_32x512_8 100 0 N
+sky130_sram_2kbyte_1rw1r_32x512_8 200 0 N
+sky130_sram_2kbyte_1rw1r_32x512_8 300 0 N
+```
+
+Adjust X positions to prevent overlaps. You can leave this file empty initially to rely on automatic macro placement.
+
+✅ 5. Power Pins Handling
+
+Make sure:
+
+    The SRAM macros expose VPWR, VGND (or vccd1, vssd1) as top-level power pins.
+
+    You add corresponding power connections during the floorplanning stage. OpenLane will stitch power if it knows which pins are used.
+
+You may need this if the SRAM uses different power nets:
+```tcl
+set ::env(MACRO_POWER) "VPWR"
+set ::env(MACRO_GROUND) "VGND"
+```
+
+Also, ensure sky130_sram_2kbyte_1rw1r_32x512_8.lib uses matching pin names (vpwr, vgnd, etc.).
+
+✅ 6. config.json (Optional override)
+
+If you're using config.json, keep it minimal:
+```json
+{
+  "DESIGN_NAME": "matvec_multiplier",
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 10.0,
+  "VERILOG_FILES": ["src/matvec_multiplier.v", "src/mac4.v", "src/matrix_loader.v", "src/sky130_sram_2kbyte_1rw1r_32x512_8.v"]
+}
+```
+If using JSON, use config.tcl only for overrides that can't be expressed in JSON (e.g., floorplanning scripts, macro placement config).
+
+✅ 7. Additional Considerations
+
+    Timing Constraints: Create matvec_multiplier.sdc for clock constraints if needed.
+
+    Connectivity: Ensure all SRAM ports used in the Verilog match the macro's public interface (e.g., clk0, csb0, web0, etc.).
+
+    Formal Checks: Run prep -design designs/matvec -tag sram_test -overwrite and inspect runs/sram_test/logs/placement and synthesis stages for macro instantiation issues.
+
+Would you like help generating:
+
+    A starter macro_placement.cfg based on a simple placement?
+
+    A testbench or minimal top module for simulation?
+
+    A wrapper module for RTL-to-GDS hierarchy?
+
+Let me know how you'd like to proceed.
+
+Prompt: FYI, this is the full name of the .lib file: `sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib`
+
+Regarding config.tcl versus config.json - which is preferred? Can the config.tcl you provided be specified in json?
+
+For the macro placement, I'd like to try to let OpenLane handle it initially and see if that works.
+
+Regarding power pin handling - which files should I review to determine whether any additional configuration is necessary? The .lef file does have vccd1 and vssd1:
+```
+PIN vccd1
+      DIRECTION INOUT ;
+      USE POWER ; 
+      SHAPE ABUTMENT ; 
+      PORT
+         LAYER met4 ;
+         RECT  4.76 4.76 6.5 411.78 ;
+         LAYER met4 ;
+         RECT  676.6 4.76 678.34 411.78 ;
+         LAYER met3 ;
+         RECT  4.76 410.04 678.34 411.78 ;
+         LAYER met3 ;
+         RECT  4.76 4.76 678.34 6.5 ;
+      END
+   END vccd1
+   PIN vssd1
+      DIRECTION INOUT ;
+      USE GROUND ; 
+      SHAPE ABUTMENT ; 
+      PORT
+         LAYER met4 ;
+         RECT  680.0 1.36 681.74 415.18 ;
+         LAYER met4 ;
+         RECT  1.36 1.36 3.1 415.18 ;
+         LAYER met3 ;
+         RECT  1.36 1.36 681.74 3.1 ;
+         LAYER met3 ;
+         RECT  1.36 413.44 681.74 415.18 ;
+      END
+   END vssd1
+```
+and the following is in the .lib file:
+```
+pg_pin(vccd1) {
+         voltage_name : VCCD1;
+         pg_type : primary_power;
+    }
+
+    pg_pin(vssd1) {
+         voltage_name : VSSD1;
+         pg_type : primary_ground;
+    }
+```
+
+And this is from the macro's verilog file:
+```
+module sky130_sram_2kbyte_1rw1r_32x512_8(
+`ifdef USE_POWER_PINS
+    vccd1,
+    vssd1,
+`endif
+// Port 0: RW
+    clk0,csb0,web0,wmask0,addr0,din0,dout0,
+// Port 1: R
+    clk1,csb1,addr1,dout1
+  );
+```
+
+And this is an example of my instantiation (as a reminder, this was included at the beginning too):
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0(
+		.clk0(clk),
+		.csb0(csb[0]),
+		.web0(1'b1),
+		.wmask0(4'b0000),
+		.addr0(sram_addr),
+		.din0(32'b00000000000000000000000000000000),
+		.dout0(sram_dout0),
+		.clk1(1'b0),
+		.csb1(1'b1),
+		.addr1(9'b000000000),
+		.dout1()
+	);
+```
+
+Response: Thanks for the detailed info — this gives a very clear picture. Here's how to proceed with the configuration, especially regarding power pin handling, configuration formats, and macro integration in OpenLane2.
+
+✅ Power Pin Handling
+
+Your SRAM macro uses vccd1 and vssd1 as power and ground pins, respectively. These are declared in:
+
+    LEF: as USE POWER / USE GROUND
+
+    .lib: as pg_pin entries
+
+    Verilog: under USE_POWER_PINS
+
+But your instantiation omits the vccd1 and vssd1 ports. This will cause problems unless handled correctly.
+🔧 Fix:
+
+You must either:
+
+    Enable USE_POWER_PINS and connect vccd1 and vssd1, OR
+
+    Let OpenLane handle power nets by disabling USE_POWER_PINS in synthesis
+
+Since you want OpenLane to handle power hookup:
+Option 2 (Recommended for now):
+
+Do not define USE_POWER_PINS at compile time — OpenLane will connect the power/ground nets automatically, based on .lef/.lib.
+
+Your instantiations like:
+```verilog
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0( ... );
+```
+
+✅ Configuration: config.tcl vs config.json
+What OpenLane2 prefers:
+| Use case                                               | Recommendation              |
+| ------------------------------------------------------ | --------------------------- |
+| Basic variable overrides                               | `config.json`               |
+| Complex control flow, floorplanning, placement scripts | `config.tcl`                |
+| Hybrid use                                             | Common (both used together) |
+
+OpenLane2 loads both:
+
+    Loads config.json
+
+    Then loads and evaluates config.tcl, which can override settings in JSON
+
+So your setup can use both:
+
+    config.json for general settings
+
+    config.tcl for macro, floorplanning, or power-specific overrides
+
+JSON cannot express:
+
+    set ::env(VDD_PIN) ...
+
+    set ::env(EXTRA_LEFS) ...
+
+    procedural logic (e.g., conditionals)
+
+So your macro + power configuration must go in config.tcl.
+
+✅ Recommended config.tcl
+
+Based on your updated info:
+```tcl
+set ::env(DESIGN_NAME) matvec_multiplier
+
+set ::env(CLOCK_PORT) "clk"
+set ::env(CLOCK_PERIOD) "10.0"
+
+# Include all source files
+set ::env(VERILOG_FILES) [glob $::env(DESIGN_DIR)/src/*.v]
+
+# Floorplan defaults
+set ::env(FP_CORE_UTIL) 40
+set ::env(FP_ASPECT_RATIO) 1.0
+set ::env(FP_CORE_MARGIN) 2
+
+# Allow automatic macro placement
+set ::env(PL_MACROS_GRID) 1
+
+# SRAM macro files
+set ::env(EXTRA_LEFS) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+set ::env(EXTRA_GDS_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
+
+# Power/Ground nets for this design
+set ::env(VDD_PIN) "vccd1"
+set ::env(GND_PIN) "vssd1"
+```
+
+You don't need MACRO_POWER or MACRO_GROUND unless using nonstandard pins per macro (optional if all macros match top-level pins).
+
+✅ Additional Files
+
+Make sure you also include:
+
+    .lib file in the Liberty directory used for timing (optional for initial synthesis unless required for STA)
+
+    .def generation should include hard macros — validate macro placement visually in openroad/gui or post-floorplan .def
+
+You don’t need a macro_placement.cfg if letting OpenLane place macros.
+
+✅ Sanity Check
+
+From here, you can try:
+```sh
+openlane run -design designs/matvec
+```
+
+Or, step-by-step:
+```sh
+openlane
+# Inside OpenLane shell
+prep -design designs/matvec -tag run_sram -overwrite
+run_synthesis
+run_floorplan
+run_placement
+run_cts
+run_routing
+```
+
+Use openroad gui at any stage (especially post-placement) to verify macro placement.
+
+✅ Summary
+| Area            | What to Do                                                |
+| --------------- | --------------------------------------------------------- |
+| Power Pins      | Use `vccd1` / `vssd1`, do **not** define `USE_POWER_PINS` |
+| Macro Files     | Place in `macro/sky130_sram.../` with .lef, .gds, .v      |
+| config.json     | Basic metadata (clock, verilog list)                      |
+| config.tcl      | Advanced overrides (macros, power pins, extra LEFs)       |
+| Macro Placement | Leave `macro_placement.cfg` empty for now                 |
+
+Let me know if you'd like:
+
+    Help creating a test top module and verifying SRAM integration in simulation
+
+    Scripting your run in a Makefile or CI environment
+
+    Post-layout power/area/timing inspection tips
+
+Prompt: Ok, last thing I want to confirm before attempting synthesis - I've placed my .lib file in `macro/sky130_sram_2kbyte_1rw1r_32x512_8`. I haven't added ` .def` file yet. Where should these files be included, and do they need to be referenced in the configuration?
+
+Response: Great question — here's exactly how .lib and .def files are treated in OpenLane2 and what you need to do with them.
+
+✅ .lib File (Liberty Timing File)
+📌 Purpose:
+
+Used during:
+
+    Logic synthesis (yosys)
+
+    Static timing analysis (STA, e.g., openroad)
+
+✅ Where to Place It:
+
+You're correct to place it in:
+```
+designs/matvec/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib
+```
+✅ How to Reference It:
+
+In config.tcl, add:
+```tcl
+set ::env(LIB_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+```
+Note: If you already have other .lib files (e.g., for standard cells), this should be appended, not overwritten.
+```
+lappend ::env(LIB_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+```
+
+✅ .def File (DEF Macro Abstract View)
+📌 Purpose:
+
+    Optional: Used in certain flows for floorplanning/debug
+
+    Typically not required for SRAM macros unless you're importing a pre-placed or routed macro block
+
+✅ Summary:
+
+    ❌ You do not need to include the .def file for the SRAM macro.
+
+    ✅ If you later create a hard macro block (with fixed macro+cells+routing), you might want to generate a .def to reuse it — but that’s for hierarchical design, not needed here.
+
+✅ Final Minimal Configuration Checklist for Macro
+| File Type | Required | Path              | Referenced in Config?               |
+| --------- | -------- | ----------------- | ----------------------------------- |
+| `.lef`    | ✅ Yes    | `macro/.../*.lef` | `EXTRA_LEFS` in `config.tcl`        |
+| `.gds`    | ✅ Yes    | `macro/.../*.gds` | `EXTRA_GDS_FILES` in `config.tcl`   |
+| `.lib`    | ✅ Yes    | `macro/.../*.lib` | `lappend LIB_FILES` in `config.tcl` |
+| `.def`    | ❌ No     | N/A               | Not used                            |
+
+✅ Example Final Snippet for config.tcl
+```tcl
+lappend ::env(LIB_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+
+set ::env(EXTRA_LEFS) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+set ::env(EXTRA_GDS_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
+```
+
+You’re now fully ready for OpenLane synthesis — start with prep and run_synthesis, and optionally open the floorplan stage with OpenROAD GUI to confirm macro placement.
+
+Let me know if you'd like a .magicrc or .sdc template next!

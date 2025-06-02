@@ -1,9 +1,10 @@
 {
-  "DESIGN_NAME": "mac4",
+  "DESIGN_NAME": "matvec_mult",
   "VERILOG_FILES": [
-    "dir::mac4.v"
+    "dir::/src/matvec_mult.v",
+    "dir::/src/matrix_loader.v",
+    "dir::/src/mac4.v"
   ],
   "CLOCK_PERIOD": 40.0,
-  "CLOCK_PORT": "clk",
-  "FIX_SLEW": 1
+  "CLOCK_PORT": "clk"
 }

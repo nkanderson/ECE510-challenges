@@ -47,6 +47,8 @@ TODO:
 
 ### OpenLane2 Synthesis
 
+#### Mac4 Testing
+
 Synthesized the mac4 SystemVerilog by first generating verilog code using the sv2v CLI tool, then creating a minimal `config.json` file. Results from initial synthesis indicate timing closure was achieved with a clock period of 40ns for this combinational circuit, resulting in a max clock frequency of 25MHz. In intepreting the `metrics.json output`, ChatGPT noted the critical path was around 26ns. It seems like it would be possible to optimize the design to get closer to a 26ns clock period, but may take significant time configuring settings.
 
 ChatGPT noted the following metrics to review from the `metrics.json` in order to interpret timing data:
@@ -60,6 +62,14 @@ ChatGPT noted the following metrics to review from the `metrics.json` in order t
 There may also be design rule violations, related to max slew constraints.
 
 In order to consider alternate design options, a smaller mac2 variant was created and synthesized using OpenLane2. Clock speed improvements were marginal, with a minimum period somewhere around 30ns. It seems unlikely this approach is worth pursuing, but it may be worth considering if many mac instances may be used in parallel in the matvec_mul module.
+
+#### Conversion to Verilog
+
+The tool [sv2v](https://github.com/zachjs/sv2v) was used to convert the SystemVerilog designs to Verilog, which is necessary for use with OpenLane2. The following command was used:
+
+```sh
+sv2v --write=adjacent --define=USE_SRAM_MACRO matrix_loader.sv mac4.sv matvec_mult.sv
+```
 
 ## Future Work
 
