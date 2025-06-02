@@ -25,6 +25,7 @@ module matrix_loader (
 	wire [31:0] sram_dout1;
 	wire [31:0] sram_dout2;
 	wire [31:0] sram_dout3;
+	wire [31:0] unused_dout1;
 	wire [8:0] sram_addr;
 	wire [3:0] csb;
 	wire [ADDR_WIDTH - 1:0] addr;
@@ -58,7 +59,7 @@ module matrix_loader (
 		.clk1(1'b0),
 		.csb1(1'b1),
 		.addr1(9'b000000000),
-		.dout1()
+		.dout1(unused_dout1)
 	);
 	sky130_sram_2kbyte_1rw1r_32x512_8 sram1(
 		.clk0(clk),
@@ -71,7 +72,7 @@ module matrix_loader (
 		.clk1(1'b0),
 		.csb1(1'b1),
 		.addr1(9'b000000000),
-		.dout1()
+		.dout1(unused_dout1)
 	);
 	sky130_sram_2kbyte_1rw1r_32x512_8 sram2(
 		.clk0(clk),
@@ -84,7 +85,7 @@ module matrix_loader (
 		.clk1(1'b0),
 		.csb1(1'b1),
 		.addr1(9'b000000000),
-		.dout1()
+		.dout1(unused_dout1)
 	);
 	sky130_sram_2kbyte_1rw1r_32x512_8 sram3(
 		.clk0(clk),
@@ -97,7 +98,7 @@ module matrix_loader (
 		.clk1(1'b0),
 		.csb1(1'b1),
 		.addr1(9'b000000000),
-		.dout1()
+		.dout1(unused_dout1)
 	);
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin

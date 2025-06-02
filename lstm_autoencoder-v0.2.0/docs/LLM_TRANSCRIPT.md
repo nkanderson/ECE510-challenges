@@ -9169,3 +9169,111 @@ set ::env(EXTRA_GDS_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32
 You’re now fully ready for OpenLane synthesis — start with prep and run_synthesis, and optionally open the floorplan stage with OpenROAD GUI to confirm macro placement.
 
 Let me know if you'd like a .magicrc or .sdc template next!
+
+Prompt: Ok, I got a linter warning pretty quickly. This is my systemverilog:
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 sram3 (
+        .clk0(clk), .csb0(csb[3]), .web0(1'b1), .wmask0(4'b0000),
+        .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout3),
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1()
+    );
+```
+This is the generated verilog from sv2v:
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0(
+		.clk0(clk),
+		.csb0(csb[0]),
+		.web0(1'b1),
+		.wmask0(4'b0000),
+		.addr0(sram_addr),
+		.din0(32'b00000000000000000000000000000000),
+		.dout0(sram_dout0),
+		.clk1(1'b0),
+		.csb1(1'b1),
+		.addr1(9'b000000000),
+		.dout1()
+	);
+```
+My lint warning is related to `.dout1`: "Cell pin connected by name with empty reference: 'dout1'"
+
+What's a good practice for resolving this warning?
+
+Also I got an actual error that caused openlane to fail: "%Error: Specified --top-module 'matvec_mult' was not found in design." Though it's unclear actually if it failed due to the lint check, so let's start there.
+
+Response: Let’s tackle both issues one at a time:
+✅ Lint Warning: “Cell pin connected by name with empty reference: 'dout1'”
+🔍 Cause:
+
+You're instantiating the macro like this:
+```verilog
+.dout1()
+```
+which tells the tool: "connect dout1 to nothing."
+
+Some tools (especially linters like Verilator or Yosys) warn when a port is explicitly connected to nothing, especially if it's not an output-only or unused port in the design.
+
+✅ Recommended Fix:
+
+Use a dummy wire, or use the /* verilator lint_off UNUSED */ style if you’re certain the output is ignored.
+Option 1: Declare and discard to dummy wire (Best Practice)
+```verilog
+wire [31:0] unused_dout1;
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0(
+    ...
+    .dout1(unused_dout1)
+);
+```
+This makes the connection explicit and silences the warning without hurting synthesis or simulation.
+
+Option 2: Use synthesis-time ignore (/*verilator lint_off UNUSED*/) — not universal
+```verilog
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0(
+    ...
+    .dout1() // verilator lint_off UNUSED
+);
+```
+⚠️ Not all tools respect this comment — it may silence Verilator, but not Yosys or Lint.
+
+❌ Actual Error: --top-module 'matvec_mult' was not found in design
+
+This is unrelated to lint. It's a fatal error from synthesis.
+🔍 Cause:
+
+You’re passing --top-module matvec_mult, but your actual top-level module is named:
+```verilog
+module matvec_multiplier (
+```
+
+✅ Fix:
+
+Either:
+
+    Rename the module to match:
+
+```
+module matvec_mult (
+```
+
+OR
+
+Pass the correct name to OpenLane:
+```
+set ::env(DESIGN_NAME) matvec_multiplier
+```
+    in config.tcl or config.json.
+
+This name is used by:
+
+    prep -design ...
+
+    yosys for read_verilog + hierarchy -top ...
+
+✅ Summary of Fixes
+| Issue                | Fix                                          |
+| -------------------- | -------------------------------------------- |
+| `.dout1()` warning   | Connect to `unused_dout1` wire (recommended) |
+| Top module not found | Set `DESIGN_NAME` to `matvec_multiplier`     |
+
+Once you make both changes, rerun prep and run_synthesis. That should get you past this stage.
+
+Would you like me to generate a minimal dummy wrapper or testbench just for lint validation and simulation?

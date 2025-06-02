@@ -23,6 +23,7 @@ module matrix_loader #(
 `ifdef USE_SRAM_MACRO
     // Flattened 32-bit outputs from 4 SRAM macros
     logic [31:0] sram_dout0, sram_dout1, sram_dout2, sram_dout3;
+    wire [31:0] unused_dout1;
     logic [8:0] sram_addr;
     logic [3:0] csb;
     logic [ADDR_WIDTH-1:0] addr;
@@ -51,22 +52,22 @@ module matrix_loader #(
     sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (
         .clk0(clk), .csb0(csb[0]), .web0(1'b1), .wmask0(4'b0000),
         .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout0),
-        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1()
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
     );
     sky130_sram_2kbyte_1rw1r_32x512_8 sram1 (
         .clk0(clk), .csb0(csb[1]), .web0(1'b1), .wmask0(4'b0000),
         .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout1),
-        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1()
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
     );
     sky130_sram_2kbyte_1rw1r_32x512_8 sram2 (
         .clk0(clk), .csb0(csb[2]), .web0(1'b1), .wmask0(4'b0000),
         .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout2),
-        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1()
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
     );
     sky130_sram_2kbyte_1rw1r_32x512_8 sram3 (
         .clk0(clk), .csb0(csb[3]), .web0(1'b1), .wmask0(4'b0000),
         .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout3),
-        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1()
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
     );
 `else
     // Behavioral memory for simulation
