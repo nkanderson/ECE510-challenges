@@ -104,28 +104,6 @@ module matvec_multiplier #(
     // The client needs to hold vector_write_enable high and increment
     // the vector_base_addr while updating vector_in. While vector_write_enable
     // is high, this module will continue reading in vector chunks.
-    // always @(posedge clk or negedge rst_n)
-    //   if (!rst_n)
-    //     reg <= 0;
-    //   else
-    //     reg <= enable ? val : reg;
-    // always_ff @(posedge clk or negedge rst_n) begin
-    //     integer i;
-    //     if (!rst_n) begin
-    //         vector_loaded <= 0;
-    //         for (i = 0; i < MAX_COLS; i++) begin
-    //             vector_buffer[i] <= 0;
-    //         end
-    //     end else if (vector_write_enable) begin
-    //         for (i = 0; i < BANDWIDTH; i++) begin
-    //             vector_buffer[(vector_base_addr + i) * DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
-    //         end
-    //         if (vector_base_addr + BANDWIDTH >= num_cols)
-    //             vector_loaded <= 1;
-    //     end else if (state == S_IDLE) begin
-    //         vector_loaded <= 0;
-    //     end
-    // end
     always_ff @(posedge clk or negedge rst_n) begin
         integer i;
         if (!rst_n) begin
