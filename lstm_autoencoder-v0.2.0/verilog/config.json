@@ -4,8 +4,38 @@
     "dir::/src/matvec_mult_top.v",
     "dir::/src/matvec_mult.v",
     "dir::/src/matrix_loader.v",
-    "dir::/src/mac4.v"
+    "dir::/src/mac4.v",
+    "dir::/src/sky130_sram_2kbyte_1rw1r_32x512_8.v"
   ],
   "CLOCK_PERIOD": 40.0,
-  "CLOCK_PORT": "clk"
+  "CLOCK_PORT": "clk",
+  "EXTRA_LEFS": [
+    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+  ],
+  "EXTRA_GDS_FILES": [
+    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
+  ],
+  "EXTRA_LIBS": [
+    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+  ],
+  "MACROS": {
+    "sky130_sram_2kbyte_1rw1r_32x512_8": {
+      "GDS": "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds",
+      "LEF": "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef",
+      "LIB": "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib",
+      "INSTANCES": [
+        "sram0",
+        "sram1",
+        "sram2",
+        "sram3"
+      ]
+    }
+  },
+  "MACRO_PLACEMENT_CFG": "dir::/macro_placement.cfg",
+  "pdk::sky130A": {
+    "FP_CORE_UTIL": 60,
+    "PL_TARGET_DENSITY_PCT": 0.55,
+    "VDD_PIN": "vccd1",
+    "GND_PIN": "vssd1"
+  }
 }
