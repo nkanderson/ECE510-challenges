@@ -71,7 +71,7 @@ module matvec_multiplier #(
     assign busy = (state != S_IDLE);
 
     // FSM transitions
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n)
             state <= S_IDLE;
         else
@@ -104,7 +104,7 @@ module matvec_multiplier #(
     // The client needs to hold vector_write_enable high and increment
     // the vector_base_addr while updating vector_in. While vector_write_enable
     // is high, this module will continue reading in vector chunks.
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         integer i;
         if (!rst_n) begin
             for (i = 0; i < MAX_COLS; i++) begin
@@ -119,7 +119,7 @@ module matvec_multiplier #(
         end
     end
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             vector_loaded <= 0;
         end else begin
@@ -173,7 +173,7 @@ module matvec_multiplier #(
       end
     end
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             row_idx <= 0;
             col_idx <= 0;
@@ -200,7 +200,7 @@ module matvec_multiplier #(
         end
     end
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n)
             num_ops <= 0;
         else
@@ -223,7 +223,7 @@ module matvec_multiplier #(
         end
     end
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n)
             acc <= 0;
         else
@@ -245,7 +245,7 @@ module matvec_multiplier #(
     endgenerate
 
     // Output logic
-    always_ff @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk) begin
         if (!rst_n) begin
             result_out   <= 0;
             result_valid <= 0;

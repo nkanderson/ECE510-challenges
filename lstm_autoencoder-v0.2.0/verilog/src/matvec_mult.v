@@ -58,7 +58,7 @@ module matvec_multiplier (
 		.result(mac_result)
 	);
 	assign busy = state != 6'b000001;
-	always @(posedge clk or negedge rst_n)
+	always @(posedge clk)
 		if (!rst_n)
 			state <= 6'b000001;
 		else
@@ -86,7 +86,7 @@ module matvec_multiplier (
 			default: next_state = state;
 		endcase
 	end
-	always @(posedge clk or negedge rst_n) begin : sv2v_autoblock_1
+	always @(posedge clk) begin : sv2v_autoblock_1
 		integer i;
 		if (!rst_n)
 			for (i = 0; i < MAX_COLS; i = i + 1)
@@ -95,7 +95,7 @@ module matvec_multiplier (
 			for (i = 0; i < BANDWIDTH; i = i + 1)
 				vector_buffer[(vector_base_addr + i) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
 	end
-	always @(posedge clk or negedge rst_n)
+	always @(posedge clk)
 		if (!rst_n)
 			vector_loaded <= 0;
 		else if (vector_write_enable) begin
@@ -126,7 +126,7 @@ module matvec_multiplier (
 			row_idx_next = 0;
 		end
 	end
-	always @(posedge clk or negedge rst_n)
+	always @(posedge clk)
 		if (!rst_n) begin
 			row_idx <= 0;
 			col_idx <= 0;
@@ -143,7 +143,7 @@ module matvec_multiplier (
 			num_ops_next = 0;
 		else
 			num_ops_next = num_ops;
-	always @(posedge clk or negedge rst_n)
+	always @(posedge clk)
 		if (!rst_n)
 			num_ops <= 0;
 		else
@@ -156,7 +156,7 @@ module matvec_multiplier (
 			acc_next = acc + mac_result;
 		else
 			acc_next = acc;
-	always @(posedge clk or negedge rst_n)
+	always @(posedge clk)
 		if (!rst_n)
 			acc <= 0;
 		else
@@ -169,7 +169,7 @@ module matvec_multiplier (
 			assign b[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? vector_buffer[(col_idx + i) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
 		end
 	endgenerate
-	always @(posedge clk or negedge rst_n)
+	always @(posedge clk)
 		if (!rst_n) begin
 			result_out <= 0;
 			result_valid <= 0;
