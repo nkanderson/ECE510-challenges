@@ -175,7 +175,7 @@ module matvec_multiplier #(
           row_idx_next = 0;
       end
     end
-    
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             row_idx <= 0;
@@ -215,11 +215,11 @@ module matvec_multiplier #(
     //
     logic signed [(DATA_WIDTH*2):0] acc_next;
     always @(*) begin
-        if (state == S_MAC) begin
-            acc_next = acc + mac_result;
-        end else if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+        if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
             // If the current MAC is the last, reset the acc next cycle
             acc_next = 0;
+        end else if (state == S_MAC) begin
+            acc_next = acc + mac_result;
         end else begin
             // Keep acc unchanged in other states
             acc_next = acc;
@@ -273,7 +273,7 @@ module matvec_multiplier #(
             assign a[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols))
                          ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
             // assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols)) ? vector_buffer[col_idx + i] : '0;
-            assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols)) 
+            assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols))
             ? vector_buffer[(col_idx + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
         end
     endgenerate
