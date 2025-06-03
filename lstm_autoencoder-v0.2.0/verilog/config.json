@@ -9,15 +9,6 @@
   ],
   "CLOCK_PERIOD": 40.0,
   "CLOCK_PORT": "clk",
-  "EXTRA_LEFS": [
-    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
-  ],
-  "EXTRA_GDS_FILES": [
-    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
-  ],
-  "EXTRA_LIBS": [
-    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
-  ],
   "MACROS": {
     "sky130_sram_2kbyte_1rw1r_32x512_8": {
       "gds": [
@@ -59,9 +50,12 @@
     "GND_PIN": "vssd1"
   },
   "LINTER_DEFINES": [
-    "SYNTHESIS"
+    "SYNTHESIS",
+    "USE_POWER_PINS"
   ],
   "VERILOG_DEFINES": [
-    "SYNTHESIS"
-  ]
+    "SYNTHESIS",
+    "USE_POWER_PINS"
+  ],
+  "VERILOG_POWER_DEFINE": "USE_POWER_PINS"
 }
