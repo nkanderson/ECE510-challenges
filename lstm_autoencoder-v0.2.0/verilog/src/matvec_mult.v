@@ -104,33 +104,59 @@ module matvec_multiplier (
 	end
 	assign matrix_enable = (state == 6'b000100) || (state == 6'b001000);
 	assign matrix_addr = (row_idx * num_cols) + col_idx;
-	always @(posedge clk or negedge rst_n) begin
-		if (!rst_n) begin
-			acc <= 0;
-			col_idx <= 0;
-			row_idx <= 0;
-			num_ops <= 0;
-		end
-		else if (state == 6'b010000) begin
+	reg [$clog2(MAX_ROWS) - 1:0] row_idx_next;
+	reg [$clog2(MAX_COLS) - 1:0] col_idx_next;
+	always @(*) begin
+		row_idx_next = row_idx;
+		col_idx_next = col_idx;
+		if (state == 6'b010000) begin
 			if (((col_idx + MAC_CHUNK_SIZE) >= num_cols) && (row_idx < (num_rows - 1))) begin
-				row_idx <= row_idx + 1;
-				col_idx <= 0;
+				row_idx_next = row_idx + 1;
+				col_idx_next = 0;
 			end
 			else
-				col_idx <= col_idx + MAC_CHUNK_SIZE;
-			acc <= acc + mac_result;
-			num_ops <= num_ops + MAC_CHUNK_SIZE;
+				col_idx_next = col_idx + MAC_CHUNK_SIZE;
 		end
-		else if (state == 6'b001000)
-			num_ops <= 0;
 		else if (state == 6'b000001) begin
-			col_idx <= 0;
-			row_idx <= 0;
-			num_ops <= 0;
+			col_idx_next = 0;
+			row_idx_next = 0;
 		end
-		if ((col_idx + MAC_CHUNK_SIZE) >= num_cols)
-			acc <= 0;
 	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			row_idx <= 0;
+			col_idx <= 0;
+		end
+		else begin
+			row_idx <= row_idx_next;
+			col_idx <= col_idx_next;
+		end
+	reg [BANDWIDTH - 1:0] num_ops_next;
+	always @(*)
+		if (state == 6'b010000)
+			num_ops_next = num_ops + MAC_CHUNK_SIZE;
+		else if ((state == 6'b001000) || (state == 6'b000001))
+			num_ops_next = 0;
+		else
+			num_ops_next = num_ops;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			num_ops <= 0;
+		else
+			num_ops <= num_ops_next;
+	reg signed [DATA_WIDTH * 2:0] acc_next;
+	always @(*)
+		if (state == 6'b010000)
+			acc_next = acc + mac_result;
+		else if ((col_idx + MAC_CHUNK_SIZE) >= num_cols)
+			acc_next = 0;
+		else
+			acc_next = acc;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			acc <= 0;
+		else
+			acc <= acc_next;
 	genvar _gv_i_1;
 	generate
 		for (_gv_i_1 = 0; _gv_i_1 < MAC_CHUNK_SIZE; _gv_i_1 = _gv_i_1 + 1) begin : mac_inputs

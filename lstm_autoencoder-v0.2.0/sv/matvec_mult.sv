@@ -150,36 +150,119 @@ module matvec_multiplier #(
     assign matrix_addr   = row_idx * num_cols + col_idx;
 
     // MAC accumulation with row tracking
-    always_ff @(posedge clk or negedge rst_n) begin
+
+    //
+    // row and col index updates
+    //
+    reg [$clog2(MAX_ROWS)-1:0] row_idx_next;
+    reg [$clog2(MAX_COLS)-1:0] col_idx_next;
+    always @(*) begin
+      row_idx_next = row_idx;
+      col_idx_next = col_idx;
+
+      if (state == S_MAC) begin
+          // If the next MAC operation will be the last for this row, update the
+          // row_idx and col_idx on the next clock cycle. Do this until the final
+          // increment of row_idx will reach the last row.
+          if (col_idx + MAC_CHUNK_SIZE >= num_cols && row_idx < (num_rows - 1)) begin
+              row_idx_next = row_idx + 1;
+              col_idx_next = 0;
+          end else begin
+              col_idx_next = col_idx + MAC_CHUNK_SIZE;
+          end
+      end else if (state == S_IDLE) begin
+          col_idx_next = 0;
+          row_idx_next = 0;
+      end
+    end
+    
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            acc <= 0;
-            col_idx <= 0;
             row_idx <= 0;
-            num_ops <= 0;
-        end else if (state == S_MAC) begin
-            // If the next MAC operation will be the last for this row, update the
-            // row_idx and col_idx on the next clock cycle. Do this until the final
-            // increment of row_idx will reach the last row.
-            if (col_idx + MAC_CHUNK_SIZE >= num_cols && row_idx < (num_rows - 1)) begin
-                row_idx <= row_idx + 1;
-                col_idx <= 0;
-            end else begin
-              col_idx <= col_idx + MAC_CHUNK_SIZE;
-            end
-            acc <= acc + mac_result;
-            num_ops <= num_ops + MAC_CHUNK_SIZE;
-        end else if (state == S_WAIT_MAT) begin
-            num_ops <= 0;
-        end else if (state == S_IDLE) begin
             col_idx <= 0;
-            row_idx <= 0;
-            num_ops <= 0;
-        end
-        // If the current MAC is the last, reset the acc next cycle
-        if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
-            acc <= 0;
+        end else begin
+            row_idx <= row_idx_next;
+            col_idx <= col_idx_next;
         end
     end
+
+    //
+    // num_ops updates
+    //
+    logic [BANDWIDTH-1:0] num_ops_next;
+    always @(*) begin
+        if (state == S_MAC) begin
+            // Increment num_ops by MAC_CHUNK_SIZE for each MAC operation
+            num_ops_next = num_ops + MAC_CHUNK_SIZE;
+        end else if (state == S_WAIT_MAT || state == S_IDLE) begin
+            // Reset num_ops when waiting for matrix data or when idle
+            num_ops_next = 0;
+        end else begin
+            // Keep num_ops unchanged in other states
+            num_ops_next = num_ops;
+        end
+    end
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            num_ops <= 0;
+        else
+            num_ops <= num_ops_next;
+    end
+
+    //
+    // acc updates
+    //
+    logic signed [(DATA_WIDTH*2):0] acc_next;
+    always @(*) begin
+        if (state == S_MAC) begin
+            acc_next = acc + mac_result;
+        end else if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+            // If the current MAC is the last, reset the acc next cycle
+            acc_next = 0;
+        end else begin
+            // Keep acc unchanged in other states
+            acc_next = acc;
+        end
+    end
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            acc <= 0;
+        else
+            acc <= acc_next;
+    end
+
+    // always_ff @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n) begin
+    //         acc <= 0;
+    //         // col_idx <= 0;
+    //         // row_idx <= 0;
+    //         num_ops <= 0;
+    //     end else if (state == S_MAC) begin
+    //         // If the next MAC operation will be the last for this row, update the
+    //         // row_idx and col_idx on the next clock cycle. Do this until the final
+    //         // increment of row_idx will reach the last row.
+    //         // if (col_idx + MAC_CHUNK_SIZE >= num_cols && row_idx < (num_rows - 1)) begin
+    //         //     row_idx <= row_idx + 1;
+    //         //     col_idx <= 0;
+    //         // end else begin
+    //         //   col_idx <= col_idx + MAC_CHUNK_SIZE;
+    //         // end
+    //         acc <= acc + mac_result;
+    //         num_ops <= num_ops + MAC_CHUNK_SIZE;
+    //     end else if (state == S_WAIT_MAT) begin
+    //         num_ops <= 0;
+    //     end else if (state == S_IDLE) begin
+    //         // col_idx <= 0;
+    //         // row_idx <= 0;
+    //         num_ops <= 0;
+    //     end
+    //     // If the current MAC is the last, reset the acc next cycle
+    //     if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+    //         acc <= 0;
+    //     end
+    // end
 
     // MAC result
     generate
