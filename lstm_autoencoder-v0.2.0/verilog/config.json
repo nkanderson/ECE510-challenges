@@ -1,5 +1,5 @@
 {
-  "DESIGN_NAME": "matvec_multiplier",
+  "DESIGN_NAME": "matvec_mult_top",
   "VERILOG_FILES": [
     "dir::/src/matvec_mult_top.v",
     "dir::/src/matvec_mult.v",

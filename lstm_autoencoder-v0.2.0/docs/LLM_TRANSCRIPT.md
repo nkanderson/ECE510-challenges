@@ -14677,3 +14677,285 @@ You can also verify during a run by looking at the OpenLane output — you'll se
 ```
 
 Let me know if you want a quick sanity check command to dump your config variables mid-run
+
+Prompt: Ok, still running into issues with congestion, and it's not clear whether the macros or top module are being used correctly. This is the output:
+```
+Reading design constraints file at '/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/scripts/base.sdc'…       
+[INFO] Using clock clk…                                                                                                                                           
+[INFO] Setting output delay to: 8.0                                                                                                                               
+[INFO] Setting input delay to: 8.0                                                                                                                                
+[INFO] Setting load to: 0.033442                                                                                                                                  
+[INFO] Setting clock uncertainty to: 0.25                                                                                                                         
+[INFO] Setting clock transition to: 0.1499999999999999944488848768742172978818416595458984375                                                                     
+[INFO] Setting timing derate to: 5%                                                                                                                               
+[INFO] Setting signal min routing layer to: met1 and clock min routing layer to met1.                                                                             
+[INFO] Setting signal max routing layer to: met5 and clock max routing layer to met5.                                                                             
+-congestion_iterations 50 -verbose                                                                                                                                
+[INFO GRT-0020] Min routing layer: met1                                                                                                                           
+[INFO GRT-0021] Max routing layer: met5                                                                                                                           
+[INFO GRT-0022] Global adjustment: 30%                                                                                                                            
+[INFO GRT-0023] Grid origin: (0, 0)                                                                                                                               
+[INFO GRT-0043] No OR_DEFAULT vias defined.                                                                                                                       
+[INFO GRT-0088] Layer li1     Track-Pitch = 0.4600  line-2-Via Pitch: 0.3400                                                                                      
+[INFO GRT-0088] Layer met1    Track-Pitch = 0.3400  line-2-Via Pitch: 0.3400                                                                                      
+[INFO GRT-0088] Layer met2    Track-Pitch = 0.4600  line-2-Via Pitch: 0.3500                                                                                      
+[INFO GRT-0088] Layer met3    Track-Pitch = 0.6800  line-2-Via Pitch: 0.6150                                                                                      
+[INFO GRT-0088] Layer met4    Track-Pitch = 0.9200  line-2-Via Pitch: 1.0400                                                                                      
+[INFO GRT-0088] Layer met5    Track-Pitch = 3.4000  line-2-Via Pitch: 3.1100                                                                                      
+[INFO GRT-0019] Found 201 clock nets.                                                                                                                             
+[INFO GRT-0001] Minimum degree: 2                                                                                                                                 
+[INFO GRT-0002] Maximum degree: 20                                                                                                                                
+[INFO GRT-0003] Macros: 0                                                                                                                                         
+[INFO GRT-0043] No OR_DEFAULT vias defined.                                                                                                                       
+[INFO GRT-0004] Blockages: 22007                                                                                                                                  
+                                                                                                                                                                  
+[INFO GRT-0053] Routing resources analysis:                                                                                                                       
+Routing      Original      Derated      Resource                                                                                                                  
+Layer     Direction    Resources     Resources    Reduction (%)                                                                                                   
+---------------------------------------------------------------                                                                                                   
+li1        Vertical            0             0          0.00%                                                                                                     
+met1       Horizontal     229238        111919          51.18%                                                                                                    
+met2       Vertical       172722        113845          34.09%                                                                                                    
+met3       Horizontal     114566         79101          30.96%                                                                                                    
+met4       Vertical        69348         43906          36.69%                                                                                                    
+met5       Horizontal      22892         10920          52.30%                                                                                                    
+---------------------------------------------------------------                                                                                                   
+                                                                                                                                                                  
+[INFO GRT-0101] Running extra iterations to remove overflow.                                                                                                      
+[INFO GRT-0103] Extra Run for hard benchmark.                                                                                                                     
+[INFO GRT-0197] Via related to pin nodes: 236329                                                                                                                  
+[INFO GRT-0198] Via related Steiner nodes: 16664                                                                                                                  
+[INFO GRT-0199] Via filling finished.                                                                                                                             
+[INFO GRT-0111] Final number of vias: 376337                                                                                                                      
+[INFO GRT-0112] Final usage 3D: 1528484                                                                                                                           
+[13:34:19] ERROR    [GRT-0118] Routing congestion too high. Check the congestion heatmap in the GUI.                                               openroad.py:233
+Error: grt.tcl, 30 GRT-0118                                                                                                                                       
+Classic - Stage 38 - Global Routing ━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━━━━━━━━━━━━ 37/78 0:15:08
+[13:34:19] WARNING  The following warnings were generated by the flow:                                                                                 flow.py:673
+[13:34:19] WARNING  [Checker.LintWarnings] 6 Lint warnings found.                                                                                      flow.py:675
+[13:34:19] WARNING  [OpenROAD.CheckSDCFiles] 'PNR_SDC_FILE' is not defined. Using generic fallback SDC for OpenROAD PnR steps.                         flow.py:675
+[13:34:19] WARNING  [OpenROAD.CheckSDCFiles] 'SIGNOFF_SDC_FILE' is not defined. Using generic fallback SDC for OpenROAD PnR steps.                     flow.py:675
+[13:34:19] WARNING  [OpenROAD.STAMidPNR] [GRT-0097] No global routing found for nets. (and 2 similar warnings)                                         flow.py:675
+[13:34:19] ERROR    The following error was encountered while running the flow:                                                                    __main__.py:187
+                    OpenROAD.GlobalRouting failed with the following errors:                                                                                      
+                    [GRT-0118] Routing congestion too high. Check the congestion heatmap in the GUI.                                                              
+[13:34:19] ERROR    OpenLane will now quit.  
+```
+This is my config.json:
+```
+{
+  "DESIGN_NAME": "matvec_multiplier",
+  "VERILOG_FILES": [
+    "dir::/src/matvec_mult_top.v",
+    "dir::/src/matvec_mult.v",
+    "dir::/src/matrix_loader.v",
+    "dir::/src/mac4.v"
+  ],
+  "CLOCK_PERIOD": 40.0,
+  "CLOCK_PORT": "clk"
+}
+```
+This is my config.tcl:
+```
+set ::env(DESIGN_NAME) matvec_mult_top
+
+set ::env(CLOCK_PORT) "clk"
+set ::env(CLOCK_PERIOD) "40.0"
+
+# Include all source files
+set ::env(VERILOG_FILES) [glob $::env(DESIGN_DIR)/src/*.v]
+
+# Floorplan defaults
+# FP_CORE_UTIL may be increased to reduce cell density and
+# make routing easier, but this will increase area.
+set ::env(FP_CORE_UTIL) 60
+set ::env(FP_ASPECT_RATIO) 1.0
+set ::env(FP_CORE_MARGIN) 2
+set ::env(PL_TARGET_DENSITY) 0.55
+
+set ::env(SYNTH_MAX_FANOUT) 20
+
+# Specify macro placement
+# May try to let OpenLane try to handle this by commenting out the
+# macro_placement.cfg file
+set ::env(MACRO_PLACEMENT_CFG) $::env(DESIGN_DIR)/macro_placement.cfg
+set ::env(PL_MACROS_GRID) 1
+
+# SRAM macro files
+set ::env(EXTRA_LEFS) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+set ::env(EXTRA_GDS_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
+lappend ::env(LIB_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+
+# Power/Ground nets for this design
+set ::env(VDD_PIN) "vccd1"
+set ::env(GND_PIN) "vssd1"
+
+# Reducing power straps to attempt to reduce congestion and routing blockages
+set ::env(FP_PDN_VPITCH) 40
+set ::env(FP_PDN_HPITCH) 40
+
+# Set max routing layer
+# Might be able to increase this to met6 if the PDK supports it
+set ::env(RT_MAX_LAYER) met5
+
+# Enable congestion-aware placement
+set ::env(PL_CONGESTION_EFFORT) high
+```
+This is part of the contents of 06-yosys-synthesis/yosys-synthesis.log:
+```
+7.4. Analyzing design hierarchy..
+Top module:  \matvec_multiplier
+Used module:     \mac4
+Removing unused module `$abstract\mac4'.
+Removing unused module `$abstract\matrix_loader'.
+Removing unused module `$abstract\matvec_multiplier'.
+Removing unused module `$abstract\matvec_mult_top'.
+Removed 4 unused modules.
+Renaming module matvec_multiplier to matvec_multiplier.
+```
+and another section from the log:
+```
+10.1. Analyzing design hierarchy..
+Top module:  \matvec_multiplier
+Used module:     \mac4
+
+10.2. Analyzing design hierarchy..
+Top module:  \matvec_multiplier
+Used module:     \mac4
+Removed 0 unused modules.
+```
+There's no line that contains `sram` or `macro` in the log.
+
+Response: Thanks — you’re seeing routing congestion and clear evidence that the SRAM macros and matrix_loader are being stripped, because they’re not instantiated from the top module.
+🔥 Root Cause
+
+Yosys is synthesizing matvec_multiplier (not matvec_mult_top), and it's eliminating all other modules as unused — including:
+
+    matrix_loader (which contains the SRAM macros),
+
+    mac4, and
+
+    matvec_mult_top itself (even though it’s listed in your VERILOG_FILES).
+
+This is exactly what this log line means:
+```
+Top module:  \matvec_multiplier
+...
+Removing unused module `$abstract\matrix_loader'.
+```
+
+✅ Fix: Set the true top module in config.tcl
+
+Your actual top-level module is matvec_mult_top. But currently, OpenLane thinks the top is matvec_multiplier, likely because of the conflicting entry in config.json.
+
+To fix this robustly:
+1. Remove DESIGN_NAME from config.json
+
+That key overrides config.tcl, and OpenLane prioritizes the JSON version when both are present.
+
+So change your config.json to:
+```
+{
+  "VERILOG_FILES": [
+    "dir::/src/matvec_mult_top.v",
+    "dir::/src/matvec_mult.v",
+    "dir::/src/matrix_loader.v",
+    "dir::/src/mac4.v"
+  ],
+  "CLOCK_PERIOD": 40.0,
+  "CLOCK_PORT": "clk"
+}
+```
+
+2. Keep this in config.tcl
+```
+set ::env(DESIGN_NAME) matvec_mult_top
+```
+
+3. (Optional) Confirm top module manually
+
+To verify the correct top module was picked up, grep your log:
+```
+grep "Top module" runs/<your_run>/logs/synthesis/yosys.ys.log
+```
+After fixing this, you should see:
+```
+Top module:  \matvec_mult_top
+```
+
+📌 Result
+
+Once matvec_mult_top is synthesized as the top module:
+
+    matrix_loader will be reachable from the top.
+
+    The SRAM macro instantiations will be preserved.
+
+    You’ll see lines in Yosys logs like:
+```
+Used module: \sky130_sram_2kbyte_1rw1r_32x512_8
+```
+    Congestion might still exist, but now the macros will be in the design and layout, making debugging meaningful.
+
+Would you like to confirm if matvec_mult_top.v properly instantiates matrix_loader and matvec_multiplier with all the needed ports? I can double-check a stub with you.
+
+Prompt: I get this output from openlane now:
+```
+openlane config.json 
+[14:01:17] ERROR    Errors have occurred while loading the design configuration file.                                                              __main__.py:158
+[14:01:17] ERROR    Required variable 'DESIGN_NAME' did not get a specified value.                                                                 __main__.py:160
+[14:01:17] ERROR    OpenLane will now quit. Please check your configuration.  
+```
+so it doesn't seem to be finding that setting from config.tcl, which has the line:
+`set ::env(DESIGN_NAME) matvec_mult_top`
+
+Response: Thanks — this confirms that OpenLane is not reading config.tcl when you run openlane config.json directly.
+🔍 Root Cause
+
+When you invoke OpenLane with:
+```
+openlane config.json
+```
+…it does not automatically include config.tcl unless you’re using the flow directory setup or a flow.tcl-based invocation.
+
+✅ Correct Usage Options
+
+You have two clean options to proceed:
+Option 1: Add DESIGN_NAME back to config.json
+
+(but now with the correct top module)
+```
+{
+  "DESIGN_NAME": "matvec_mult_top",
+  "VERILOG_FILES": [
+    "dir::/src/matvec_mult_top.v",
+    "dir::/src/matvec_mult.v",
+    "dir::/src/matrix_loader.v",
+    "dir::/src/mac4.v"
+  ],
+  "CLOCK_PERIOD": 40.0,
+  "CLOCK_PORT": "clk"
+}
+```
+Then run:
+```
+openlane config.json
+```
+This is the simplest and preferred approach for OpenLane 2.
+Option 2: Use the legacy flow.tcl + config.tcl path
+
+Only do this if you're working inside a custom flow script.
+
+You would invoke it like:
+```
+flow.tcl -design my_design_dir
+```
+Where my_design_dir/config.tcl contains set ::env(DESIGN_NAME) ...
+
+But this is not needed in OpenLane 2's standard config.json flow.
+
+✅ Recommended Fix: Use Option 1
+
+Just put the correct DESIGN_NAME in config.json, and OpenLane will work with no complaints, and will properly preserve your SRAM macros.
+
+Let me know if you’d like to check the matvec_mult_top.v module next.
