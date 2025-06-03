@@ -19,6 +19,7 @@ module matvec_multiplier (
 	parameter MAX_COLS = 64;
 	parameter BANDWIDTH = 16;
 	parameter DATA_WIDTH = 16;
+	parameter VEC_NUM_BANKS = 4;
 	input wire clk;
 	input wire rst_n;
 	input wire start;
@@ -34,6 +35,7 @@ module matvec_multiplier (
 	output reg signed [(DATA_WIDTH * 2) - 1:0] result_out;
 	output reg result_valid;
 	output wire busy;
+	localparam VEC_BANK_WIDTH = MAX_COLS / VEC_NUM_BANKS;
 	reg [5:0] state;
 	reg [5:0] next_state;
 	reg [$clog2(MAX_ROWS) - 1:0] row_idx;
@@ -41,7 +43,7 @@ module matvec_multiplier (
 	localparam MAC_CHUNK_SIZE = 4;
 	reg [BANDWIDTH - 1:0] num_ops;
 	reg signed [DATA_WIDTH * 2:0] acc;
-	reg signed [(DATA_WIDTH * MAX_COLS) - 1:0] vector_buffer;
+	reg [(VEC_BANK_WIDTH * DATA_WIDTH) - 1:0] vector_bank [VEC_NUM_BANKS - 1:0];
 	reg vector_loaded;
 	wire signed [(DATA_WIDTH * 2) - 1:0] mac_result;
 	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] a;
@@ -57,7 +59,6 @@ module matvec_multiplier (
 		.b3(b[3 * DATA_WIDTH+:DATA_WIDTH]),
 		.result(mac_result)
 	);
-	assign busy = state != 6'b000001;
 	always @(posedge clk)
 		if (!rst_n)
 			state <= 6'b000001;
@@ -90,10 +91,10 @@ module matvec_multiplier (
 		integer i;
 		if (!rst_n)
 			for (i = 0; i < MAX_COLS; i = i + 1)
-				vector_buffer[i] <= 0;
+				vector_bank[i] <= 0;
 		else if (vector_write_enable)
 			for (i = 0; i < BANDWIDTH; i = i + 1)
-				vector_buffer[(vector_base_addr + i) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
+				vector_bank[(vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)][((vector_base_addr + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
 	end
 	always @(posedge clk)
 		if (!rst_n)
@@ -166,7 +167,7 @@ module matvec_multiplier (
 		for (_gv_i_1 = 0; _gv_i_1 < MAC_CHUNK_SIZE; _gv_i_1 = _gv_i_1 + 1) begin : mac_inputs
 			localparam i = _gv_i_1;
 			assign a[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
-			assign b[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? vector_buffer[(col_idx + i) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
+			assign b[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? vector_bank[(col_idx + i) >> $clog2(VEC_BANK_WIDTH)][((col_idx + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
 		end
 	endgenerate
 	always @(posedge clk)
@@ -180,4 +181,5 @@ module matvec_multiplier (
 		end
 		else
 			result_valid <= 0;
+	assign busy = state != 6'b000001;
 endmodule

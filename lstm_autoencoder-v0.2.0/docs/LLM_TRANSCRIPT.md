@@ -12857,3 +12857,691 @@ if (!rst_n) ...
     Plays nicer with DFT and clock-gated scan chains
 
 Let me know if you'd like me to auto-convert your full module from earlier to synchronous reset form.
+
+Prompt: Ok, that seemed to work for that issue. Now I'm dealing with routing congestion:
+```
+Reading design constraints file at '/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/scripts/base.sdc'…                    
+[INFO] Using clock clk…                                                                                                                                                        
+[INFO] Setting output delay to: 8.0                                                                                                                                            
+[INFO] Setting input delay to: 8.0                                                                                                                                             
+[INFO] Setting load to: 0.033442                                                                                                                                               
+[INFO] Setting clock uncertainty to: 0.25                                                                                                                                      
+[INFO] Setting clock transition to: 0.1499999999999999944488848768742172978818416595458984375                                                                                  
+[INFO] Setting timing derate to: 5%                                                                                                                                            
+[INFO] Setting signal min routing layer to: met1 and clock min routing layer to met1.                                                                                          
+[INFO] Setting signal max routing layer to: met5 and clock max routing layer to met5.                                                                                          
+-congestion_iterations 50 -verbose                                                                                                                                             
+[INFO GRT-0020] Min routing layer: met1                                                                                                                                        
+[INFO GRT-0021] Max routing layer: met5                                                                                                                                        
+[INFO GRT-0022] Global adjustment: 30%                                                                                                                                         
+[INFO GRT-0023] Grid origin: (0, 0)                                                                                                                                            
+[INFO GRT-0043] No OR_DEFAULT vias defined.                                                                                                                                    
+[INFO GRT-0088] Layer li1     Track-Pitch = 0.4600  line-2-Via Pitch: 0.3400                                                                                                   
+[INFO GRT-0088] Layer met1    Track-Pitch = 0.3400  line-2-Via Pitch: 0.3400                                                                                                   
+[INFO GRT-0088] Layer met2    Track-Pitch = 0.4600  line-2-Via Pitch: 0.3500                                                                                                   
+[INFO GRT-0088] Layer met3    Track-Pitch = 0.6800  line-2-Via Pitch: 0.6150                                                                                                   
+[INFO GRT-0088] Layer met4    Track-Pitch = 0.9200  line-2-Via Pitch: 1.0400                                                                                                   
+[INFO GRT-0088] Layer met5    Track-Pitch = 3.4000  line-2-Via Pitch: 3.1100                                                                                                   
+[INFO GRT-0019] Found 276 clock nets.                                                                                                                                          
+[INFO GRT-0001] Minimum degree: 2                                                                                                                                              
+[INFO GRT-0002] Maximum degree: 14                                                                                                                                             
+[INFO GRT-0003] Macros: 0                                                                                                                                                      
+[INFO GRT-0043] No OR_DEFAULT vias defined.                                                                                                                                    
+[INFO GRT-0004] Blockages: 18991                                                                                                                                               
+                                                                                                                                                                               
+[INFO GRT-0053] Routing resources analysis:                                                                                                                                    
+Routing      Original      Derated      Resource                                                                                                                               
+Layer     Direction    Resources     Resources    Reduction (%)                                                                                                                
+---------------------------------------------------------------                                                                                                                
+li1        Vertical            0             0          0.00%                                                                                                                  
+met1       Horizontal     256216        125238          51.12%                                                                                                                 
+met2       Vertical       193032        127329          34.04%                                                                                                                 
+met3       Horizontal     128108         88503          30.92%                                                                                                                 
+met4       Vertical        77532         49191          36.55%                                                                                                                 
+met5       Horizontal      25532         12210          52.18%                                                                                                                 
+---------------------------------------------------------------                                                                                                                
+                                                                                                                                                                               
+[INFO GRT-0101] Running extra iterations to remove overflow.                                                                                                                   
+[INFO GRT-0103] Extra Run for hard benchmark.                                                                                                                                  
+[INFO GRT-0197] Via related to pin nodes: 258310                                                                                                                               
+[INFO GRT-0198] Via related Steiner nodes: 20140                                                                                                                               
+[INFO GRT-0199] Via filling finished.                                                                                                                                          
+[INFO GRT-0111] Final number of vias: 423414                                                                                                                                   
+[INFO GRT-0112] Final usage 3D: 1780845                                                                                                                                        
+[10:54:07] ERROR    [GRT-0118] Routing congestion too high. Check the congestion heatmap in the GUI.                                                            openroad.py:233
+Error: grt.tcl, 30 GRT-0118                                                                                                                                                    
+Classic - Stage 38 - Global Routing ━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━━━━━━━━━━━━ 37/78 0:13:46
+[10:54:08] WARNING  The following warnings were generated by the flow:                                                                                              flow.py:673
+[10:54:08] WARNING  [Checker.LintWarnings] 5 Lint warnings found.                                                                                                   flow.py:675
+[10:54:08] WARNING  [OpenROAD.CheckSDCFiles] 'PNR_SDC_FILE' is not defined. Using generic fallback SDC for OpenROAD PnR steps.                                      flow.py:675
+[10:54:08] WARNING  [OpenROAD.CheckSDCFiles] 'SIGNOFF_SDC_FILE' is not defined. Using generic fallback SDC for OpenROAD PnR steps.                                  flow.py:675
+[10:54:08] WARNING  [OpenROAD.STAMidPNR] [GRT-0097] No global routing found for nets. (and 2 similar warnings)                                                      flow.py:675
+[10:54:08] ERROR    The following error was encountered while running the flow:                                                                                 __main__.py:187
+                    OpenROAD.GlobalRouting failed with the following errors:                                                                                                   
+                    [GRT-0118] Routing congestion too high. Check the congestion heatmap in the GUI.                                                                           
+[10:54:08] ERROR    OpenLane will now quit. 
+```
+
+Response: You're hitting a routing congestion issue in OpenLane2 during global routing (GRT-0118). This generally means your design is too dense or too complex for the current floorplan and routing layers to handle, especially in layers like met1 and met5, which are showing over 50% resource reduction due to congestion.
+
+Let's break down what's happening, then go over solutions.
+
+🧠 What’s Going Wrong?
+
+From your log:
+| Layer | Direction  | Original | Derated | Reduction |
+| ----- | ---------- | -------- | ------- | --------- |
+| met1  | Horizontal | 256k     | 125k    | 51%       |
+| met5  | Horizontal | 25k      | 12k     | 52%       |
+
+    A reduction over ~30–40% is usually a strong congestion indicator.
+
+Also:
+```
+Blockages: 18991
+Final vias: 423,414
+```
+This is very high. The congestion is likely caused by:
+
+    Too many logic cells packed too tightly (high cell density)
+
+    Heavy use of broadcast wires or large fanout nets (e.g., vector_buffer)
+
+    Very wide buses (e.g., 1024-bit data buses = 64×16 wires)
+
+    Not enough metal layers or routing tracks for large datapaths
+
+✅ Solutions
+🔧 1. Increase Core Area
+
+Increase FP_CORE_UTIL from e.g., 30 → 40 or higher in your config.tcl.
+```
+set ::env(FP_CORE_UTIL) 40
+```
+This reduces cell density, giving routers more room to maneuver.
+🔁 2. Enable Layer Assignment
+
+Your design defaults to met1–met5. You can increase the max routing layer:
+```
+set ::env(RT_MAX_LAYER) met6
+```
+Make sure your PDK supports met6. For sky130, met5 is often the limit, but if you’ve enabled extended layers, this can help.
+
+🔀 3. Insert Power Straps Sparingly
+
+Too many straps can create routing blockages, especially in met4/met5. You can reduce them:
+```
+set ::env(FP_PDN_VPITCH) 40
+set ::env(FP_PDN_HPITCH) 40
+```
+Try increasing pitch if straps are too dense.
+
+🔄 4. Widen Channels Between Blocks
+
+If you’ve manually placed macros or SRAMs, ensure there’s routing space between them.
+📉 5. Reduce Bus Widths or Split Vector Buffer
+
+Your vector_buffer is potentially MAX_COLS × DATA_WIDTH bits (e.g., 64 × 16 = 1024 bits). This creates:
+
+    Wide fanout
+
+    Routing congestion across full rows
+
+Mitigations:
+
+    Use smaller buffer slices (e.g., 16-element banks)
+
+    Register slices at column boundaries
+
+    Replace wide buses with serial access in some cases
+
+🛠️ 6. Enable Congestion-Aware Placement
+
+You can try:
+```
+set ::env(PL_CONGESTION_EFFORT) high
+```
+or insert set_global_routing_congestion_effort high in custom OpenROAD scripts.
+
+📍 7. Check Congestion Heatmap
+
+If you can open the OpenROAD GUI:
+```
+openroad -gui
+```
+Load results/routing/*.def and look at congestion overlays:
+```
+highlight_congestion
+```
+This shows hotspots in red.
+
+🧹 8. Remove Dead Logic / Unused Nets
+
+Use:
+```
+set ::env(SYNTH_REMOVE_DEAD_CELLS) 1
+```
+
+🧪 Suggestion: Start with These Tweaks
+```
+set ::env(FP_CORE_UTIL) 40
+set ::env(RT_MAX_LAYER) met5  ;# or met6 if available
+set ::env(FP_PDN_VPITCH) 40
+set ::env(FP_PDN_HPITCH) 40
+set ::env(PL_CONGESTION_EFFORT) high
+```
+Then re-run floorplan + placement + routing.
+
+Let me know if you'd like me to suggest a reduced-width version of vector_buffer or help tweak your OpenLane config file directly.
+
+Prompt: Ok, I've made those config changes with FP_CORE_UTIL set to 50, since it was already at 40. I'd like to briefly discuss options to split the vector buffer into smaller buffer slices, and I'd like to know how to re-run floorplan + placement + routing. It's not clear to me how to pick up synthesis in openlane2 at the point of a previous failure, rather than re-running from the beginning
+
+Response: Great — increasing FP_CORE_UTIL to 50% gives more space for routing, but splitting up the vector_buffer can be an even bigger win in terms of congestion and timing.
+🔧 1. Splitting vector_buffer into Smaller Slices
+
+Let’s assume your current vector buffer is:
+```systemverilog
+logic signed [DATA_WIDTH-1:0] vector_buffer [MAX_COLS];
+```
+This flattens into a wide bus of MAX_COLS × DATA_WIDTH bits — e.g., 64 × 16 = 1024 bits, which creates massive routing pressure.
+✅ Option A: Split into banks
+
+Use 4 or 8 separate sub-buffers (e.g., 4 banks of 16 entries each):
+```systemverilog
+logic signed [DATA_WIDTH-1:0] vector_buffer_bank0 [15:0];
+logic signed [DATA_WIDTH-1:0] vector_buffer_bank1 [15:0];
+logic signed [DATA_WIDTH-1:0] vector_buffer_bank2 [15:0];
+logic signed [DATA_WIDTH-1:0] vector_buffer_bank3 [15:0];
+```
+You can then use:
+```systemverilog
+function automatic logic signed [DATA_WIDTH-1:0] get_vector_value(input int col);
+    case (col[5:4]) // top 2 bits for 4 banks
+        2'b00: return vector_buffer_bank0[col[3:0]];
+        2'b01: return vector_buffer_bank1[col[3:0]];
+        2'b10: return vector_buffer_bank2[col[3:0]];
+        2'b11: return vector_buffer_bank3[col[3:0]];
+    endcase
+endfunction
+```
+
+This reduces fanout and separates each physical region spatially in layout — much easier for the router.
+✅ Option B: Flatten each bank
+
+Alternatively:
+```systemverilog
+logic [BANK_WIDTH*DATA_WIDTH-1:0] vector_bank0;
+```
+and use slicing:
+```
+assign data_out = vector_bank0[i*DATA_WIDTH +: DATA_WIDTH];
+```
+Same benefit — fewer long horizontal buses.
+
+🧵 2. How to Re-Run OpenLane2 Floorplan + Placement + Routing
+💡 Goal: Resume from synthesis, skipping logic generation
+
+By default, OpenLane2 caches run data in:
+```
+runs/RUN_<timestamp>/
+```
+Each major stage (synthesis, floorplan, placement, etc.) stores intermediate artifacts there.
+✅ Step-by-Step Resume from Synthesis
+
+    Find your last successful run directory:
+```
+runs/RUN_2025-06-03_09-31-04/
+```
+Create a new config override file (if you haven't already):
+```
+cp config.tcl config_rerun.tcl
+```
+Open the OpenLane shell:
+```
+openlane
+```
+Resume flow using stage range:
+For floorplan + placement + routing:
+```
+run_flow matvec_multiplier -config config_rerun.tcl -from floorplan -to routing
+```
+Or for placement only:
+```
+run_flow matvec_multiplier -config config_rerun.tcl -from placement -to placement
+```
+To include your earlier artifacts:
+You can copy over the synthesized netlist to the new run dir, or use the -reuse flag (if supported in your version).
+
+🧼 Optional: Clean Up Previous Output
+
+Sometimes OpenLane caches aggressively. If you want a clean rerun without starting from scratch:
+```
+rm -rf runs/RUN_*
+```
+Or keep just the good artifacts:
+```
+mkdir saved_netlist
+cp runs/RUN_*/results/synthesis/*.v saved_netlist/
+```
+
+Would you like me to mock up a version of the vector_buffer that uses 4 banks (split and muxed), or help modify your loader code to match the split structure?
+
+Prompt: Yes, let's work on creating 4 banks for `vector_buffer`. It seems like it would be ideal for us to combine options a and b, having 4 flattened banks
+
+Response: Excellent — combining Option A (multiple banks) with Option B (flattened vectors) gives us 4 narrow logic [N*DATA_WIDTH-1:0] slices that are easy for synthesis and routing.
+
+Let’s build this step-by-step for a generic, parameterized design.
+
+✅ Assumptions
+```systemverilog
+parameter DATA_WIDTH = 16;
+parameter MAX_COLS   = 64;
+parameter NUM_BANKS  = 4;  // Split into 4 banks
+localparam BANK_WIDTH = MAX_COLS / NUM_BANKS;  // = 16
+```
+
+You’ll get 4 banks of 256 bits each (16 × 16).
+
+🔧 Declare Flattened Banks
+```systemverilog
+logic [BANK_WIDTH*DATA_WIDTH-1:0] vector_bank [NUM_BANKS-1:0];
+```
+This gives you:
+```systemverilog
+vector_bank[0]  // 256 bits
+vector_bank[1]
+vector_bank[2]
+vector_bank[3]
+```
+
+🧠 Write Helper Function to Access a Column
+```systemverilog
+function automatic logic signed [DATA_WIDTH-1:0] get_vector_value(input int col_idx);
+    int bank_id = col_idx / BANK_WIDTH;
+    int local_idx = col_idx % BANK_WIDTH;
+    return vector_bank[bank_id][local_idx*DATA_WIDTH +: DATA_WIDTH];
+endfunction
+```
+Use this in MAC logic, muxes, and state machine code.
+
+🖊️ Writing to Banks
+
+Update your vector_write_enable logic to write to all 4 banks as appropriate:
+```systemverilog
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            vector_bank[b] <= '0;
+        end
+    end else if (vector_write_enable) begin
+        for (int i = 0; i < BANDWIDTH; i++) begin
+            int col = vector_base_addr + i;
+            int bank_id = col / BANK_WIDTH;
+            int local_idx = col % BANK_WIDTH;
+            vector_bank[bank_id][local_idx*DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+        end
+    end
+end
+```
+
+You can avoid dynamic int math in synthesis by either:
+
+    Unrolling i (static for-loop or generate),
+
+    Or precomputing the bank_id via generate-time logic if BANDWIDTH is fixed.
+
+🔄 Optional Readback (Debug/Test)
+```systemverilog
+function automatic logic [DATA_WIDTH-1:0] read_vector_col(input int col);
+    int b = col / BANK_WIDTH;
+    int local = col % BANK_WIDTH;
+    return vector_bank[b][local*DATA_WIDTH +: DATA_WIDTH];
+endfunction
+```
+
+✅ Benefits
+
+    Each vector_bank[b] is a smaller bus (256 bits vs. 1024 bits).
+
+    Router can place and route independently.
+
+    MAC/loader logic can stay the same via the accessor function.
+
+Let me know:
+
+    Do you want help updating the loader module or interface to work with this?
+
+    Would you prefer generate blocks to pre-declare assignments, avoiding runtime divisions?
+
+Prompt: I think this looks good - specifically the NUM_BANKS parameter and `vector_bank` - though I want to confirm it won't be an issue that this is 2D. Each bank is flattened, but we have a 2D array of the banks themselves, right?
+
+I'd like to know more about your suggestions for avoiding dynamic `int` math in synthesis, and how and why those would be applied.
+
+And I'd like to know more about generate blocks to avoid pre-declare assignments
+
+Response: ChatGPT said:
+
+Great questions — let’s dig into each of these concerns and improvements systematically.
+✅ 1. Is vector_bank[NUM_BANKS][BANK_WIDTH*DATA_WIDTH] okay for synthesis?
+
+Yes, this 2D declaration:
+```systemverilog
+logic [BANK_WIDTH*DATA_WIDTH-1:0] vector_bank [NUM_BANKS-1:0];
+```
+is synthesis-friendly, because:
+
+    It’s flattened per bank, so each element is just a long vector.
+
+    The outer array (NUM_BANKS) is static — synthesis tools like Yosys will unroll this.
+
+    Unlike logic [N-1:0][M-1:0] which implies true multidimensional memory arrays (often mapped to RAM), this is a packed array of unpacked words, and will synthesize to registers or mux logic.
+
+➡️ Verdict: ✅ safe, efficient, and better for congestion than a single wide vector.
+
+⚠️ 2. Avoiding int math in synthesis
+
+You're right to be cautious here. SystemVerilog int is a simulation-only 32-bit signed type, and dynamic indexing (e.g. /, %) can block synthesis or result in unnecessarily expensive hardware.
+🛠 Fix: Use compile-time expressions (genvar, localparam, static loops)
+
+Example with static loop and localparam:
+```systemverilog
+localparam int BANDWIDTH = 16;
+
+always_ff @(posedge clk) begin
+  for (int i = 0; i < BANDWIDTH; i++) begin
+    localparam int col = BASE_ADDR + i;
+    localparam int bank = col / BANK_WIDTH;
+    localparam int local = col % BANK_WIDTH;
+    vector_bank[bank][local*DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+  end
+end
+```
+But this still relies on synthesis tool constant folding all of this.
+✔ Better fix: Use generate block
+
+🔄 3. Using generate blocks to fully unroll access
+
+Let’s build a cleaner, synthesis-safe version using generate-time logic:
+Step 1: Generate write logic
+```systemverilog
+genvar i;
+generate
+  for (i = 0; i < BANDWIDTH; i++) begin : gen_vec_write
+    localparam int COL_IDX = i;  // Relative index
+    localparam int BANK_ID = (COL_IDX) / BANK_WIDTH;
+    localparam int LOCAL_IDX = (COL_IDX) % BANK_WIDTH;
+
+    always_ff @(posedge clk) begin
+      if (vector_write_enable) begin
+        vector_bank[BANK_ID][LOCAL_IDX*DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+      end
+    end
+  end
+endgenerate
+```
+
+If vector_base_addr is fixed or can be factored into the generate-time logic (e.g., if the vector always loads from 0), this will be synthesis-safe and fully static.
+What if vector_base_addr is dynamic?
+
+In that case:
+
+    Can't use generate for indexing — because generate happens at elaboration, not runtime.
+
+    Then the / and % need to be replaced with bit shifts or masks when possible:
+
+        If BANK_WIDTH is a power of 2 (e.g., 16), then:
+```systemverilog
+bank_id = col_idx >> 4;
+local_idx = col_idx & 4'b1111;
+```
+
+💡 Summary
+| Concern                        | Resolution                                                         |
+| ------------------------------ | ------------------------------------------------------------------ |
+| 2D Array of Flattened Banks    | ✅ Safe for synthesis. Tools see it as a packed array of vectors.   |
+| `int` division/modulo          | ❌ Avoid if dynamic — use shifts/masks if power-of-2                |
+| Fully static assignment        | ✅ Use `generate` + `localparam` if `vector_base_addr` is static    |
+| Dynamic indexing (e.g. in FSM) | ✅ Acceptable if used carefully with bounds and tool-verified logic |
+
+Would you like help rewriting your vector loader to use generate blocks and fully static indexing (assuming base_addr is 0 for now)? Or would you prefer to keep runtime addressing and just optimize the modulo logic for synthesis safety?
+
+Prompt: `vector_base_addr` is set by the client loading in the vector, but should start at zero. Here is an example from the testbench:
+```
+for (int i = 0; i < HALF_COLS; i += MAX_BANDWIDTH) begin
+            vector_base_addr_32x32 = i;
+            for (int j = 0; j < MAX_BANDWIDTH; j++)
+                vector_in_32x32[j*DATA_WIDTH +: DATA_WIDTH] = test_vector[i + j];
+            vector_write_enable_32x32 = 1;
+            @(posedge clk);
+            vector_write_enable_32x32 = 0;
+            @(posedge clk);
+        end
+```
+
+Response: Thanks — that context helps a lot. Since vector_base_addr is controlled by the client and updated at runtime, we cannot use generate blocks to unroll the assignments completely statically. But we can still make this synthesis-safe and optimize it, especially if BANK_WIDTH is a power of two.
+
+✅ Updated Approach: Runtime-safe Vector Write Logic (No int / No Modulo)
+
+Assume:
+
+    vector_base_addr is dynamic
+
+    BANK_WIDTH = 16 → power of 2
+
+    NUM_BANKS = TOTAL_COLS / BANK_WIDTH (e.g., 64 columns → 4 banks)
+
+🧠 Use Bit Shifting and Masking Instead of / and %
+
+SystemVerilog synthesis tools handle >> and & much better than / and %.
+⛔ Bad (Yosys warning likely):
+```systemverilog
+bank_id = col / BANK_WIDTH;
+local_idx = col % BANK_WIDTH;
+```
+✅ Good (Power-of-2 BANK_WIDTH):
+```systemverilog
+bank_id   = col_idx >> $clog2(BANK_WIDTH);
+local_idx = col_idx & (BANK_WIDTH - 1);
+```
+
+🧩 Recommended Vector Write Block
+
+Here’s a synthesis-friendly version:
+```systemverilog
+always_ff @(posedge clk) begin
+    if (vector_write_enable) begin
+        for (int i = 0; i < BANDWIDTH; i++) begin
+            logic [$clog2(MAX_COLS)-1:0] col_idx;
+            logic [$clog2(NUM_BANKS)-1:0] bank;
+            logic [$clog2(BANK_WIDTH)-1:0] local;
+
+            col_idx = vector_base_addr + i;
+            bank    = col_idx >> $clog2(BANK_WIDTH);
+            local   = col_idx & (BANK_WIDTH - 1);
+
+            vector_bank[bank][local*DATA_WIDTH +: DATA_WIDTH] <=
+                vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+        end
+    end
+end
+```
+
+✅ Why this works:
+
+    All variables are synthesizable (no int)
+
+    Uses only static-width indexing (logic [N-1:0])
+
+    Avoids division/modulo
+
+🧪 Optional: Pre-check Bank Bounds (If Needed)
+
+If you're concerned that vector_base_addr + BANDWIDTH could exceed num_cols or NUM_BANKS * BANK_WIDTH, you can wrap the inner loop in a bounds check:
+```systemverilog
+if (vector_base_addr + BANDWIDTH <= num_cols) begin
+  // safe to write
+end
+```
+
+Would you like to also restructure the read logic from vector_bank the same way — with shift/mask indexing?
+
+Prompt: Ok, let's talk through this block:
+```
+if (vector_write_enable) begin
+              for (i = 0; i < BANDWIDTH; i++) begin
+                  // vector_buffer[(vector_base_addr + i) * DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+                  logic [$clog2(MAX_COLS)-1:0] col_idx;
+                  logic [$clog2(NUM_BANKS)-1:0] bank;
+                  logic [$clog2(VEC_BANK_WIDTH)-1:0] local;
+
+                  col_idx = vector_base_addr + i;
+                  bank    = col_idx >> $clog2(VEC_BANK_WIDTH);
+                  local   = col_idx & (VEC_BANK_WIDTH - 1);
+
+                  vector_bank[bank][local*DATA_WIDTH +: DATA_WIDTH] <=
+                      vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+              end
+            end
+```
+there's a few problems here, at least. You're using blocking assignment within an `always_ff` block, which isn't legal. You've got a name collision with `col_idx`, I don't think that is locally scoped. `local` seems like it may be a reserved keyword, so I don't think that should be a variable. Also, fyi, this logic should work if the bank width is one. If I reduce it to the following, will there be issue with synthesis?
+```
+vector_bank[(vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)][((vector_base_addr + i) & (VEC_BANK_WIDTH - 1)*DATA_WIDTH +: DATA_WIDTH] <=
+                      vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+```
+
+Response: You're absolutely right to call out each of these concerns — let’s walk through them in detail:
+
+✅ 1. Blocking assignment inside always_ff
+
+You're correct: always_ff requires non-blocking (<=) assignments only. The use of = inside the loop should be changed to <= only when assigning to actual reg/logic outputs. But temporary variables like col_idx, bank, and local_idx must be declared outside the loop and assigned with =, or you move to combinational logic.
+
+✅ 2. col_idx naming conflict
+
+Yes — if col_idx is also a module-wide signal, reusing that name inside the loop is not safe. SystemVerilog doesn't allow redefining a name already used as a signal.
+
+🛠️ Fix: use a distinct name, like temp_col_idx.
+
+✅ 3. local is a reserved keyword
+
+Correct again. local is reserved in SystemVerilog for defining local:: scopes.
+
+🛠️ Fix: rename to local_idx or similar.
+
+✅ 4. Your proposed line:
+```systemverilog
+vector_bank[
+    (vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)
+][
+    ((vector_base_addr + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH +: DATA_WIDTH
+] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+```
+✅ This is synthesis-safe (assuming VEC_BANK_WIDTH is a power of 2), and:
+
+    No illegal syntax
+
+    No runtime division or modulo
+
+    All indexing is static-width
+
+    Everything is resolved at elaboration time for constant VEC_BANK_WIDTH
+
+🧠 Final Notes for Synthesis
+
+    No loop-dependent indexing outside bounds: Ensure vector_base_addr + i < MAX_COLS, or write logic protects against overflow.
+
+    Flattened 2D array (vector_bank): Perfectly synthesizable, especially if you use packed arrays like:
+```systemverilog
+logic [DATA_WIDTH*VEC_BANK_WIDTH-1:0] vector_bank [NUM_BANKS];
+```
+
+✅ Final Example
+
+Here’s how it might look cleanly inside your always_ff:
+```systemverilog
+always_ff @(posedge clk) begin
+    if (vector_write_enable) begin
+        for (int i = 0; i < BANDWIDTH; i++) begin
+            vector_bank[
+                (vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)
+            ][
+                ((vector_base_addr + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH +: DATA_WIDTH
+            ] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+        end
+    end
+end
+```
+Let me know if you'd like to refactor the read side using the same scheme, or if you’re ready to re-run synthesis to confirm the congestion has improved.
+
+Prompt: Ok, yes, let's look at the read side now. As a reminder, this is where what we're currently doing to read from `vector_buffer`, which will need to be replaced with correct `vector_bank` access:
+```
+generate
+        for (genvar i = 0; i < MAC_CHUNK_SIZE; i++) begin : mac_inputs
+            // Since we have the full vector, we can simply use the col_idx here. matrix_data is used in
+            // BANDWIDTH-sized chunks, so we need to modulo the col_idx by BANDWIDTH to get the index for
+            // the current chunk.
+            assign a[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols))
+                         ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
+            assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols))
+            ? vector_buffer[(col_idx + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
+        end
+    endgenerate
+```
+
+Response: Perfect — since you're now using vector_bank instead of a flat vector_buffer, the read logic needs to recompute the correct bank and local index for each col_idx + i, similar to how we handled writes.
+
+Here's how you can revise the generate block to read from vector_bank properly:
+
+✅ Updated generate block using vector_bank
+```systemverilog
+generate
+    for (genvar i = 0; i < MAC_CHUNK_SIZE; i++) begin : mac_inputs
+        // Compute global column index
+        localparam int total_col_idx = col_idx + i;
+
+        // Compute bank and local index
+        localparam int bank_idx  = total_col_idx >> $clog2(VEC_BANK_WIDTH);
+        localparam int local_idx = total_col_idx & (VEC_BANK_WIDTH - 1);
+
+        assign a[i*DATA_WIDTH +: DATA_WIDTH] = 
+            (state == S_MAC && total_col_idx < num_cols)
+                ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH]
+                : '0;
+
+        assign b[i*DATA_WIDTH +: DATA_WIDTH] = 
+            (state == S_MAC && total_col_idx < num_cols)
+                ? vector_bank[bank_idx][local_idx * DATA_WIDTH +: DATA_WIDTH]
+                : '0;
+    end
+endgenerate
+```
+
+❗Caveat: localparam can't use runtime values
+
+Because col_idx is a runtime variable, you can't use localparam to compute bank_idx and local_idx directly. Instead, use a combinational function or inline expressions, like this:
+
+✅ Correct version (uses inline expressions)
+```systemverilog
+generate
+    for (genvar i = 0; i < MAC_CHUNK_SIZE; i++) begin : mac_inputs
+        assign a[i*DATA_WIDTH +: DATA_WIDTH] = 
+            (state == S_MAC && ((col_idx + i) < num_cols))
+                ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH]
+                : '0;
+
+        assign b[i*DATA_WIDTH +: DATA_WIDTH] = 
+            (state == S_MAC && ((col_idx + i) < num_cols))
+                ? vector_bank[
+                      (col_idx + i) >> $clog2(VEC_BANK_WIDTH)
+                  ][
+                      ((col_idx + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH +: DATA_WIDTH
+                  ]
+                : '0;
+    end
+endgenerate
+```
+
+🔍 Optional: extract indexing as a helper function (if reused)
+
+You can optionally wrap the indexing into a helper function (purely combinational), but the above inline expressions are typically fine and synthesis-friendly.
+
+Let me know if you want to verify correctness with a waveform (e.g., loading a vector and confirming bank reads), or are ready to re-synthesize and examine routing improvements.

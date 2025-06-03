@@ -2,7 +2,8 @@ module matvec_multiplier #(
     parameter MAX_ROWS = 64,
     parameter MAX_COLS = 64,
     parameter BANDWIDTH = 16,
-    parameter DATA_WIDTH = 16
+    parameter DATA_WIDTH = 16,
+    parameter VEC_NUM_BANKS  = 4
 )(
     input  logic clk,
     input  logic rst_n,
@@ -30,6 +31,8 @@ module matvec_multiplier #(
     output logic busy
 );
 
+    localparam VEC_BANK_WIDTH = MAX_COLS / VEC_NUM_BANKS;
+
     typedef enum logic [5:0] {
         S_IDLE      = 6'b000001,
         S_VLOAD     = 6'b000010,
@@ -48,7 +51,8 @@ module matvec_multiplier #(
     logic [BANDWIDTH-1:0] num_ops;
 
     logic signed [(DATA_WIDTH*2):0] acc;
-    logic signed [DATA_WIDTH*MAX_COLS-1:0] vector_buffer;
+    // logic signed [DATA_WIDTH*MAX_COLS-1:0] vector_buffer;
+    logic [VEC_BANK_WIDTH*DATA_WIDTH-1:0] vector_bank [VEC_NUM_BANKS-1:0];
 
     // Vector load control
     logic vector_loaded;
@@ -67,10 +71,9 @@ module matvec_multiplier #(
               .result(mac_result)
             );
 
-    // Output logic
-    assign busy = (state != S_IDLE);
-
-    // FSM transitions
+    //
+    // FSM next state update and state transitions
+    //
     always_ff @(posedge clk) begin
         if (!rst_n)
             state <= S_IDLE;
@@ -98,7 +101,11 @@ module matvec_multiplier #(
             default:     next_state = state;
         endcase
     end
+    // End FSM logic
 
+    //
+    // Vector loading logic
+    //
     // Get the entire vector from the client before moving forward with
     // chunked reading of matrix and MAC operation.
     // The client needs to hold vector_write_enable high and increment
@@ -108,12 +115,20 @@ module matvec_multiplier #(
         integer i;
         if (!rst_n) begin
             for (i = 0; i < MAX_COLS; i++) begin
-                vector_buffer[i] <= 0;
+                vector_bank[i] <= 0;
             end
         end else begin
             if (vector_write_enable) begin
               for (i = 0; i < BANDWIDTH; i++) begin
-                  vector_buffer[(vector_base_addr + i) * DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+                  // TODO: Consider pre-checking bank bounds, e.g. if (vector_base_addr + BANDWIDTH < num_cols)
+                  // vector_buffer[(vector_base_addr + i) * DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+                  // Get top bits to index into the vector bank
+                  // and the lower bits to index into the DATA_WIDTH segment using modulo logic
+                  vector_bank[
+                    (vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)
+                  ][
+                    ((vector_base_addr + i) & (VEC_BANK_WIDTH - 1))*DATA_WIDTH +: DATA_WIDTH
+                  ] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
               end
             end
         end
@@ -138,6 +153,7 @@ module matvec_multiplier #(
             end
         end
     end
+    // End vector loading logic
 
     // Matrix fetch signals
     // TODO: We should clock in matrix_data so we're not relying on matrix_loader
@@ -146,11 +162,10 @@ module matvec_multiplier #(
     assign matrix_enable = (state == S_REQ_MAT || state == S_WAIT_MAT);
     assign matrix_addr   = row_idx * num_cols + col_idx;
 
+    //
     // MAC accumulation with row tracking
-
     //
     // row and col index updates
-    //
     reg [$clog2(MAX_ROWS)-1:0] row_idx_next;
     reg [$clog2(MAX_COLS)-1:0] col_idx_next;
     always @(*) begin
@@ -229,22 +244,42 @@ module matvec_multiplier #(
         else
             acc <= acc_next;
     end
+    // End MAC accumulation, row and column tracking, and num_ops updates
 
     // MAC result
     generate
         for (genvar i = 0; i < MAC_CHUNK_SIZE; i++) begin : mac_inputs
+            // Logically, we can think about using the following values:
+            // Global column index
+            // int total_col_idx = col_idx + i;
+            // Bank and local index:
+            // int bank_idx  = total_col_idx >> $clog2(VEC_BANK_WIDTH);
+            // int local_idx = total_col_idx & (VEC_BANK_WIDTH - 1);
+            // But since col_idx in a runtime variable, we can't use localparam with the above computations.
+            // So instead, we're inlining the expressions, but it may be helpful to reference the above values
+            // for understanding the logic.
+
             // Since we have the full vector, we can simply use the col_idx here. matrix_data is used in
             // BANDWIDTH-sized chunks, so we need to modulo the col_idx by BANDWIDTH to get the index for
             // the current chunk.
-            assign a[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols))
-                         ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
-            // assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols)) ? vector_buffer[col_idx + i] : '0;
-            assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols))
-            ? vector_buffer[(col_idx + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
+            assign a[i*DATA_WIDTH +: DATA_WIDTH] =
+                (state == S_MAC && ((col_idx + i) < num_cols))
+                    ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH]
+                    : '0;
+            assign b[i*DATA_WIDTH +: DATA_WIDTH] = 
+                (state == S_MAC && (col_idx + i) < num_cols)
+                    ? vector_bank[
+                        (col_idx + i) >> $clog2(VEC_BANK_WIDTH)
+                      ][
+                        ((col_idx + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH +: DATA_WIDTH
+                      ]
+                    : '0;
         end
     endgenerate
 
+    //
     // Output logic
+    //
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             result_out   <= 0;
@@ -262,5 +297,15 @@ module matvec_multiplier #(
             result_valid <= 0;
         end
     end
+
+    assign busy = (state != S_IDLE);
+    // End output logic
+
+    // function automatic logic signed [DATA_WIDTH-1:0] get_vector_value(input int col_idx);
+    //     int bank_id = col_idx / VEC_BANK_WIDTH;
+    //     int local_idx = col_idx % VEC_BANK_WIDTH;
+    //     return vector_bank[bank_id][local_idx*DATA_WIDTH +: DATA_WIDTH];
+    // endfunction
+
 
 endmodule

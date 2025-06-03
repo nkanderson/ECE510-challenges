@@ -11,6 +11,8 @@ module matvec_tb;
     localparam MAX_COLS = 64;
     localparam BANDWIDTH_4X4 = 4;
     localparam MAX_BANDWIDTH = 16;
+    localparam VEC_NUM_BANKS_4X4  = 1
+    localparam VEC_NUM_BANKS  = 4
     localparam DATA_WIDTH = 16;
     localparam ADDR_WIDTH = 12;
 
@@ -74,7 +76,8 @@ module matvec_tb;
     matvec_multiplier #(
         .MAX_ROWS(MIN_ROWS),
         .MAX_COLS(MIN_COLS),
-        .BANDWIDTH(BANDWIDTH_4X4)
+        .BANDWIDTH(BANDWIDTH_4X4),
+        .VEC_NUM_BANKS(VEC_NUM_BANKS_4X4)
     ) dut_4x4 (
         .clk(clk), .rst_n(rst_n), .start(start_4x4),
         .num_rows(num_rows_4x4), .num_cols(num_cols_4x4),
@@ -104,7 +107,8 @@ module matvec_tb;
     matvec_multiplier #(
         .MAX_ROWS(HALF_ROWS),
         .MAX_COLS(HALF_COLS),
-        .BANDWIDTH(MAX_BANDWIDTH)
+        .BANDWIDTH(MAX_BANDWIDTH),
+        .VEC_NUM_BANKS(VEC_NUM_BANKS)
     ) dut_32x32 (
         .clk(clk), .rst_n(rst_n), .start(start_32x32),
         .num_rows(num_rows_32x32), .num_cols(num_cols_32x32),
@@ -134,7 +138,8 @@ module matvec_tb;
     matvec_multiplier #(
         .MAX_ROWS(MAX_ROWS),
         .MAX_COLS(MAX_COLS),
-        .BANDWIDTH(MAX_BANDWIDTH)
+        .BANDWIDTH(MAX_BANDWIDTH),
+        .VEC_NUM_BANKS(VEC_NUM_BANKS)
     ) dut_64x64 (
         .clk(clk), .rst_n(rst_n), .start(start_64x64),
         .num_rows(num_rows_64x64), .num_cols(num_cols_64x64),
