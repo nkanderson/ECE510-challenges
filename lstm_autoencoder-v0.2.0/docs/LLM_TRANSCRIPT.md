@@ -10373,3 +10373,654 @@ This satisfies both:
 | `sv2v` inserts `_sv2v_0`    | When it thinks some paths don’t assign | Prevent by using `default:` and `begin/end` |
 
 Let me know if you'd like me to regenerate the full FSM block in clean form with both explicit default: and tidy formatting — or help confirm if _sv2v_0 is eliminated after this change.
+
+Prompt: In the yosys stages for openlane2, tell me more about this stage: `7.9. Executing PROC_DFF pass (convert process syncs to FFs). `
+
+Response: Great question. In OpenLane2's synthesis flow, Yosys executes a series of transformation passes to turn your behavioral Verilog into a gate-level representation. The pass:
+```
+7.9. Executing PROC_DFF pass (convert process syncs to FFs).
+```
+is part of lowering SystemVerilog constructs into a netlist of flip-flops (FFs), latches, and logic gates.
+
+✅ What is PROC_DFF?
+
+PROC_DFF stands for Process-to-Flip-Flop conversion. It is a Yosys pass that:
+
+    Converts processes with edge-triggered behavior (i.e., always @(posedge clk)) into actual flip-flop primitives in RTLIL (Yosys's internal IR), and ultimately into standard cell DFFs during tech mapping.
+
+🔄 What it Does:
+
+    Looks for always @(posedge clk) or @(negedge rst_n) style edge-sensitive processes
+
+    Identifies registers (e.g., reg, logic assigned inside those blocks)
+
+    Converts those into DFF (D-type Flip-Flop) cells in RTLIL
+
+This is one of the last steps before technology mapping to actual standard cells.
+
+🛑 What Causes an Error Here?
+
+When you see:
+```
+ERROR: Multiple edge sensitive events found for this signal!
+```
+
+during PROC_DFF, it means:
+
+    Yosys detected a signal (e.g., state, vector_loaded, etc.)
+
+    That signal is assigned inside more than one edge-sensitive process
+
+        e.g., one @(posedge clk) block and another @(negedge rst_n) block
+
+    Or the same signal is assigned in a mix of edge-sensitive and level-sensitive (e.g., combinational) blocks
+
+🧨 That’s illegal for synthesizable Verilog — it means Yosys doesn’t know what kind of FF or latch to use.
+
+✅ Example: Good FF Conversion
+```verilog
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n)
+        state <= S_IDLE;
+    else
+        state <= next_state;
+end
+```
+✅ state is only assigned in this one process → Yosys converts this cleanly to a DFF with asynchronous reset.
+
+❌ Example: Bad — conflicting assignments
+```verilog
+always @(posedge clk)
+    state <= next_state;
+
+always @(negedge rst_n)
+    state <= S_IDLE;
+```
+This causes:
+```
+ERROR: Multiple edge sensitive events found for this signal!
+```
+Why? Because state is being assigned in two separate always blocks with different sensitivity.
+
+✅ How to Debug This
+
+In the failing runs/<run_tag>/logs/synthesis/yosys.log, search for the error line. The signal name following:
+```
+ERROR: Multiple edge sensitive events found for this signal!
+```
+
+
+is the one that Yosys cannot lower into a single FF instance.
+
+Then:
+
+    Trace all always @(...) blocks where this signal is assigned.
+
+    Ensure it's only ever assigned in one such block.
+
+    If the signal is meant to be combinational (e.g., assigned in always_comb), it must not also appear in any @(posedge clk) blocks.
+
+🛠️ How Yosys Lowering Stages Work (Context)
+| Stage            | Purpose                                                    |
+| ---------------- | ---------------------------------------------------------- |
+| `PROC_CLEAN`     | Remove dead or unused logic                                |
+| `PROC_ARST`      | Convert async resets to explicit logic                     |
+| `PROC_DLATCH`    | Convert latch-style processes (`always @(*)`) into latches |
+| **`PROC_DFF`**   | Convert edge-sensitive processes into FFs                  |
+| `OPT`, `TECHMAP` | Map RTLIL into gates using the cell library                |
+
+✅ Summary
+| Aspect        | Meaning                                                                                      |
+| ------------- | -------------------------------------------------------------------------------------------- |
+| `PROC_DFF`    | Converts clocked processes into DFFs                                                         |
+| Why it fails  | Signal is assigned in multiple edge-sensitive blocks                                         |
+| How to fix    | Ensure each FF-driven signal is assigned in one `@(posedge clk or negedge rst_n)` block only |
+| Best practice | Use `always_ff` in SystemVerilog and avoid overlapping edge-sensitive assignments            |
+
+Let me know the exact signal name from the error, and I can help trace its assignments in your design.
+
+Prompt: The problem here is that I have signals that are being flagged here, but they are not being driven in multiple edge-sensitive blocks. So I seem to be getting false positives. I need to understand whether there are other issues with the code that could result in a false positive. For example, here is the current verilog:
+```
+module matvec_multiplier (
+	clk,
+	rst_n,
+	start,
+	num_rows,
+	num_cols,
+	vector_write_enable,
+	vector_base_addr,
+	vector_in,
+	matrix_addr,
+	matrix_enable,
+	matrix_data,
+	matrix_ready,
+	result_out,
+	result_valid,
+	busy
+);
+	parameter MAX_ROWS = 64;
+	parameter MAX_COLS = 64;
+	parameter BANDWIDTH = 16;
+	parameter DATA_WIDTH = 16;
+	input wire clk;
+	input wire rst_n;
+	input wire start;
+	input wire [$clog2(MAX_ROWS):0] num_rows;
+	input wire [$clog2(MAX_COLS):0] num_cols;
+	input wire vector_write_enable;
+	input wire [$clog2(MAX_COLS) - 1:0] vector_base_addr;
+	input wire signed [(DATA_WIDTH * BANDWIDTH) - 1:0] vector_in;
+	output wire [$clog2(MAX_ROWS * MAX_COLS) - 1:0] matrix_addr;
+	output wire matrix_enable;
+	input wire [(DATA_WIDTH * BANDWIDTH) - 1:0] matrix_data;
+	input wire matrix_ready;
+	output reg signed [(DATA_WIDTH * 2) - 1:0] result_out;
+	output reg result_valid;
+	output wire busy;
+	reg [5:0] state;
+	reg [5:0] next_state;
+	reg [$clog2(MAX_ROWS) - 1:0] row_idx;
+	reg [$clog2(MAX_COLS) - 1:0] col_idx;
+	localparam MAC_CHUNK_SIZE = 4;
+	reg [BANDWIDTH - 1:0] num_ops;
+	reg signed [DATA_WIDTH * 2:0] acc;
+	reg signed [(DATA_WIDTH * MAX_COLS) - 1:0] vector_buffer;
+	reg vector_loaded;
+	wire signed [(DATA_WIDTH * 2) - 1:0] mac_result;
+	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] a;
+	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] b;
+	mac4 mac(
+		.a0(a[0+:DATA_WIDTH]),
+		.b0(b[0+:DATA_WIDTH]),
+		.a1(a[1 * DATA_WIDTH+:DATA_WIDTH]),
+		.b1(b[1 * DATA_WIDTH+:DATA_WIDTH]),
+		.a2(a[2 * DATA_WIDTH+:DATA_WIDTH]),
+		.b2(b[2 * DATA_WIDTH+:DATA_WIDTH]),
+		.a3(a[3 * DATA_WIDTH+:DATA_WIDTH]),
+		.b3(b[3 * DATA_WIDTH+:DATA_WIDTH]),
+		.result(mac_result)
+	);
+	assign busy = state != 6'b000001;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			state <= 6'b000001;
+		else
+			state <= next_state;
+	always @(*) begin
+		next_state = state;
+		(* full_case, parallel_case *)
+		case (state)
+			6'b000001:
+				if (start)
+					next_state = 6'b000010;
+			6'b000010:
+				if (vector_loaded)
+					next_state = 6'b000100;
+			6'b000100: next_state = 6'b001000;
+			6'b001000:
+				if (matrix_ready)
+					next_state = 6'b010000;
+			6'b010000:
+				if ((num_ops + MAC_CHUNK_SIZE) >= BANDWIDTH)
+					next_state = (row_idx < num_rows ? 6'b000100 : 6'b100000);
+				else
+					next_state = 6'b010000;
+			6'b100000: next_state = 6'b000001;
+			default: next_state = state;
+		endcase
+	end
+	always @(posedge clk or negedge rst_n) begin : sv2v_autoblock_1
+		integer i;
+		if (!rst_n) begin
+			vector_loaded <= 0;
+			for (i = 0; i < MAX_COLS; i = i + 1)
+				vector_buffer[i] <= 0;
+		end
+		else if (vector_write_enable) begin
+			for (i = 0; i < BANDWIDTH; i = i + 1)
+				vector_buffer[(vector_base_addr + i) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
+			if ((vector_base_addr + BANDWIDTH) >= num_cols)
+				vector_loaded <= 1;
+		end
+		else if (state == 6'b000001)
+			vector_loaded <= 0;
+	end
+	assign matrix_enable = (state == 6'b000100) || (state == 6'b001000);
+	assign matrix_addr = (row_idx * num_cols) + col_idx;
+	always @(posedge clk or negedge rst_n) begin
+		if (!rst_n) begin
+			acc <= 0;
+			col_idx <= 0;
+			row_idx <= 0;
+			num_ops <= 0;
+		end
+		else if (state == 6'b010000) begin
+			if (((col_idx + MAC_CHUNK_SIZE) >= num_cols) && (row_idx < (num_rows - 1))) begin
+				row_idx <= row_idx + 1;
+				col_idx <= 0;
+			end
+			else
+				col_idx <= col_idx + MAC_CHUNK_SIZE;
+			acc <= acc + mac_result;
+			num_ops <= num_ops + MAC_CHUNK_SIZE;
+		end
+		else if (state == 6'b001000)
+			num_ops <= 0;
+		else if (state == 6'b000001) begin
+			col_idx <= 0;
+			row_idx <= 0;
+			num_ops <= 0;
+		end
+		if ((col_idx + MAC_CHUNK_SIZE) >= num_cols)
+			acc <= 0;
+	end
+	genvar _gv_i_1;
+	generate
+		for (_gv_i_1 = 0; _gv_i_1 < MAC_CHUNK_SIZE; _gv_i_1 = _gv_i_1 + 1) begin : mac_inputs
+			localparam i = _gv_i_1;
+			assign a[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
+			assign b[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? vector_buffer[(col_idx + i) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
+		end
+	endgenerate
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			result_out <= 0;
+			result_valid <= 0;
+		end
+		else if ((state == 6'b010000) && ((col_idx + MAC_CHUNK_SIZE) >= num_cols)) begin
+			result_out <= acc + mac_result;
+			result_valid <= 1;
+		end
+		else
+			result_valid <= 0;
+endmodule
+```
+And I'm getting this error related to `next_state`:
+```
+ERROR: Multiple edge sensitive events found for this signal!                                                                                                                   
+[08:14:08] ERROR    Subprocess had a non-zero exit.                                                                                                                step.py:1364
+[08:14:08] ERROR    Last 10 line(s):                                                                                                                               step.py:1369
+                         4/5: $2\next_state[5:0]                                                                                                                               
+                         5/5: $1\next_state[5:0]                                                                                                                               
+                    Creating decoders for process                                                                                                                              
+                    `\matvec_multiplier.$proc$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:61$21'.                          
+                         1/1: $0\state[5:0]                                                                                                                                    
+                                                                                                                                                                               
+                    7.8. Executing PROC_DLATCH pass (convert process syncs to latches).                                                                                        
+                    No latch inferred for signal `\matvec_multiplier.\next_state' from process                                                                                 
+                    `\matvec_multiplier.$proc$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:66$23'.                          
+                                                                                                                                                                               
+                    7.9. Executing PROC_DFF pass (convert process syncs to FFs).                                                                                               
+                    ERROR: Multiple edge sensitive events found for this signal! 
+```
+You can see that `next_state` is only assigned to within one single `always @(*)` block, and is assigned to `state` within one single `always @(posedge clk or negedge rst_n)`. I have very similar code in other modules that have not run into this issue with synthesis.
+
+Response: Thanks — your analysis and example are very sharp. You're absolutely right: the next_state signal is:
+
+    Assigned only in one always @(*) block (combinational logic)
+
+    Read only in one always @(posedge clk or negedge rst_n) block, where it's assigned into state
+
+Yet Yosys emits:
+```
+ERROR: Multiple edge sensitive events found for this signal!
+```
+This should not happen under normal synthesis semantics, and since you've observed that similar code works fine in other modules, we now need to look deeper into how Yosys is interpreting this case specifically.
+
+🔬 Deep Dive: Possible Causes of False Positive in PROC_DFF
+
+Let’s carefully explore realistic scenarios that could cause a false detection of multiple edge-sensitive events in Yosys during the PROC_DFF pass.
+
+🧠 Cause 1: Implicit Multiple Drivers via Expression Expansion
+
+In Yosys, complex expression trees (especially ones that touch next_state through parameterized width logic or inside a FSM that gets unrolled) may cause Yosys to accidentally interpret next_state as being driven in multiple processes.
+
+We see this in your trace:
+```
+Creating decoders for process `\matvec_multiplier.$proc$...`
+...
+ERROR: Multiple edge sensitive events found for this signal!
+```
+
+✅ Mitigation:
+
+Force the width of next_state to be declared exactly, and ensure it’s not being inferred from the expression on the right-hand side:
+```verilog
+reg [5:0] next_state;
+```
+Instead of letting it default or be inferred.
+
+You've already done this — but if you had originally used logic or var in your SystemVerilog, sv2v may have introduced artifacts.
+
+To test: print out Yosys's flattened netlist right before PROC_DFF with:
+```sh
+yosys -p "read_verilog design.v; proc; show -prefix debug_proc"
+```
+And look for how many $proc or $sync assignments are tied to next_state.
+
+🧠 Cause 2: next_state Rewritten During Optimization Passes
+
+Yosys does inlining and expansion between:
+
+    PROC_CLEAN
+
+    PROC_ARST
+
+    PROC_DLATCH
+
+It’s possible that the next_state logic is being split across blocks during these rewrites due to how expressions are handled (e.g., through bit slicing or parameter inlining). If Yosys mistakenly duplicates the signal in IR, you get the error.
+
+🧪 Experimental Check
+
+Try running only up to proc and proc_dff manually to confirm:
+```
+yosys -p "
+  read_verilog matvec_multiplier.v
+  hierarchy -check -top matvec_multiplier
+  proc
+  proc_dff
+"
+```
+If it fails only after proc_dff, we know the problem is entirely in the internal $proc splitting logic.
+
+🛠 Suggested Workaround
+
+You can try isolating and protecting next_state from being over-optimized or misinferred. Two possible ideas:
+
+✅ Option 1: Add /* syn_keep */
+
+This tells synthesis tools (including Yosys in most cases) not to optimize or rewrite this signal, preserving its original assignment context:
+```verilog
+reg /* syn_keep */ [5:0] next_state;
+```
+This can help if internal Yosys optimization is splitting its assignment over multiple $proc blocks.
+
+✅ Option 2: Separate Assignment Path
+
+If next_state = state; is currently at the top of your always @(*) block, and you're relying on that default, restructure explicitly like this:
+```verilog
+always @(*) begin
+    unique case (state)
+        6'b000001: next_state = start                 ? 6'b000010 : state;
+        6'b000010: next_state = vector_loaded         ? 6'b000100 : state;
+        6'b000100: next_state = 6'b001000;
+        6'b001000: next_state = matrix_ready          ? 6'b010000 : state;
+        6'b010000: next_state = (num_ops + MAC_CHUNK_SIZE >= BANDWIDTH)
+                                 ? ((row_idx < num_rows) ? 6'b000100 : 6'b100000)
+                                 : 6'b010000;
+        6'b100000: next_state = 6'b000001;
+        default:   next_state = state;
+    endcase
+end
+```
+Now, all logic for next_state is concretely bound inside the case arms. This tends to eliminate the need for sv2v-generated conditional guards, and prevents signal "leakage" across multiple internal $proc statements.
+
+✅ Summary
+| Issue                                                    | Explanation                                                                        | Fix                                          |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------- |
+| `next_state` seen as multiply driven                     | Yosys generated multiple `$proc` assignments, possibly from optimization splitting | Use explicit case arms with full coverage    |
+| `PROC_DFF` complains with no actual multiple assignments | Internal misinterpretation due to expression reuse or slicing                      | Try `/* syn_keep */`, manual proc inspection |
+| Other modules are fine                                   | They may avoid edge case by avoiding implicit defaulting or have simpler FSM logic | Copy structure from working module           |
+
+Would you like me to generate a minimized test case that you can directly run with Yosys to isolate and test this next_state problem?
+
+Prompt: Alright, this is the output from yosys:
+
+yosys -p "read_verilog src/matvec_mult.v; proc; show -prefix debug_proc"
+
+ /----------------------------------------------------------------------------\
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |  Copyright (C) 2012 - 2024  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |  Distributed under an ISC-like license, type "license" to see terms        |
+ \----------------------------------------------------------------------------/
+ Yosys 0.46 (git sha1 e97731b9dda91fa5fa53ed87df7c34163ba59a41, clang++ 16.0.6 -fPIC -O3)
+Loaded SDC plugin
+
+-- Running command `read_verilog src/matvec_mult.v; proc; show -prefix debug_proc' --
+
+1. Executing Verilog-2005 frontend: src/matvec_mult.v
+Parsing Verilog input from `src/matvec_mult.v' to AST representation.
+Generating RTLIL representation for module `\matvec_multiplier'.
+Successfully finished Verilog frontend.
+
+2. Executing PROC pass (convert processes to netlists).
+
+2.1. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Cleaned up 0 empty switches.
+
+2.2. Executing PROC_RMDEAD pass (remove dead branches from decision trees).
+Marked 2 switch rules as full_case in process $proc$src/matvec_mult.v:142$265 in module matvec_multiplier.
+Marked 4 switch rules as full_case in process $proc$src/matvec_mult.v:107$249 in module matvec_multiplier.
+Marked 2 switch rules as full_case in process $proc$src/matvec_mult.v:89$28 in module matvec_multiplier.
+Marked 4 switch rules as full_case in process $proc$src/matvec_mult.v:66$22 in module matvec_multiplier.
+Marked 1 switch rules as full_case in process $proc$src/matvec_mult.v:61$20 in module matvec_multiplier.
+Removed a total of 0 dead cases.
+
+2.3. Executing PROC_PRUNE pass (remove redundant assignments in processes).
+Removed 2 redundant assignments.
+Promoted 20 assignments to connections.
+
+2.4. Executing PROC_INIT pass (extract init attributes).
+
+2.5. Executing PROC_ARST pass (detect async resets in processes).
+Found async reset \rst_n in `\matvec_multiplier.$proc$src/matvec_mult.v:142$265'.
+Found async reset \rst_n in `\matvec_multiplier.$proc$src/matvec_mult.v:89$28'.
+Found async reset \rst_n in `\matvec_multiplier.$proc$src/matvec_mult.v:61$20'.
+
+2.6. Executing PROC_ROM pass (convert switches to ROMs).
+Converted 0 switches.
+<suppressed ~15 debug messages>
+
+2.7. Executing PROC_MUX pass (convert decision trees to multiplexers).
+Creating decoders for process `\matvec_multiplier.$proc$src/matvec_mult.v:142$265'.
+     1/2: $0\result_valid[0:0]
+     2/2: $0\result_out[31:0]
+Creating decoders for process `\matvec_multiplier.$proc$src/matvec_mult.v:107$249'.
+     1/4: $0\acc[32:0]
+     2/4: $0\num_ops[15:0]
+     3/4: $0\col_idx[5:0]
+     4/4: $0\row_idx[5:0]
+Creating decoders for process `\matvec_multiplier.$proc$src/matvec_mult.v:89$28'.
+     1/37: $2\sv2v_autoblock_1.i[31:0]
+     2/37: $2$lookahead\vector_buffer$27[1023:0]$80
+     3/37: $2$bitselwrite$pos$src/matvec_mult.v:98$18[31:0]$79
+     4/37: $2$bitselwrite$pos$src/matvec_mult.v:98$17[31:0]$78
+     5/37: $2$bitselwrite$pos$src/matvec_mult.v:98$16[31:0]$77
+     6/37: $2$bitselwrite$pos$src/matvec_mult.v:98$15[31:0]$76
+     7/37: $2$bitselwrite$pos$src/matvec_mult.v:98$14[31:0]$75
+     8/37: $2$bitselwrite$pos$src/matvec_mult.v:98$13[31:0]$74
+     9/37: $2$bitselwrite$pos$src/matvec_mult.v:98$12[31:0]$73
+    10/37: $2$bitselwrite$pos$src/matvec_mult.v:98$11[31:0]$72
+    11/37: $2$bitselwrite$pos$src/matvec_mult.v:98$10[31:0]$71
+    12/37: $2$bitselwrite$pos$src/matvec_mult.v:98$9[31:0]$70
+    13/37: $2$bitselwrite$pos$src/matvec_mult.v:98$8[31:0]$69
+    14/37: $2$bitselwrite$pos$src/matvec_mult.v:98$7[31:0]$68
+    15/37: $2$bitselwrite$pos$src/matvec_mult.v:98$6[31:0]$67
+    16/37: $2$bitselwrite$pos$src/matvec_mult.v:98$5[31:0]$66
+    17/37: $2$bitselwrite$pos$src/matvec_mult.v:98$4[31:0]$65
+    18/37: $2$bitselwrite$pos$src/matvec_mult.v:98$3[31:0]$64
+    19/37: $1$lookahead\vector_buffer$27[1023:0]$63
+    20/37: $1$bitselwrite$pos$src/matvec_mult.v:98$18[31:0]$62
+    21/37: $1$bitselwrite$pos$src/matvec_mult.v:98$17[31:0]$61
+    22/37: $1$bitselwrite$pos$src/matvec_mult.v:98$16[31:0]$60
+    23/37: $1$bitselwrite$pos$src/matvec_mult.v:98$15[31:0]$59
+    24/37: $1$bitselwrite$pos$src/matvec_mult.v:98$14[31:0]$58
+    25/37: $1$bitselwrite$pos$src/matvec_mult.v:98$13[31:0]$57
+    26/37: $1$bitselwrite$pos$src/matvec_mult.v:98$12[31:0]$56
+    27/37: $1$bitselwrite$pos$src/matvec_mult.v:98$11[31:0]$55
+    28/37: $1$bitselwrite$pos$src/matvec_mult.v:98$10[31:0]$54
+    29/37: $1$bitselwrite$pos$src/matvec_mult.v:98$9[31:0]$53
+    30/37: $1$bitselwrite$pos$src/matvec_mult.v:98$8[31:0]$52
+    31/37: $1$bitselwrite$pos$src/matvec_mult.v:98$7[31:0]$51
+    32/37: $1$bitselwrite$pos$src/matvec_mult.v:98$6[31:0]$50
+    33/37: $1$bitselwrite$pos$src/matvec_mult.v:98$5[31:0]$49
+    34/37: $1$bitselwrite$pos$src/matvec_mult.v:98$4[31:0]$48
+    35/37: $1$bitselwrite$pos$src/matvec_mult.v:98$3[31:0]$47
+    36/37: $1\sv2v_autoblock_1.i[31:0]
+    37/37: $0\vector_loaded[0:0]
+Creating decoders for process `\matvec_multiplier.$proc$src/matvec_mult.v:66$22'.
+     1/5: $5\next_state[5:0]
+     2/5: $4\next_state[5:0]
+     3/5: $3\next_state[5:0]
+     4/5: $2\next_state[5:0]
+     5/5: $1\next_state[5:0]
+Creating decoders for process `\matvec_multiplier.$proc$src/matvec_mult.v:61$20'.
+     1/1: $0\state[5:0]
+
+2.8. Executing PROC_DLATCH pass (convert process syncs to latches).
+No latch inferred for signal `\matvec_multiplier.\next_state' from process `\matvec_multiplier.$proc$src/matvec_mult.v:66$22'.
+
+2.9. Executing PROC_DFF pass (convert process syncs to FFs).
+Creating register for signal `\matvec_multiplier.\result_out' using process `\matvec_multiplier.$proc$src/matvec_mult.v:142$265'.
+  created $adff cell `$procdff$510' with positive edge clock and positive level reset.
+Creating register for signal `\matvec_multiplier.\result_valid' using process `\matvec_multiplier.$proc$src/matvec_mult.v:142$265'.
+  created $adff cell `$procdff$515' with positive edge clock and positive level reset.
+Creating register for signal `\matvec_multiplier.\row_idx' using process `\matvec_multiplier.$proc$src/matvec_mult.v:107$249'.
+ERROR: Multiple edge sensitive events found for this signal!
+
+
+
+For the other command you provided, I think it needs to have other options or something, due to the module hierarchy. This is part of the output:
+
+2.1. Analyzing design hierarchy..
+Top module:  \matvec_multiplier
+ERROR: Module `\mac4' referenced in module `\matvec_multiplier' in cell `\mac' is not part of the design.
+
+Response: Thanks for the detailed output — it confirms a few critical insights, and we can now provide a very clear diagnosis and solution.
+✅ Diagnosis
+
+The Yosys error:
+```
+Creating decoders for process `\matvec_multiplier.$proc$...'
+     ...
+Creating decoders for process `\matvec_multiplier.$proc$src/matvec_mult.v:66$22'.
+     1/5: $5\next_state[5:0]
+     2/5: $4\next_state[5:0]
+     3/5: $3\next_state[5:0]
+     4/5: $2\next_state[5:0]
+     5/5: $1\next_state[5:0]
+```
+means that Yosys sees multiple assignments to next_state inside the same process, likely caused by how it flattens and expands the case statement.
+
+But then during PROC_DFF:
+```
+Creating register for signal `\matvec_multiplier.\row_idx' ...
+ERROR: Multiple edge sensitive events found for this signal!
+```
+So although your original concern was next_state, Yosys is crashing on row_idx, not next_state.
+
+🧠 Clarification on the Error
+
+    next_state was flagged earlier as a "no latch inferred", not a fatal error.
+
+    But row_idx is now causing a hard synthesis error during PROC_DFF.
+
+That means: this signal (row_idx) is being assigned in multiple edge-sensitive processes, or Yosys thinks it is.
+
+So now we need to look at the assignments to row_idx.
+
+🔍 Your Code — row_idx Assignments
+
+From your source:
+```verilog
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        ...
+        row_idx <= 0;
+    end else if (state == 6'b010000) begin
+        if (((col_idx + MAC_CHUNK_SIZE) >= num_cols) && (row_idx < (num_rows - 1))) begin
+            row_idx <= row_idx + 1;
+            ...
+        end
+        ...
+    end else if (state == 6'b000001) begin
+        ...
+        row_idx <= 0;
+    end
+    ...
+end
+```
+This is all within one always @(posedge clk or negedge rst_n) block. So it should be fine — no multiple edge events.
+
+🧠 Theory: Implicit Multiple Edges via Reset Polarity
+
+Yosys expects a signal to have either:
+
+    a single edge-sensitive clock + optional async reset
+
+If it sees:
+
+    assignments with mixed reset polarity, or
+
+    ambiguous reuse of a reset condition across nested control blocks
+
+... it may infer multiple edge-sensitive drivers even within the same always block.
+
+Also, you have:
+```verilog
+if (!rst_n) begin
+  row_idx <= 0;
+end else if (...) begin
+  ...
+  row_idx <= ...
+end else if (...) begin
+  row_idx <= 0;
+end
+```
+But later in the same block you have:
+```verilog
+if ((col_idx + MAC_CHUNK_SIZE) >= num_cols)
+    acc <= 0;
+```
+⚠️ You're mixing conditional updates to other variables (like acc) outside else branches, which Yosys sometimes interprets as parallel drivers, especially for signals that are re-assigned on multiple code paths.
+
+✅ Fix Options
+✅ Option 1: Refactor row_idx assignments to avoid ambiguity
+
+Do this:
+```verilog
+reg [$clog2(MAX_ROWS)-1:0] row_idx_next;
+
+always @(*) begin
+    row_idx_next = row_idx;
+    if (state == 6'b010000 && ((col_idx + MAC_CHUNK_SIZE) >= num_cols) && (row_idx < (num_rows - 1)))
+        row_idx_next = row_idx + 1;
+    else if (state == 6'b000001)
+        row_idx_next = 0;
+end
+
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n)
+        row_idx <= 0;
+    else
+        row_idx <= row_idx_next;
+end
+```
+
+This ensures row_idx is:
+
+    updated in exactly one place
+
+    never conditionally driven in multiple sub-paths of the same always block
+
+✅ Option 2: Use Yosys proc debugging output
+
+Run:
+```
+yosys -p "read_verilog src/mac4.v src/matvec_mult.v; hierarchy -check -top matvec_multiplier; proc; show -prefix debug_proc"
+```
+This avoids the error you hit earlier:
+```
+ERROR: Module `\mac4' ... is not part of the design.
+```
+Because mac4 was missing from the hierarchy. Now both are loaded.
+
+✅ Summary
+| Issue                       | Root Cause                                                     | Solution                                                  |
+| --------------------------- | -------------------------------------------------------------- | --------------------------------------------------------- |
+| `next_state` warning        | Multiple decision tree assignments                             | Harmless (non-fatal), can restructure `case`              |
+| `row_idx` fatal error       | Multiple assignments under mixed reset logic / ambiguous paths | Refactor into next-state assignment and separate register |
+| `mac4` missing in hierarchy | Module not included in Yosys input                             | Add `src/mac4.v` to `yosys -p` command                    |
+
+
+Let me know if you'd like a full rewrite of your row_idx, col_idx, and acc blocks in clean separated *_next form — this often resolves Yosys false positives and improves synthesis clarity.

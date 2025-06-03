@@ -48,7 +48,7 @@ module matvec_multiplier #(
     logic [BANDWIDTH-1:0] num_ops;
 
     logic signed [(DATA_WIDTH*2):0] acc;
-    logic signed [DATA_WIDTH-1:0] vector_buffer [0:MAX_COLS-1];
+    logic signed [DATA_WIDTH*MAX_COLS-1:0] vector_buffer;
 
     // Vector load control
     logic vector_loaded;
@@ -98,6 +98,26 @@ module matvec_multiplier #(
             default:     next_state = state;
         endcase
     end
+    // Optional block to replace the above always_ff updating state and FSM next state logic.
+    // This is related to troubleshooting synthesis issues for the next_state signal.
+    // always_ff @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n)
+    //         state <= S_IDLE;
+    //     else begin
+    //         case (state)
+    //             S_IDLE:      if (start) state <= S_VLOAD;
+    //             S_VLOAD:     if (vector_loaded) state <= S_REQ_MAT;
+    //             S_REQ_MAT:   state <= S_WAIT_MAT;
+    //             S_WAIT_MAT:  if (matrix_ready) state <= S_MAC;
+    //             S_MAC:       if (num_ops + MAC_CHUNK_SIZE >= BANDWIDTH)
+    //                             state <= (row_idx < num_rows) ? S_REQ_MAT : S_DONE;
+    //                         else
+    //                             state <= S_MAC;
+    //             S_DONE:      state <= S_IDLE;
+    //             default:     state <= state;
+    //         endcase
+    //     end
+    // end
 
     // Get the entire vector from the client before moving forward with
     // chunked reading of matrix and MAC operation.
@@ -105,14 +125,15 @@ module matvec_multiplier #(
     // the vector_base_addr while updating vector_in. While vector_write_enable
     // is high, this module will continue reading in vector chunks.
     always_ff @(posedge clk or negedge rst_n) begin
+        integer i;
         if (!rst_n) begin
             vector_loaded <= 0;
-            for (int i = 0; i < MAX_COLS; i++) begin
+            for (i = 0; i < MAX_COLS; i++) begin
                 vector_buffer[i] <= 0;
             end
         end else if (vector_write_enable) begin
-            for (int i = 0; i < BANDWIDTH; i++) begin
-                vector_buffer[vector_base_addr + i] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+            for (i = 0; i < BANDWIDTH; i++) begin
+                vector_buffer[(vector_base_addr + i) * DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
             end
             if (vector_base_addr + BANDWIDTH >= num_cols)
                 vector_loaded <= 1;
@@ -162,13 +183,15 @@ module matvec_multiplier #(
 
     // MAC result
     generate
-        for (genvar i = 0; i < MAC_CHUNK_SIZE; i++) begin
+        for (genvar i = 0; i < MAC_CHUNK_SIZE; i++) begin : mac_inputs
             // Since we have the full vector, we can simply use the col_idx here. matrix_data is used in
             // BANDWIDTH-sized chunks, so we need to modulo the col_idx by BANDWIDTH to get the index for
             // the current chunk.
             assign a[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols))
                          ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
-            assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols)) ? vector_buffer[col_idx + i] : '0;
+            // assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols)) ? vector_buffer[col_idx + i] : '0;
+            assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols)) 
+            ? vector_buffer[(col_idx + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
         end
     endgenerate
 

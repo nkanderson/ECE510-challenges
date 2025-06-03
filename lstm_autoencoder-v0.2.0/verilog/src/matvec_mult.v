@@ -41,7 +41,7 @@ module matvec_multiplier (
 	localparam MAC_CHUNK_SIZE = 4;
 	reg [BANDWIDTH - 1:0] num_ops;
 	reg signed [DATA_WIDTH * 2:0] acc;
-	reg signed [DATA_WIDTH - 1:0] vector_buffer [0:MAX_COLS - 1];
+	reg signed [(DATA_WIDTH * MAX_COLS) - 1:0] vector_buffer;
 	reg vector_loaded;
 	wire signed [(DATA_WIDTH * 2) - 1:0] mac_result;
 	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] a;
@@ -86,26 +86,22 @@ module matvec_multiplier (
 			default: next_state = state;
 		endcase
 	end
-	always @(posedge clk or negedge rst_n)
+	always @(posedge clk or negedge rst_n) begin : sv2v_autoblock_1
+		integer i;
 		if (!rst_n) begin
 			vector_loaded <= 0;
-			begin : sv2v_autoblock_1
-				reg signed [31:0] i;
-				for (i = 0; i < MAX_COLS; i = i + 1)
-					vector_buffer[i] <= 0;
-			end
+			for (i = 0; i < MAX_COLS; i = i + 1)
+				vector_buffer[i] <= 0;
 		end
 		else if (vector_write_enable) begin
-			begin : sv2v_autoblock_2
-				reg signed [31:0] i;
-				for (i = 0; i < BANDWIDTH; i = i + 1)
-					vector_buffer[vector_base_addr + i] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
-			end
+			for (i = 0; i < BANDWIDTH; i = i + 1)
+				vector_buffer[(vector_base_addr + i) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
 			if ((vector_base_addr + BANDWIDTH) >= num_cols)
 				vector_loaded <= 1;
 		end
 		else if (state == 6'b000001)
 			vector_loaded <= 0;
+	end
 	assign matrix_enable = (state == 6'b000100) || (state == 6'b001000);
 	assign matrix_addr = (row_idx * num_cols) + col_idx;
 	always @(posedge clk or negedge rst_n) begin
@@ -137,10 +133,10 @@ module matvec_multiplier (
 	end
 	genvar _gv_i_1;
 	generate
-		for (_gv_i_1 = 0; _gv_i_1 < MAC_CHUNK_SIZE; _gv_i_1 = _gv_i_1 + 1) begin : genblk1
+		for (_gv_i_1 = 0; _gv_i_1 < MAC_CHUNK_SIZE; _gv_i_1 = _gv_i_1 + 1) begin : mac_inputs
 			localparam i = _gv_i_1;
 			assign a[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
-			assign b[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? vector_buffer[col_idx + i] : {DATA_WIDTH * 1 {1'sb0}});
+			assign b[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? vector_buffer[(col_idx + i) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
 		end
 	endgenerate
 	always @(posedge clk or negedge rst_n)
