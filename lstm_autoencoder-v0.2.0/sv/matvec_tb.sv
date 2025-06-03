@@ -11,8 +11,8 @@ module matvec_tb;
     localparam MAX_COLS = 64;
     localparam BANDWIDTH_4X4 = 4;
     localparam MAX_BANDWIDTH = 16;
-    localparam VEC_NUM_BANKS_4X4  = 1
-    localparam VEC_NUM_BANKS  = 4
+    localparam VEC_NUM_BANKS_4X4  = 1;
+    localparam VEC_NUM_BANKS  = 4;
     localparam DATA_WIDTH = 16;
     localparam ADDR_WIDTH = 12;
 

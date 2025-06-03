@@ -51,7 +51,6 @@ module matvec_multiplier #(
     logic [BANDWIDTH-1:0] num_ops;
 
     logic signed [(DATA_WIDTH*2):0] acc;
-    // logic signed [DATA_WIDTH*MAX_COLS-1:0] vector_buffer;
     logic [VEC_BANK_WIDTH*DATA_WIDTH-1:0] vector_bank [VEC_NUM_BANKS-1:0];
 
     // Vector load control
@@ -121,7 +120,6 @@ module matvec_multiplier #(
             if (vector_write_enable) begin
               for (i = 0; i < BANDWIDTH; i++) begin
                   // TODO: Consider pre-checking bank bounds, e.g. if (vector_base_addr + BANDWIDTH < num_cols)
-                  // vector_buffer[(vector_base_addr + i) * DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
                   // Get top bits to index into the vector bank
                   // and the lower bits to index into the DATA_WIDTH segment using modulo logic
                   vector_bank[
@@ -266,7 +264,7 @@ module matvec_multiplier #(
                 (state == S_MAC && ((col_idx + i) < num_cols))
                     ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH]
                     : '0;
-            assign b[i*DATA_WIDTH +: DATA_WIDTH] = 
+            assign b[i*DATA_WIDTH +: DATA_WIDTH] =
                 (state == S_MAC && (col_idx + i) < num_cols)
                     ? vector_bank[
                         (col_idx + i) >> $clog2(VEC_BANK_WIDTH)
