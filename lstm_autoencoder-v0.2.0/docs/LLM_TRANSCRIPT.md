@@ -14959,3 +14959,629 @@ But this is not needed in OpenLane 2's standard config.json flow.
 Just put the correct DESIGN_NAME in config.json, and OpenLane will work with no complaints, and will properly preserve your SRAM macros.
 
 Let me know if you’d like to check the matvec_mult_top.v module next.
+
+Prompt: Ok that worked to set the correct top module, but we have quite a few new issues. This is the output:
+```
+───────────────────────────────────────────────────────────────────────── Verilator Lint ─────────────────────────────────────────────────────────────────────────
+[14:03:54] VERBOSE  Running 'Verilator.Lint' at 'runs/RUN_2025-06-03_14-03-53/01-verilator-lint'…                                                     step.py:1122
+[14:03:54] VERBOSE  Logging subprocess to 'runs/RUN_2025-06-03_14-03-53/01-verilator-lint/verilator-lint.log'…                                        step.py:1318
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:34:25: Operator ADD expects 12 bits on the
+RHS, but RHS's VARREF 'chunk_offset' generates 5 bits.                                                                                                            
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst'                                                                                                      
+34 |  assign addr = addr_reg + chunk_offset;                                                                                                                      
+|                         ^                                                                                                                                       
+... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.018                                                                                    
+... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.                                                                 
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:38:32: Operator SHIFTL expects 4 bits on  
+the LHS, but LHS's CONST '1'h1' generates 1 bits.                                                                                                                 
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst'                                                                                                      
+38 |  assign csb = 4'b1111 & ~(1'b1 << macro_index);                                                                                                              
+|                                ^~                                                                                                                               
+%Error: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:47:2: Cannot find file containing module:               
+'sky130_sram_2kbyte_1rw1r_32x512_8'                                                                                                                               
+47 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram0(                                                                                                                    
+|  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                                                                                                                              
+%Error: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:47:2: This may be because there's no search path        
+specified with -I<dir>.                                                                                                                                           
+47 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram0(                                                                                                                    
+|  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                                                                                                                              
+... Looked in:                                                                                                                                                    
+sky130_sram_2kbyte_1rw1r_32x512_8                                                                                                                                 
+sky130_sram_2kbyte_1rw1r_32x512_8.v                                                                                                                               
+sky130_sram_2kbyte_1rw1r_32x512_8.sv                                                                                                                              
+obj_dir/sky130_sram_2kbyte_1rw1r_32x512_8                                                                                                                         
+obj_dir/sky130_sram_2kbyte_1rw1r_32x512_8.v                                                                                                                       
+obj_dir/sky130_sram_2kbyte_1rw1r_32x512_8.sv                                                                                                                      
+%Error: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:60:2: Cannot find file containing module:               
+'sky130_sram_2kbyte_1rw1r_32x512_8'                                                                                                                               
+60 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram1(                                                                                                                    
+|  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                                                                                                                              
+%Error: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:73:2: Cannot find file containing module:               
+'sky130_sram_2kbyte_1rw1r_32x512_8'                                                                                                                               
+73 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram2(                                                                                                                    
+|  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                                                                                                                              
+%Error: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:86:2: Cannot find file containing module:               
+'sky130_sram_2kbyte_1rw1r_32x512_8'                                                                                                                               
+86 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram3(                                                                                                                    
+|  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                                                                                                                              
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:101:13: Operator ASSIGNDLY expects 12 bits
+on the Assign RHS, but Assign RHS's CONST '1'sh0' generates 1 bits.                                                                                               
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst'                                                                                                      
+101 |    addr_reg <= 1'sb0;                                                                                                                                       
+|             ^~                                                                                                                                                  
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:108:46: Operator ASSIGNDLY expects 16 bits
+on the Assign RHS, but Assign RHS's CONST '1'sh0' generates 1 bits.                                                                                               
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst'                                                                                                      
+108 |      matrix_data[i * DATA_WIDTH+:DATA_WIDTH] <= 1'sb0;                                                                                                      
+|                                              ^~                                                                                                                 
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:83:28: Operator LT expects 7 bits on the    
+LHS, but LHS's VARREF 'row_idx' generates 6 bits.                                                                                                                 
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+83 |      next_state = (row_idx < num_rows ? 6'b000100 : 6'b100000);                                                                                              
+|                            ^                                                                                                                                    
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:97:35: Operator ADD expects 32 bits on the  
+LHS, but LHS's VARREF 'vector_base_addr' generates 6 bits.                                                                                                        
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+97 |     vector_bank[(vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)][((vector_base_addr + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * 
+DATA_WIDTH+:DATA_WIDTH];                                                                                                                                          
+|                                   ^                                                                                                                             
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:97:86: Operator ADD expects 32 bits on the  
+LHS, but LHS's VARREF 'vector_base_addr' generates 6 bits.                                                                                                        
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+97 |     vector_bank[(vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)][((vector_base_addr + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * 
+DATA_WIDTH+:DATA_WIDTH];                                                                                                                                          
+|                                                                                      ^                                                                          
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:111:44: Operator ADD expects 12 bits on the 
+RHS, but RHS's VARREF 'col_idx' generates 6 bits.                                                                                                                 
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+111 |  assign matrix_addr = (row_idx * num_cols) + col_idx;                                                                                                       
+|                                            ^                                                                                                                    
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:118:61: Operator LT expects 32 or 7 bits on 
+the LHS, but LHS's VARREF 'row_idx' generates 6 bits.                                                                                                             
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+118 |    if (((col_idx + MAC_CHUNK_SIZE) >= num_cols) && (row_idx < (num_rows - 1))) begin                                                                        
+|                                                             ^                                                                                                   
+%Warning-WIDTHTRUNC: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:179:15: Operator ASSIGNDLY expects 32 bits on
+the Assign RHS, but Assign RHS's ADD generates 33 bits.                                                                                                           
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+179 |    result_out <= acc + mac_result;                                                                                                                          
+|               ^~                                                                                                                                                
+%Error: Exiting due to 5 error(s)                                                                                                                                 
+─────────────────────────────────────────────────────────────────── Lint Timing Errors Checker ───────────────────────────────────────────────────────────────────
+[14:03:54] VERBOSE  Running 'Checker.LintTimingConstructs' at 'runs/RUN_2025-06-03_14-03-53/02-checker-linttimingconstructs'…                         step.py:1122
+[14:03:54] INFO     Check for Lint Timing Errors clear.                                                                                             checker.py:404
+────────────────────────────────────────────────────────────────────── Lint Errors Checker ───────────────────────────────────────────────────────────────────────
+[14:03:54] VERBOSE  Running 'Checker.LintErrors' at 'runs/RUN_2025-06-03_14-03-53/03-checker-linterrors'…                                             step.py:1122
+[14:03:54] ERROR    5 Lint errors found.                                                                                                            checker.py:128
+Classic - Stage 3 - Lint Errors Checker ━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  2/78 0:00:00
+[14:03:54] ERROR    The following error was encountered while running the flow:                                                                    __main__.py:187
+                    5 Lint errors found.                                                                                                                          
+[14:03:54] ERROR    OpenLane will now quit.
+```
+
+1. We still haven't confirmed whether openlane is correctly including the config.tcl file
+2. We have some linting issues in the matrix_loader module
+3. openlane does not appear to be finding the SRAM macro
+
+Response: You're hitting several distinct but related issues. Let's address them systematically:
+✅ 1. Is config.tcl being loaded?
+
+No, not automatically. If you run:
+```
+openlane config.json
+```
+then only config.json is used.
+
+To load both config.json and config.tcl, you must use:
+```
+openlane --config config.json --config_tcl config.tcl
+```
+You already confirmed this resolved the DESIGN_NAME issue earlier, so from now on, always include both config files in the invocation.
+
+⚠️ 2. Verilator Lint Issues in matrix_loader.v
+
+Most of the warnings are related to width mismatches, particularly in shift, add, and assignment operations.
+
+Examples and quick fixes:
+🔧 Fix #1 – chunk_offset used in addition
+```verilog
+assign addr = addr_reg + chunk_offset;
+```
+If addr_reg is 12-bit and chunk_offset is 5-bit, then Verilator warns. Fix by matching widths:
+```verilog
+assign addr = addr_reg + {{7{1'b0}}, chunk_offset}; // Zero-extend to 12-bit
+```
+Or better:
+```verilog
+wire [11:0] chunk_offset_ext = chunk_offset;
+assign addr = addr_reg + chunk_offset_ext;
+```
+🔧 Fix #2 – 1'b1 << macro_index
+```verilog
+assign csb = 4'b1111 & ~(1'b1 << macro_index);
+```
+This causes a width mismatch because 1'b1 is only 1 bit.
+
+Fix:
+```verilog
+assign csb = 4'b1111 & ~(4'b0001 << macro_index);
+```
+
+❌ 3. SRAM Macro Module Not Found
+
+The key Verilator errors are:
+```
+Cannot find file containing module: 'sky130_sram_2kbyte_1rw1r_32x512_8'
+```
+
+🔍 Checklist to fix:
+
+    Make sure Verilog model file is included in your config:
+```
+set ::env(VERILOG_FILES) [concat $::env(VERILOG_FILES) \
+    "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.v"]
+```
+
+Or in JSON:
+```json
+"VERILOG_FILES": [
+  "dir::/src/matvec_mult_top.v",
+  "dir::/src/matvec_mult.v",
+  "dir::/src/matrix_loader.v",
+  "dir::/src/mac4.v",
+  "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.v"
+],
+```
+
+Check the module name inside that .v file. The module must be named exactly:
+```verilog
+module sky130_sram_2kbyte_1rw1r_32x512_8 ...
+```
+Sometimes the name inside doesn’t match the filename, especially with precompiled vendor libraries.
+
+    Do not rely only on LEF/GDS – those are for physical view. Verilator and synthesis need the RTL netlist (.v).
+
+✅ Recommendation
+
+To resolve everything:
+
+    Fix width mismatches using zero-extension or appropriate cast.
+
+    Make sure the SRAM .v file is in VERILOG_FILES in either config.json or config.tcl.
+
+    Always use --config and --config_tcl when invoking OpenLane.
+
+    Optionally, run verilator directly on matrix_loader.v to confirm SRAM is resolved:
+```
+verilator -Wall -cc matrix_loader.v -I/path/to/macro/
+```
+
+Would you like me to generate fixed versions of matrix_loader.v and your combined config files with these changes?
+
+Prompt: There are issues with the config.tcl:
+```
+openlane config.json config.tcl
+[14:07:27] WARNING  Support for .tcl configuration files is deprecated. Please migrate to a .json file at your earliest convenience.                 config.py:736
+[14:07:27] INFO     Loading the design configuration file has generated the following warnings:                                                      config.py:716
+[14:07:27] WARNING  The configuration variable 'SYNTH_MAX_FANOUT' is deprecated. Please check the docs for the usage on the replacement variable     config.py:720
+                    'MAX_FANOUT_CONSTRAINT'.                                                                                                                      
+[14:07:27] WARNING  The configuration variable 'PL_TARGET_DENSITY' is deprecated. Please check the docs for the usage on the replacement variable    config.py:720
+                    'PL_TARGET_DENSITY_PCT'.                                                                                                                      
+[14:07:27] WARNING  An unknown key 'FP_CORE_MARGIN' was provided.                                                                                    config.py:720
+[14:07:27] WARNING  An unknown key 'PL_CONGESTION_EFFORT' was provided.                                                                              config.py:720
+[14:07:27] WARNING  An unknown key 'PL_MACROS_GRID' was provided.                                                                                    config.py:720
+[14:07:27] INFO     Starting a new run of the 'Classic' flow with the tag 'RUN_2025-06-03_14-07-27'. 
+```
+And it appears that we don't want to be using a tcl file in the first place. So let's start by moving this config to the config.json.
+
+I'll add the verilog file for the SRAM macro to the src directory.
+
+After that, we'll work on fixing the lint errors one by one, but starting with the SV code.
+
+Response: That’s a solid plan. Here's how to move forward with each step:
+
+✅ 1. Migrate config.tcl to config.json
+
+You’ll want to consolidate everything from config.tcl into the config.json, using the newer variable names. Below is your updated config.json that replaces the old config.tcl settings:
+```
+{
+  "DESIGN_NAME": "matvec_mult_top",
+  "VERILOG_FILES": [
+    "dir::/src/matvec_mult_top.v",
+    "dir::/src/matvec_mult.v",
+    "dir::/src/matrix_loader.v",
+    "dir::/src/mac4.v",
+    "dir::/src/sky130_sram_2kbyte_1rw1r_32x512_8.v"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 40.0,
+
+  "FP_CORE_UTIL": 60,
+  "FP_ASPECT_RATIO": 1.0,
+  "PL_TARGET_DENSITY_PCT": 55,
+  "MAX_FANOUT_CONSTRAINT": 20,
+
+  "MACRO_PLACEMENT_CFG": "dir::/macro_placement.cfg",
+  "EXTRA_LEFS": [
+    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+  ],
+  "EXTRA_GDS_FILES": [
+    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
+  ],
+  "LIB_FILES": [
+    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+  ],
+
+  "VDD_PIN": "vccd1",
+  "GND_PIN": "vssd1",
+
+  "FP_PDN_VPITCH": 40,
+  "FP_PDN_HPITCH": 40,
+
+  "RT_MAX_LAYER": "met5"
+}
+```
+Make sure:
+
+    All dir::/... paths are correct relative to the OpenLane working directory
+
+    You delete or ignore config.tcl to avoid confusion
+
+✅ 2. Add SRAM Verilog File
+
+You’re right to add sky130_sram_2kbyte_1rw1r_32x512_8.v to /src, and include it explicitly in the VERILOG_FILES list as shown above. This ensures Verilator and Yosys both find it without -I tricks.
+
+🔧 3. Fix Verilator Lint Errors
+
+We’ll address those warnings systematically, starting from matrix_loader.v. Common fixes you’ll likely apply:
+
+    Explicitly cast or resize expressions like addr_reg + chunk_offset if they mismatch in width
+```
+assign addr = addr_reg + {{(ADDR_WIDTH - $bits(chunk_offset)){1'b0}}, chunk_offset};
+```
+Use constant width for shifts:
+```
+assign csb = 4'b1111 & ~(4'b0001 << macro_index);  // Assuming macro_index is < 4
+```
+Zero-extend RHS constants in assignments:
+```
+addr_reg <= '0;  // expands to correct width
+```
+I can help walk through each one if you paste the relevant lines from matrix_loader.v.
+
+Let me know once you’ve updated config.json and moved the SRAM file. Then we’ll fix the Verilator lint issues cleanly, one at a time.
+
+Prompt: Ok, running into a little issue with this json config:
+```
+"MACROS": {
+    "sky130_sram_2kbyte_1rw1r_32x512_8": {
+      "gds": "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds",
+      "lef": "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef",
+      "lib": "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib",
+      "instances": [
+        {
+          "sram0": {
+            "location": "",
+            "orientation": ""
+          }
+        },
+        {
+          "sram1": {
+            "location": "",
+            "orientation": ""
+          }
+        },
+        {
+          "sram2": {
+            "location": "",
+            "orientation": ""
+          }
+        },
+        {
+          "sram3": {
+            "location": "",
+            "orientation": ""
+          }
+        }
+      ]
+    }
+  },
+```
+Openlane docs say the following about the MACROS setting:
+Type: Dict[str, Macro]?
+A dictionary of Macro definition objects. See openlane.config.Macro for more info.
+
+Macro docs:
+class openlane.config.Macro(gds: ~typing.List[~openlane.common.types.Path], lef: ~typing.List[~openlane.common.types.Path], instances: ~typing.Dict[str, ~openlane.config.variable.Instance] = <factory>, vh: ~typing.List[~openlane.common.types.Path] = <factory>, nl: ~typing.List[~openlane.common.types.Path] = <factory>, pnl: ~typing.List[~openlane.common.types.Path] = <factory>, spef: ~typing.Dict[str, ~typing.List[~openlane.common.types.Path]] = <factory>, lib: ~typing.Dict[str, ~typing.List[~openlane.common.types.Path]] = <factory>, spice: ~typing.List[~openlane.common.types.Path] = <factory>, sdf: ~typing.Dict[str, ~typing.List[~openlane.common.types.Path]] = <factory>, json_h: ~openlane.common.types.Path | None = None)
+
+instances (Dict[str, Instance])
+
+Instance docs:
+class openlane.config.Instance(location: Tuple[Decimal, Decimal] | None, orientation: Orientation | None)
+
+So I'd like openlane to see these instances exist, but allow for automatic placement and default orientation. But the tool doesn't allow for empty settings like I've done above, I get this error:
+```
+openlane config.json
+Traceback (most recent call last):
+  File "/nix/store/4ww0m1cxfwcl46a90ngkiwd7k2xgihgz-python3.11-openlane-2.3.10/bin/.openlane-wrapped", line 9, in <module>
+    sys.exit(cli())
+             ^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/click/core.py", line 1157, in __call__
+    return self.main(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/click/core.py", line 1078, in main
+    rv = self.invoke(ctx)
+         ^^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/click/core.py", line 1434, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/click/core.py", line 783, in invoke
+    return __callback(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/flows/cli.py", line 452, in pdk_resolve_wrapper
+    return f(*args, pdk_root=pdk_root, pdk=pdk, scl=scl, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/click/decorators.py", line 33, in new_func
+    return f(get_current_context(), *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/__main__.py", line 465, in cli
+    run(ctx, **run_kwargs)
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/__main__.py", line 146, in run
+    flow = TargetFlow(config_files, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/flows/sequential.py", line 152, in __init__
+    super().__init__(*args, **kwargs)
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/flows/flow.py", line 363, in __init__
+    config, design_dir = Config.load(
+                         ^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/config/config.py", line 559, in load
+    config_obj = Self.__load_dict(
+                 ^^^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/config/config.py", line 701, in __load_dict
+    processed, design_warnings, design_errors = Config.__process_variable_list(
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/config/config.py", line 947, in __process_variable_list
+    key, value_processed = variable.compile(
+                           ^^^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/config/variable.py", line 695, in compile
+    processed = self.__process(
+                ^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/config/variable.py", line 518, in __process
+    value_validated = self.__process(
+                      ^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/config/variable.py", line 586, in __process
+    value__processed = self.__process(
+                       ^^^^^^^^^^^^^^^
+  File "/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/config/variable.py", line 503, in __process
+    raw[key] = val
+    ~~~^^^^^
+TypeError: unhashable type: 'dict'
+```
+
+Response: You're running into that TypeError: unhashable type: 'dict' because your instances list contains a list of single-key dictionaries, rather than the expected dictionary of instances. OpenLane expects this format for instances:
+```json
+"instances": {
+  "sram0": {
+    "location": null,
+    "orientation": null
+  },
+  "sram1": {
+    "location": null,
+    "orientation": null
+  },
+  "sram2": {
+    "location": null,
+    "orientation": null
+  },
+  "sram3": {
+    "location": null,
+    "orientation": null
+  }
+}
+```
+
+🔧 Fix your MACROS entry like this:
+```json
+"MACROS": {
+  "sky130_sram_2kbyte_1rw1r_32x512_8": {
+    "gds": ["dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"],
+    "lef": ["dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"],
+    "lib": {
+      "sky130_fd_sc_hd__tt_025C_1v80": [
+        "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+      ]
+    },
+    "instances": {
+      "sram0": {
+        "location": null,
+        "orientation": null
+      },
+      "sram1": {
+        "location": null,
+        "orientation": null
+      },
+      "sram2": {
+        "location": null,
+        "orientation": null
+      },
+      "sram3": {
+        "location": null,
+        "orientation": null
+      }
+    }
+  }
+}
+```
+
+✅ Notes:
+
+    location and orientation can be null to allow automatic placement with default orientation.
+
+    gds and lef are lists, even for a single file.
+
+    lib must be keyed by corner (e.g., sky130_fd_sc_hd__tt_025C_1v80) and must also be a list of files.
+
+        If you're not sure which corner to use, check what’s used in the rest of your config or replace with your platform's default PDK corner string.
+
+Let me know if you'd like to write this into a clean config.json file from scratch.
+
+Prompt: Ok, we need to dig into determining which corner to use
+
+Response: Great — let's walk through how to determine the correct corner name for your lib field in the MACROS section of OpenLane's config.json.
+
+🔍 What is a “corner”?
+
+In OpenLane and ASIC flows in general, a corner defines:
+
+    Process (e.g., typical, fast, slow transistors)
+
+    Voltage (e.g., 1.8V)
+
+    Temperature (e.g., 25°C)
+
+A common example:
+```
+sky130_fd_sc_hd__tt_025C_1v80
+```
+This means:
+
+    tt → typical process
+
+    025C → 25 °C
+
+    1v80 → 1.80 V
+
+✅ Step-by-step: How to choose the correct corner
+1. Check your platform’s PDK config (PDK_ROOT)
+
+Look for:
+```
+$PDK_ROOT/sky130A/libs.tech/openlane/sky130_fd_sc_hd/config.tcl
+```
+or similar. It may define:
+```
+set ::env(LIB_TYPICAL) sky130_fd_sc_hd__tt_025C_1v80
+```
+This is usually the default library corner OpenLane will use unless overridden.
+2. Look inside your existing config.json (or config.tcl)
+
+You may find:
+```
+"CORNER": "sky130_fd_sc_hd__tt_025C_1v80"
+```
+
+Or a constraint variable like:
+```
+"DEFAULT_CORNER": "sky130_fd_sc_hd__tt_025C_1v80"
+```
+Use this exact string as the key for your lib dictionary:
+```
+"lib": {
+  "sky130_fd_sc_hd__tt_025C_1v80": [
+    "dir::/macro/sky130_sram...lib"
+  ]
+}
+```
+
+3. If you’re unsure, match the standard OpenLane default
+
+For Sky130 + HD cells, the most common default is:
+```
+sky130_fd_sc_hd__tt_025C_1v80
+```
+
+📁 Quick way to check corners in your macro
+
+List .lib files in your macro directory:
+```
+ls /macro/sky130_sram_2kbyte_1rw1r_32x512_8/*.lib
+```
+
+You’ll typically see filenames like:
+```
+sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib
+```
+But that filename doesn’t determine the corner name! You need to map it.
+
+If no formal mapping is known, it's safe to use:
+```
+"lib": {
+  "sky130_fd_sc_hd__tt_025C_1v80": [
+    "dir::/macro/.../sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+  ]
+}
+```
+Unless your design sets a different corner (like ff, ss, or corners with voltage/temp variation), this should work.
+
+Would you like me to extract the corner string automatically from a .lib file for verification? Or build a fallback config that’s robust to whichever corner OpenLane selects?
+
+Prompt: This is the documentation on default_corner:
+DEFAULT_CORNER
+str
+The interconnect/process/voltage/temperature corner (IPVT) to use the characterized lib files compatible with by default.
+
+But it doesn't provide a default value. I can't find the PDK root, because openlane is install with determine nix-shell, which makes it very hard to track that down
+
+Response: Thanks — and yes, that makes sense. When using OpenLane via a nix-shell (or nix develop), it can obscure the actual paths to the PDK unless explicitly exposed.
+
+Let’s work around that.
+
+✅ How to Determine DEFAULT_CORNER Without Access to PDK Root
+
+Since you:
+
+    Are using Sky130
+
+    Are likely targeting the sky130_fd_sc_hd standard cell library
+
+    And OpenLane defaults are consistent across platforms unless overridden
+
+You can safely assume the default corner is:
+```
+"DEFAULT_CORNER": "sky130_fd_sc_hd__tt_025C_1v80"
+```
+
+This is the default in most flows unless overridden via:
+
+    CORNER
+
+    CORNER_LIBS
+
+    or stage-specific constraints.
+
+    🔎 Why it’s safe: This corner name matches the TT_1p8V_25C naming you have in your SRAM .lib, and OpenLane uses this corner string to match .lib files during synthesis and timing.
+
+✅ Fix for your MACROS block
+
+Update your lib block like this:
+```
+"lib": {
+  "sky130_fd_sc_hd__tt_025C_1v80": [
+    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+  ]
+}
+```
+This explicitly maps the known lib file to the expected default OpenLane corner.
+
+🧪 Optional: Confirming at runtime
+
+You can print or intercept the actual corner OpenLane uses by adding this line to the top of your config.json:
+```
+"verbose": true,
+```
+And check log output early in the run — it will print something like:
+```
+Using default corner: sky130_fd_sc_hd__tt_025C_1v80
+```
+
+🛠️ Next Steps
+
+Now that you're pointing to a valid .lib with the correct corner name:
+
+    You should no longer get the unhashable type: 'dict' error (since you're using a proper Dict[str, Instance]).
+
+    Your SRAM instances should be found by the toolchain.
+
+    You'll be ready to move on to resolving remaining lint issues in SV code.
+
+Want help validating the full MACROS section now that this is cleared up?

@@ -20,15 +20,35 @@
   ],
   "MACROS": {
     "sky130_sram_2kbyte_1rw1r_32x512_8": {
-      "GDS": "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds",
-      "LEF": "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef",
-      "LIB": "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib",
-      "INSTANCES": [
-        "sram0",
-        "sram1",
-        "sram2",
-        "sram3"
-      ]
+      "gds": [
+        "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
+      ],
+      "lef": [
+        "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+      ],
+      "lib": {
+        "sky130_fd_sc_hd__tt_025C_1v80": [
+          "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+        ]
+      },
+      "instances": {
+        "sram0": {
+          "location": null,
+          "orientation": null
+        },
+        "sram1": {
+          "location": null,
+          "orientation": null
+        },
+        "sram2": {
+          "location": null,
+          "orientation": null
+        },
+        "sram3": {
+          "location": null,
+          "orientation": null
+        }
+      }
     }
   },
   "MACRO_PLACEMENT_CFG": "dir::/macro_placement.cfg",
