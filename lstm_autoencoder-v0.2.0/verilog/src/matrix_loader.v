@@ -96,7 +96,7 @@ module matrix_loader (
 		.addr1(9'b000000000),
 		.dout1(unused_dout1)
 	);
-	always @(posedge clk or negedge rst_n)
+	always @(posedge clk)
 		if (!rst_n) begin
 			addr_reg <= 1'sb0;
 			chunk_offset <= 0;
