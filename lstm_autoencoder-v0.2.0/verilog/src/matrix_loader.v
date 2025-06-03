@@ -4,6 +4,8 @@ module matrix_loader (
 	enable,
 	matrix_addr,
 	matrix_data,
+	vccd1,
+	vssd1,
 	ready
 );
 	parameter signed [31:0] NUM_ROWS = 64;
@@ -16,6 +18,8 @@ module matrix_loader (
 	input wire enable;
 	input wire [ADDR_WIDTH - 1:0] matrix_addr;
 	output reg [(DATA_WIDTH * BANDWIDTH) - 1:0] matrix_data;
+	inout wire vccd1;
+	inout wire vssd1;
 	output reg ready;
 	reg [ADDR_WIDTH - 1:0] addr_reg;
 	reg [$clog2(BANDWIDTH):0] chunk_offset;
@@ -31,11 +35,11 @@ module matrix_loader (
 	wire [1:0] macro_index;
 	wire halfword_select;
 	reg [15:0] word;
-	assign addr = addr_reg + chunk_offset;
+	assign addr = addr_reg + {{ADDR_WIDTH - ($clog2(BANDWIDTH) >= 0 ? $clog2(BANDWIDTH) + 1 : 1 - $clog2(BANDWIDTH)) {1'b0}}, chunk_offset};
 	assign macro_index = addr[11:10];
 	assign halfword_select = addr[0];
 	assign sram_addr = addr[9:1];
-	assign csb = 4'b1111 & ~(1'b1 << macro_index);
+	assign csb = 4'b1111 & ~(4'b0001 << macro_index);
 	always @(*)
 		case (macro_index)
 			2'd0: word = (halfword_select == 1'b0 ? sram_dout0[15:0] : sram_dout0[31:16]);
@@ -55,7 +59,9 @@ module matrix_loader (
 		.clk1(1'b0),
 		.csb1(1'b1),
 		.addr1(9'b000000000),
-		.dout1(unused_dout1)
+		.dout1(unused_dout1),
+		.vccd1(vccd1),
+		.vssd1(vssd1)
 	);
 	sky130_sram_2kbyte_1rw1r_32x512_8 sram1(
 		.clk0(clk),
@@ -68,7 +74,9 @@ module matrix_loader (
 		.clk1(1'b0),
 		.csb1(1'b1),
 		.addr1(9'b000000000),
-		.dout1(unused_dout1)
+		.dout1(unused_dout1),
+		.vccd1(vccd1),
+		.vssd1(vssd1)
 	);
 	sky130_sram_2kbyte_1rw1r_32x512_8 sram2(
 		.clk0(clk),
@@ -81,7 +89,9 @@ module matrix_loader (
 		.clk1(1'b0),
 		.csb1(1'b1),
 		.addr1(9'b000000000),
-		.dout1(unused_dout1)
+		.dout1(unused_dout1),
+		.vccd1(vccd1),
+		.vssd1(vssd1)
 	);
 	sky130_sram_2kbyte_1rw1r_32x512_8 sram3(
 		.clk0(clk),
@@ -94,18 +104,20 @@ module matrix_loader (
 		.clk1(1'b0),
 		.csb1(1'b1),
 		.addr1(9'b000000000),
-		.dout1(unused_dout1)
+		.dout1(unused_dout1),
+		.vccd1(vccd1),
+		.vssd1(vssd1)
 	);
 	always @(posedge clk)
 		if (!rst_n) begin
-			addr_reg <= 1'sb0;
+			addr_reg <= {ADDR_WIDTH {1'b0}};
 			chunk_offset <= 0;
 			loading <= 1'b0;
 			ready <= 1'b0;
 			begin : sv2v_autoblock_1
 				reg signed [31:0] i;
 				for (i = 0; i < BANDWIDTH; i = i + 1)
-					matrix_data[i * DATA_WIDTH+:DATA_WIDTH] <= 1'sb0;
+					matrix_data[i * DATA_WIDTH+:DATA_WIDTH] <= {DATA_WIDTH {1'b0}};
 			end
 		end
 		else if ((enable && !loading) && !ready) begin

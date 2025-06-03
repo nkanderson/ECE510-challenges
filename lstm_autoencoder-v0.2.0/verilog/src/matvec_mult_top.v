@@ -25,6 +25,8 @@ module matvec_mult_top #(
     logic matrix_enable;
     logic [(DATA_WIDTH * BANDWIDTH)-1:0] matrix_data;
     logic matrix_ready;
+    wire vccd1 = 1'b1;
+    wire vssd1 = 1'b0;
 
     // Instantiate the matrix loader
     matrix_loader #(
@@ -38,7 +40,9 @@ module matvec_mult_top #(
         .enable(matrix_enable),
         .matrix_addr(matrix_addr),
         .matrix_data(matrix_data),
-        .ready(matrix_ready)
+        .ready(matrix_ready),
+        .vccd1(vccd1),
+        .vssd1(vssd1)
     );
 
     // Instantiate the matvec multiplier

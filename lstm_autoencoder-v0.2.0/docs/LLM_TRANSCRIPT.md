@@ -15585,3 +15585,877 @@ Now that you're pointing to a valid .lib with the correct corner name:
     You'll be ready to move on to resolving remaining lint issues in SV code.
 
 Want help validating the full MACROS section now that this is cleared up?
+
+Prompt: Next up is fixing up the lint errors, starting with the matrix_loader systemverilog:
+```
+module matrix_loader #(
+    parameter int NUM_ROWS = 64,
+    parameter int NUM_COLS = 64,
+    parameter DATA_WIDTH = 16,
+    parameter BANDWIDTH  = 16,
+    localparam int ADDR_WIDTH = $clog2(NUM_ROWS * NUM_COLS)
+)(
+    input  logic clk,
+    input  logic rst_n,
+    input  logic enable,
+    // TODO: May want to base ADDR_WIDTH on set rows and columns from matvec_multiplier
+    // rather than a specific address width
+    input  logic [ADDR_WIDTH-1:0] matrix_addr, // Base address from multiplier
+    output logic [DATA_WIDTH*BANDWIDTH-1:0] matrix_data,
+    output logic ready
+);
+
+    // Internal state
+    logic [ADDR_WIDTH-1:0] addr_reg;
+    logic [$clog2(BANDWIDTH):0] chunk_offset;
+    logic loading;
+
+`ifdef USE_SRAM_MACRO
+    // Flattened 32-bit outputs from 4 SRAM macros
+    logic [31:0] sram_dout0, sram_dout1, sram_dout2, sram_dout3;
+    wire [31:0] unused_dout1;
+    logic [8:0] sram_addr;
+    logic [3:0] csb;
+    logic [ADDR_WIDTH-1:0] addr;
+    logic [1:0] macro_index;
+    logic halfword_select;
+    logic [15:0] word;
+
+    assign addr = addr_reg + chunk_offset;
+    assign macro_index = addr[11:10];
+    assign halfword_select = addr[0];
+    assign sram_addr = addr[9:1];
+    assign csb = 4'b1111 & ~(1'b1 << macro_index);
+
+    always @(*) begin
+        case (macro_index)
+            2'd0: word = (halfword_select == 1'b0) ? sram_dout0[15:0]  : sram_dout0[31:16];
+            2'd1: word = (halfword_select == 1'b0) ? sram_dout1[15:0]  : sram_dout1[31:16];
+            2'd2: word = (halfword_select == 1'b0) ? sram_dout2[15:0]  : sram_dout2[31:16];
+            2'd3: word = (halfword_select == 1'b0) ? sram_dout3[15:0]  : sram_dout3[31:16];
+            default: word = 16'hxxxx;
+        endcase
+    end
+
+    // SRAM macros (sky130_sram_2kbyte_1rw1r_32x512_8)
+    // https://github.com/VLSIDA/sky130_sram_macros/blob/main/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.v
+    sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (
+        .clk0(clk), .csb0(csb[0]), .web0(1'b1), .wmask0(4'b0000),
+        .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout0),
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
+    );
+    sky130_sram_2kbyte_1rw1r_32x512_8 sram1 (
+        .clk0(clk), .csb0(csb[1]), .web0(1'b1), .wmask0(4'b0000),
+        .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout1),
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
+    );
+    sky130_sram_2kbyte_1rw1r_32x512_8 sram2 (
+        .clk0(clk), .csb0(csb[2]), .web0(1'b1), .wmask0(4'b0000),
+        .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout2),
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
+    );
+    sky130_sram_2kbyte_1rw1r_32x512_8 sram3 (
+        .clk0(clk), .csb0(csb[3]), .web0(1'b1), .wmask0(4'b0000),
+        .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout3),
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
+    );
+`else
+    // Behavioral memory for simulation
+    logic signed [DATA_WIDTH-1:0] matrix_mem [0:(1<<ADDR_WIDTH)-1];
+    // TODO: Generate golden vector output from Python inference script to
+    // determine expected output using this weight. Also, confirm filepath usage here.
+    // initial $readmemh("../data/enc1_U_i.mem", matrix_mem);
+    // Until we have golden vectors, initialize with placeholder values
+    initial begin
+        for (int i = 0; i < (1<<ADDR_WIDTH); i++) begin
+            // For now, load alternating BANDWIDTH-sized chunks of 1s and 0s
+            // If we want to do full rows, we need to know the number of columns
+            matrix_mem[i] = (i % (BANDWIDTH * 2) < BANDWIDTH) ? $signed(16'(1'b1 << 14)) : '0;
+        end
+    end
+`endif
+
+    // FSM to fetch one matrix value per cycle
+    always_ff @(posedge clk) begin
+        if (!rst_n) begin
+            addr_reg <= '0;
+            chunk_offset <= 0;
+            loading <= 1'b0;
+            ready <= 1'b0;
+            for (int i = 0; i < BANDWIDTH; i++) begin
+                matrix_data[i*DATA_WIDTH +: DATA_WIDTH] <= '0;
+            end
+        end else begin
+            if (enable && !loading &&!ready) begin
+                addr_reg <= matrix_addr;
+                chunk_offset <= 0;
+                loading <= 1'b1;
+                ready <= 1'b0;
+            end else if (loading) begin
+`ifdef USE_SRAM_MACRO
+                matrix_data[chunk_offset*DATA_WIDTH +: DATA_WIDTH] <= $signed(word);
+`else
+                matrix_data[chunk_offset*DATA_WIDTH +: DATA_WIDTH] <= matrix_mem[addr_reg + chunk_offset];
+`endif
+                chunk_offset <= chunk_offset + 1;
+
+                if (chunk_offset == BANDWIDTH - 1) begin
+                    loading <= 1'b0;
+                    ready <= 1'b1;
+                end else begin
+                    ready <= 1'b0;
+                end
+            end else begin
+                ready <= 1'b0;
+            end
+        end
+    end
+
+endmodule
+```
+These are the lint errors generated from the verilog:
+```
+[15:13:09] VERBOSE  Running 'Verilator.Lint' at 'runs/RUN_2025-06-03_15-13-08/01-verilator-lint'…                                                     step.py:1122
+[15:13:09] VERBOSE  Logging subprocess to 'runs/RUN_2025-06-03_15-13-08/01-verilator-lint/verilator-lint.log'…                                        step.py:1318
+%Warning-PINMISSING: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:47:36: Cell has missing pin: 'vccd1'       
+47 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram0(                                                                                                                    
+|                                    ^~~~~                                                                                                                        
+... For warning description see https://verilator.org/warn/PINMISSING?v=5.018                                                                                     
+... Use "/* verilator lint_off PINMISSING */" and lint_on around source to disable this message.                                                                  
+%Warning-PINMISSING: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:47:36: Cell has missing pin: 'vssd1'       
+47 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram0(                                                                                                                    
+|                                    ^~~~~                                                                                                                        
+%Warning-PINMISSING: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:60:36: Cell has missing pin: 'vccd1'       
+60 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram1(                                                                                                                    
+|                                    ^~~~~                                                                                                                        
+%Warning-PINMISSING: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:60:36: Cell has missing pin: 'vssd1'       
+60 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram1(                                                                                                                    
+|                                    ^~~~~                                                                                                                        
+%Warning-PINMISSING: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:73:36: Cell has missing pin: 'vccd1'       
+73 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram2(                                                                                                                    
+|                                    ^~~~~                                                                                                                        
+%Warning-PINMISSING: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:73:36: Cell has missing pin: 'vssd1'       
+73 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram2(                                                                                                                    
+|                                    ^~~~~                                                                                                                        
+%Warning-PINMISSING: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:86:36: Cell has missing pin: 'vccd1'       
+86 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram3(                                                                                                                    
+|                                    ^~~~~                                                                                                                        
+%Warning-PINMISSING: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:86:36: Cell has missing pin: 'vssd1'       
+86 |  sky130_sram_2kbyte_1rw1r_32x512_8 sram3(                                                                                                                    
+|                                    ^~~~~                                                                                                                        
+%Error-NEEDTIMINGOPT: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/sky130_sram_2kbyte_1rw1r_32x512_8.v:57:5: Use --timing or 
+--no-timing to specify how delays should be handled                                                                                                               
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst.sram3'                                                                                                
+57 |     #(T_HOLD) dout0 = 32'bx;                                                                                                                                 
+|     ^                                                                                                                                                           
+%Error-NEEDTIMINGOPT: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/sky130_sram_2kbyte_1rw1r_32x512_8.v:75:5: Use --timing or 
+--no-timing to specify how delays should be handled                                                                                                               
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst.sram3'                                                                                                
+75 |     #(T_HOLD) dout1 = 32'bx;                                                                                                                                 
+|     ^                                                                                                                                                           
+%Error-NEEDTIMINGOPT: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/sky130_sram_2kbyte_1rw1r_32x512_8.v:103:17: Use --timing  
+or --no-timing to specify how timing controls should be handled                                                                                                   
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst.sram3'                                                                                                
+103 |        dout0 <= #(DELAY) mem[addr0_reg];                                                                                                                    
+|                 ^                                                                                                                                               
+%Error-NEEDTIMINGOPT: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/sky130_sram_2kbyte_1rw1r_32x512_8.v:111:17: Use --timing  
+or --no-timing to specify how timing controls should be handled                                                                                                   
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst.sram3'                                                                                                
+111 |        dout1 <= #(DELAY) mem[addr1_reg];                                                                                                                    
+|                 ^                                                                                                                                               
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:34:25: Operator ADD expects 12 bits on the
+RHS, but RHS's VARREF 'chunk_offset' generates 5 bits.                                                                                                            
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst'                                                                                                      
+34 |  assign addr = addr_reg + chunk_offset;                                                                                                                      
+|                         ^                                                                                                                                       
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:38:32: Operator SHIFTL expects 4 bits on  
+the LHS, but LHS's CONST '1'h1' generates 1 bits.                                                                                                                 
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst'                                                                                                      
+38 |  assign csb = 4'b1111 & ~(1'b1 << macro_index);                                                                                                              
+|                                ^~                                                                                                                               
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:101:13: Operator ASSIGNDLY expects 12 bits
+on the Assign RHS, but Assign RHS's CONST '1'sh0' generates 1 bits.                                                                                               
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst'                                                                                                      
+101 |    addr_reg <= 1'sb0;                                                                                                                                       
+|             ^~                                                                                                                                                  
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matrix_loader.v:108:46: Operator ASSIGNDLY expects 16 bits
+on the Assign RHS, but Assign RHS's CONST '1'sh0' generates 1 bits.                                                                                               
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst'                                                                                                      
+108 |      matrix_data[i * DATA_WIDTH+:DATA_WIDTH] <= 1'sb0;                                                                                                      
+|                                              ^~                                                                                                                 
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:83:28: Operator LT expects 7 bits on the    
+LHS, but LHS's VARREF 'row_idx' generates 6 bits.                                                                                                                 
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+83 |      next_state = (row_idx < num_rows ? 6'b000100 : 6'b100000);                                                                                              
+|                            ^                                                                                                                                    
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:97:35: Operator ADD expects 32 bits on the  
+LHS, but LHS's VARREF 'vector_base_addr' generates 6 bits.                                                                                                        
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+97 |     vector_bank[(vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)][((vector_base_addr + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * 
+DATA_WIDTH+:DATA_WIDTH];                                                                                                                                          
+|                                   ^                                                                                                                             
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:97:86: Operator ADD expects 32 bits on the  
+LHS, but LHS's VARREF 'vector_base_addr' generates 6 bits.                                                                                                        
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+97 |     vector_bank[(vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)][((vector_base_addr + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * 
+DATA_WIDTH+:DATA_WIDTH];                                                                                                                                          
+|                                                                                      ^                                                                          
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:111:44: Operator ADD expects 12 bits on the 
+RHS, but RHS's VARREF 'col_idx' generates 6 bits.                                                                                                                 
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+111 |  assign matrix_addr = (row_idx * num_cols) + col_idx;                                                                                                       
+|                                            ^                                                                                                                    
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:118:61: Operator LT expects 32 or 7 bits on 
+the LHS, but LHS's VARREF 'row_idx' generates 6 bits.                                                                                                             
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+118 |    if (((col_idx + MAC_CHUNK_SIZE) >= num_cols) && (row_idx < (num_rows - 1))) begin                                                                        
+|                                                             ^                                                                                                   
+%Warning-WIDTHTRUNC: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:179:15: Operator ASSIGNDLY expects 32 bits on
+the Assign RHS, but Assign RHS's ADD generates 33 bits.                                                                                                           
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+179 |    result_out <= acc + mac_result;                                                                                                                          
+|               ^~                                                                                                                                                
+%Error: Exiting due to 4 error(s)   
+```
+
+Though I'm noticing there may be more than linting errors, given the missing pin config message. Let's start with the linting for the code, then move back to config.
+
+Response: Great — let’s begin with the SystemVerilog lint fixes, starting with the key Verilator PINMISSING and WIDTHEXPAND warnings before tackling the config-level timing and power pins.
+
+🔧 1. Add Power Pins to SRAM Macro Instantiations
+
+These are required by sky130_sram_2kbyte_1rw1r_32x512_8. Your module must explicitly connect vccd1 and vssd1.
+
+Update each instance like this:
+```systemverilog
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (
+    .clk0(clk), .csb0(csb[0]), .web0(1'b1), .wmask0(4'b0000),
+    .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout0),
+    .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1),
+    .vccd1(1'b1), .vssd1(1'b0)
+);
+```
+Repeat for sram1, sram2, sram3.
+
+    ✅ You can eventually connect these to real vccd1/vssd1 top-level ports when needed for LVS/PEX.
+
+🧮 2. Fix Width Mismatches (WIDTHEXPAND)
+a. addr = addr_reg + chunk_offset;
+
+You have:
+```systemverilog
+logic [$clog2(BANDWIDTH):0] chunk_offset;
+```
+But addr_reg is [ADDR_WIDTH-1:0], which is likely 12 bits.
+So widen chunk_offset:
+```systemverilog
+logic [ADDR_WIDTH-1:0] chunk_offset;
+```
+
+b. 1'b1 << macro_index
+
+You need to widen 1'b1 to 4 bits:
+```systemverilog
+assign csb = 4'b1111 & ~(4'b0001 << macro_index);
+```
+
+c. addr_reg <= 1'sb0;
+
+This is a signed 1-bit constant being assigned to a wide logic bus. Use:
+```systemverilog
+addr_reg <= '0;
+```
+Same for other similar assignments like:
+```systemverilog
+matrix_data[...] <= '0;
+```
+
+🧪 3. Next Steps After Code Fixes
+
+Once those are cleaned up, next steps:
+
+    Fix Verilator --timing or --no-timing errors by deciding how to handle #(DELAY) inside the SRAM macro
+
+    Resolve OpenLane macro placement and power net connectivity (vccd1, vssd1) using your updated config.json
+
+Would you like a rewritten matrix_loader.v with all these updates applied?
+
+Prompt: Ok, so for 2a. this is just because we're adding numbers with different bit widths? Because `chunk_offset` shouldn't actually need that many bits, right? Can we just left pad with zeros instead?
+For 2c. this is what I have in sv: `addr_reg <= '0;`. Is there a good way to ensure that's what I end up with in verilog? Or to otherwise work around the lint issue? I think it's just those 2 instances (`addr_reg` and `matrix_data`) that are ending up with the signed 1-bit constants in verilog
+
+And yes, after that, we'll look at the delay and power net connectivity config
+
+Response: Excellent questions — let's walk through each carefully.
+🔍 2a. Width Mismatch in addr = addr_reg + chunk_offset
+
+Yes — this warning is from Verilator detecting bit width mismatch in the addition.
+
+You are right: chunk_offset only needs log2(BANDWIDTH) bits (say 4 or 5), while addr_reg is likely 12 bits. So addr = addr_reg + chunk_offset results in addr_reg (12 bits) + chunk_offset (5 bits), which promotes to 13 bits, possibly causing unintended expansion.
+✅ Two Options:
+
+Option 1: Explicit zero-extension (cleanest)
+Zero-pad chunk_offset to match ADDR_WIDTH:
+```systemverilog
+assign addr = addr_reg + {{(ADDR_WIDTH - $bits(chunk_offset)){1'b0}}, chunk_offset};
+```
+This is safe and avoids unnecessarily inflating chunk_offset’s declared width.
+
+Option 2: Widen chunk_offset (simple but overprovisioned)
+```systemverilog
+logic [ADDR_WIDTH-1:0] chunk_offset;
+```
+Either is valid; Option 1 is more semantically honest and conserves logic.
+
+🔍 2c. '0 in SystemVerilog becoming 1'sb0 in Verilog
+
+This is a Verilator artifact when addr_reg or matrix_data[...] are assigned '0 but the width isn't obvious from context.
+✅ Recommendation:
+
+For maximum clarity and compatibility, use:
+```systemverilog
+addr_reg <= {ADDR_WIDTH{1'b0}};
+```
+For matrix_data slices:
+```systemverilog
+matrix_data[i * DATA_WIDTH +: DATA_WIDTH] <= {DATA_WIDTH{1'b0}};
+```
+This forces explicit width and unsigned interpretation, suppressing the WIDTHEXPAND warning Verilator gives for 1'sb0.
+
+    '0 is standard SystemVerilog and synthesizes correctly, but Verilator sometimes infers it as 1-bit signed unless the LHS width is obvious from type declaration, which can get lost in translation or macro wrapping.
+
+Would you like me to generate a fully patched matrix_loader.v file now with:
+
+    explicit zero extensions,
+
+    fixed '0 width mismatches,
+
+    and updated power pin connections for macros?
+
+Prompt: alright, got some of those linting issues under control I believe. With the following output, let's first address the timing / delay setting, then any power pin issues, then the linting for matvec_multiplier.
+```
+[nix-shell:~/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog]$ openlane config.json
+[15:28:42] INFO     Starting a new run of the 'Classic' flow with the tag 'RUN_2025-06-03_15-28-42'.                                                   flow.py:628
+[15:28:42] INFO     Starting…                                                                                                                    sequential.py:294
+───────────────────────────────────────────────────────────────────────── Verilator Lint ─────────────────────────────────────────────────────────────────────────
+[15:28:42] VERBOSE  Running 'Verilator.Lint' at 'runs/RUN_2025-06-03_15-28-42/01-verilator-lint'…                                                     step.py:1122
+[15:28:42] VERBOSE  Logging subprocess to 'runs/RUN_2025-06-03_15-28-42/01-verilator-lint/verilator-lint.log'…                                        step.py:1318
+%Error-NEEDTIMINGOPT: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/sky130_sram_2kbyte_1rw1r_32x512_8.v:57:5: Use --timing or 
+--no-timing to specify how delays should be handled                                                                                                               
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst.sram3'                                                                                                
+57 |     #(T_HOLD) dout0 = 32'bx;                                                                                                                                 
+|     ^                                                                                                                                                           
+... For error description see https://verilator.org/warn/NEEDTIMINGOPT?v=5.018                                                                                    
+%Error-NEEDTIMINGOPT: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/sky130_sram_2kbyte_1rw1r_32x512_8.v:75:5: Use --timing or 
+--no-timing to specify how delays should be handled                                                                                                               
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst.sram3'                                                                                                
+75 |     #(T_HOLD) dout1 = 32'bx;                                                                                                                                 
+|     ^                                                                                                                                                           
+%Error-NEEDTIMINGOPT: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/sky130_sram_2kbyte_1rw1r_32x512_8.v:103:17: Use --timing  
+or --no-timing to specify how timing controls should be handled                                                                                                   
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst.sram3'                                                                                                
+103 |        dout0 <= #(DELAY) mem[addr0_reg];                                                                                                                    
+|                 ^                                                                                                                                               
+%Error-NEEDTIMINGOPT: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/sky130_sram_2kbyte_1rw1r_32x512_8.v:111:17: Use --timing  
+or --no-timing to specify how timing controls should be handled                                                                                                   
+: ... note: In instance 'matvec_mult_top.matrix_loader_inst.sram3'                                                                                                
+111 |        dout1 <= #(DELAY) mem[addr1_reg];                                                                                                                    
+|                 ^                                                                                                                                               
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:83:28: Operator LT expects 7 bits on the    
+LHS, but LHS's VARREF 'row_idx' generates 6 bits.                                                                                                                 
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+83 |      next_state = (row_idx < num_rows ? 6'b000100 : 6'b100000);                                                                                              
+|                            ^                                                                                                                                    
+... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.                                                                 
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:97:35: Operator ADD expects 32 bits on the  
+LHS, but LHS's VARREF 'vector_base_addr' generates 6 bits.                                                                                                        
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+97 |     vector_bank[(vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)][((vector_base_addr + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * 
+DATA_WIDTH+:DATA_WIDTH];                                                                                                                                          
+|                                   ^                                                                                                                             
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:97:86: Operator ADD expects 32 bits on the  
+LHS, but LHS's VARREF 'vector_base_addr' generates 6 bits.                                                                                                        
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+97 |     vector_bank[(vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)][((vector_base_addr + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * 
+DATA_WIDTH+:DATA_WIDTH];                                                                                                                                          
+|                                                                                      ^                                                                          
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:111:44: Operator ADD expects 12 bits on the 
+RHS, but RHS's VARREF 'col_idx' generates 6 bits.                                                                                                                 
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+111 |  assign matrix_addr = (row_idx * num_cols) + col_idx;                                                                                                       
+|                                            ^                                                                                                                    
+%Warning-WIDTHEXPAND: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:118:61: Operator LT expects 32 or 7 bits on 
+the LHS, but LHS's VARREF 'row_idx' generates 6 bits.                                                                                                             
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+118 |    if (((col_idx + MAC_CHUNK_SIZE) >= num_cols) && (row_idx < (num_rows - 1))) begin                                                                        
+|                                                             ^                                                                                                   
+%Warning-WIDTHTRUNC: /Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:179:15: Operator ASSIGNDLY expects 32 bits on
+the Assign RHS, but Assign RHS's ADD generates 33 bits.                                                                                                           
+: ... note: In instance 'matvec_mult_top.matvec_multiplier_inst'                                                                                                  
+179 |    result_out <= acc + mac_result;                                                                                                                          
+|               ^~                                                                                                                                                
+%Error: Exiting due to 4 error(s)                                                                                                                                 
+─────────────────────────────────────────────────────────────────── Lint Timing Errors Checker ───────────────────────────────────────────────────────────────────
+[15:28:42] VERBOSE  Running 'Checker.LintTimingConstructs' at 'runs/RUN_2025-06-03_15-28-42/02-checker-linttimingconstructs'…                         step.py:1122
+[15:28:42] ERROR    Timing constructs found in the RTL. Please remove them or wrap them around an ifdef. It heavily unrecommended to rely on timing checker.py:401
+                    constructs for synthesis.                                                                                                                     
+Classic - Stage 2 - Lint Timing Error Checker ╸━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  1/78 0:00:00
+[15:28:42] ERROR    The following error was encountered while running the flow:                                                                    __main__.py:187
+                    Timing constructs found in the RTL. Please remove them or wrap them around an ifdef. It heavily unrecommended to rely on                      
+                    timing constructs for synthesis.                                                                                                              
+[15:28:42] ERROR    OpenLane will now quit.  
+```
+
+Response: Great, you're in a good position to clean this up. Let's address the three topics in order, beginning with the timing construct errors, then power pin issues, and finally lint warnings in matvec_multiplier.
+
+✅ 1. Fixing Timing Constructs in SRAM Macro
+
+These errors:
+```
+%Error-NEEDTIMINGOPT ... #(T_HOLD) dout0 = 32'bx;
+... #(DELAY) mem[addr0_reg];
+```
+Are due to #delays in the SRAM macro used for simulation modeling but invalid in synthesis.
+🔧 Solution: Use ifdef to guard delay constructs
+
+OpenLane wants you to either remove these or wrap them in ifndef SYNTHESIS like this:
+```
+`ifndef SYNTHESIS
+    #(T_HOLD) dout0 = 32'bx;
+`endif
+```
+Do the same for every delay-based line (e.g., #(T_HOLD), #(DELAY)).
+
+This lets Verilator and synthesis tools safely ignore the delay modeling while preserving sim behavior.
+
+You can also use a macro like:
+```
+`define USE_DELAYS
+```
+and wrap delays with:
+```
+`ifdef USE_DELAYS
+    #(T_HOLD) ...
+`endif
+```
+…but OpenLane still wants them fully excluded for synthesis, so use ifndef SYNTHESIS.
+
+✅ 2. Power Pins for SRAM Macros
+
+Earlier errors like:
+```
+%Warning-PINMISSING: Cell has missing pin: 'vccd1'
+```
+mean the SRAM macro expects explicit power pins, which aren’t connected.
+🔧 Fix: Add explicit vccd1 / vssd1 pins in your top module and SRAM instances
+(a) Top-level port list:
+```
+module matvec_mult_top (
+    input logic clk,
+    input logic rst_n,
+    ...
+    input logic vccd1,
+    input logic vssd1
+);
+```
+Or, if power is always tied to 1.8V / GND:
+```
+wire vccd1 = 1'b1;
+wire vssd1 = 1'b0;
+```
+…but explicitly including ports is better for hierarchy, IR drop checks, and LVS later on.
+(b) SRAM instance connections:
+
+Update each instantiation:
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (
+    ...
+    .vccd1(vccd1),
+    .vssd1(vssd1)
+);
+```
+You must do this for every instance of the SRAM macro.
+✅ 3. Lint Warnings in matvec_multiplier
+
+From your log:
+```
+%Warning-WIDTHTRUNC: ... result_out <= acc + mac_result;   // 33-bit → 32-bit
+```
+This suggests:
+
+    acc and mac_result are signed 32-bit,
+
+    their sum is 33 bits,
+
+    and result_out is only 32 bits.
+
+🔧 Fix: Either:
+
+    Widen result_out to 33 bits (if you want to preserve overflow):
+```
+logic signed [32:0] result_out;
+```
+Or truncate explicitly and suppress warning:
+```
+result_out <= acc + mac_result;  // AND ensure overflow is OK
+```
+Or cast explicitly:
+```
+result_out <= $signed(acc + mac_result[31:0]);
+```
+But in general: decide whether overflow is acceptable or must be preserved.
+
+Would you like me to:
+
+    Patch your SRAM macro file with ifndef SYNTHESIS?
+
+    Output a fixed matvec_mult_top.sv that includes power pins and all SRAM vccd1/vssd1 connections?
+
+Let me know how you'd like to proceed.
+
+Prompt: I'm not sure the power pin changes are necessary anymore, since I set the pins directly in the instantiations, e.g.:
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (
+        .clk0(clk), .csb0(csb[0]), .web0(1'b1), .wmask0(4'b0000),
+        .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout0),
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1),
+        .vccd1(1'b1), .vssd1(1'b0)
+    );
+```
+
+Let's go on to fixing the delays in the sram verilog. This is the current code:
+```
+// OpenRAM SRAM model
+// Words: 512
+// Word size: 32
+// Write size: 8
+
+module sky130_sram_2kbyte_1rw1r_32x512_8(
+`ifdef USE_POWER_PINS
+    vccd1,
+    vssd1,
+`endif
+// Port 0: RW
+    clk0,csb0,web0,wmask0,addr0,din0,dout0,
+// Port 1: R
+    clk1,csb1,addr1,dout1
+  );
+
+  parameter NUM_WMASKS = 4 ;
+  parameter DATA_WIDTH = 32 ;
+  parameter ADDR_WIDTH = 9 ;
+  parameter RAM_DEPTH = 1 << ADDR_WIDTH;
+  // FIXME: This delay is arbitrary.
+  parameter DELAY = 3 ;
+  parameter VERBOSE = 1 ; //Set to 0 to only display warnings
+  parameter T_HOLD = 1 ; //Delay to hold dout value after posedge. Value is arbitrary
+
+`ifdef USE_POWER_PINS
+    inout vccd1;
+    inout vssd1;
+`endif
+  input  clk0; // clock
+  input   csb0; // active low chip select
+  input  web0; // active low write control
+  input [NUM_WMASKS-1:0]   wmask0; // write mask
+  input [ADDR_WIDTH-1:0]  addr0;
+  input [DATA_WIDTH-1:0]  din0;
+  output [DATA_WIDTH-1:0] dout0;
+  input  clk1; // clock
+  input   csb1; // active low chip select
+  input [ADDR_WIDTH-1:0]  addr1;
+  output [DATA_WIDTH-1:0] dout1;
+
+  reg  csb0_reg;
+  reg  web0_reg;
+  reg [NUM_WMASKS-1:0]   wmask0_reg;
+  reg [ADDR_WIDTH-1:0]  addr0_reg;
+  reg [DATA_WIDTH-1:0]  din0_reg;
+  reg [DATA_WIDTH-1:0]  dout0;
+
+  // All inputs are registers
+  always @(posedge clk0)
+  begin
+    csb0_reg = csb0;
+    web0_reg = web0;
+    wmask0_reg = wmask0;
+    addr0_reg = addr0;
+    din0_reg = din0;
+    #(T_HOLD) dout0 = 32'bx;
+    if ( !csb0_reg && web0_reg && VERBOSE ) 
+      $display($time," Reading %m addr0=%b dout0=%b",addr0_reg,mem[addr0_reg]);
+    if ( !csb0_reg && !web0_reg && VERBOSE )
+      $display($time," Writing %m addr0=%b din0=%b wmask0=%b",addr0_reg,din0_reg,wmask0_reg);
+  end
+
+  reg  csb1_reg;
+  reg [ADDR_WIDTH-1:0]  addr1_reg;
+  reg [DATA_WIDTH-1:0]  dout1;
+
+  // All inputs are registers
+  always @(posedge clk1)
+  begin
+    csb1_reg = csb1;
+    addr1_reg = addr1;
+    if (!csb0 && !web0 && !csb1 && (addr0 == addr1))
+         $display($time," WARNING: Writing and reading addr0=%b and addr1=%b simultaneously!",addr0,addr1);
+    #(T_HOLD) dout1 = 32'bx;
+    if ( !csb1_reg && VERBOSE ) 
+      $display($time," Reading %m addr1=%b dout1=%b",addr1_reg,mem[addr1_reg]);
+  end
+
+reg [DATA_WIDTH-1:0]    mem [0:RAM_DEPTH-1];
+
+  // Memory Write Block Port 0
+  // Write Operation : When web0 = 0, csb0 = 0
+  always @ (negedge clk0)
+  begin : MEM_WRITE0
+    if ( !csb0_reg && !web0_reg ) begin
+        if (wmask0_reg[0])
+                mem[addr0_reg][7:0] = din0_reg[7:0];
+        if (wmask0_reg[1])
+                mem[addr0_reg][15:8] = din0_reg[15:8];
+        if (wmask0_reg[2])
+                mem[addr0_reg][23:16] = din0_reg[23:16];
+        if (wmask0_reg[3])
+                mem[addr0_reg][31:24] = din0_reg[31:24];
+    end
+  end
+
+  // Memory Read Block Port 0
+  // Read Operation : When web0 = 1, csb0 = 0
+  always @ (negedge clk0)
+  begin : MEM_READ0
+    if (!csb0_reg && web0_reg)
+       dout0 <= #(DELAY) mem[addr0_reg];
+  end
+
+  // Memory Read Block Port 1
+  // Read Operation : When web1 = 1, csb1 = 0
+  always @ (negedge clk1)
+  begin : MEM_READ1
+    if (!csb1_reg)
+       dout1 <= #(DELAY) mem[addr1_reg];
+  end
+
+endmodule
+```
+
+Response: Great — thanks for sharing the full module. You’re correct that explicit .vccd1(1'b1) / .vssd1(1'b0) bindings on the macro instances should be sufficient for synthesis, so we’ll focus on cleaning up the delay constructs now.
+
+✅ Problem
+
+Your current SRAM model uses delay syntax like:
+```
+#(T_HOLD) dout0 = 32'bx;
+...
+dout0 <= #(DELAY) mem[addr0_reg];
+```
+These #(delay) constructs are not synthesizable, and Verilator requires you to wrap them or eliminate them entirely.
+
+✅ Fix: Wrap with ifndef SYNTHESIS
+
+You should wrap every use of #(T_HOLD) or #(DELAY) in ifndef SYNTHESIS to preserve simulation behavior but prevent synthesis tools from rejecting the code.
+
+Here’s the updated version of the relevant parts of your SRAM module with synthesis-safe guards added:
+
+🔧 Modified Blocks
+Inside always @(posedge clk0)
+```verilog
+always @(posedge clk0)
+begin
+    csb0_reg = csb0;
+    web0_reg = web0;
+    wmask0_reg = wmask0;
+    addr0_reg = addr0;
+    din0_reg = din0;
+`ifndef SYNTHESIS
+    #(T_HOLD) dout0 = 32'bx;
+`endif
+    if ( !csb0_reg && web0_reg && VERBOSE ) 
+      $display($time," Reading %m addr0=%b dout0=%b",addr0_reg,mem[addr0_reg]);
+    if ( !csb0_reg && !web0_reg && VERBOSE )
+      $display($time," Writing %m addr0=%b din0=%b wmask0=%b",addr0_reg,din0_reg,wmask0_reg);
+end
+```
+
+Inside always @(posedge clk1)
+```verilog
+always @(posedge clk1)
+begin
+    csb1_reg = csb1;
+    addr1_reg = addr1;
+    if (!csb0 && !web0 && !csb1 && (addr0 == addr1))
+         $display($time," WARNING: Writing and reading addr0=%b and addr1=%b simultaneously!",addr0,addr1);
+`ifndef SYNTHESIS
+    #(T_HOLD) dout1 = 32'bx;
+`endif
+    if ( !csb1_reg && VERBOSE ) 
+      $display($time," Reading %m addr1=%b dout1=%b",addr1_reg,mem[addr1_reg]);
+end
+```
+
+In the MEM_READ0 block:
+```verilog
+always @ (negedge clk0)
+begin : MEM_READ0
+    if (!csb0_reg && web0_reg)
+`ifndef SYNTHESIS
+       dout0 <= #(DELAY) mem[addr0_reg];
+`else
+       dout0 <= mem[addr0_reg];
+`endif
+end
+```
+
+In the MEM_READ1 block:
+```verilog
+always @ (negedge clk1)
+begin : MEM_READ1
+    if (!csb1_reg)
+`ifndef SYNTHESIS
+       dout1 <= #(DELAY) mem[addr1_reg];
+`else
+       dout1 <= mem[addr1_reg];
+`endif
+end
+```
+
+✅ Result
+
+After this change:
+
+    Verilator and OpenLane synthesis won't complain.
+
+    You still preserve accurate behavioral simulation with delays in non-synthesis tools (e.g., testbenches).
+
+Would you like me to generate the full patched module so you can drop it into your design?
+
+Prompt: I've made those changes, but it doesn't seem like `SYNTHESIS` is defined, since I'm still getting those Error-NEEDTIMINGOPT issues.
+
+Response: You're exactly right — Verilator does not automatically define SYNTHESIS, and neither does OpenLane by default.
+
+To fix this:
+✅ Solution: Explicitly define SYNTHESIS for Verilator and OpenLane
+
+You need to tell Verilator (and optionally Yosys during synthesis) to treat SYNTHESIS as defined.
+🛠️ For Verilator (in OpenLane):
+
+Add the following to your config.json:
+```
+"VERILATOR_FLAGS": ["-DSYNTHESIS"]
+```
+This ensures Verilator sees:
+```
+`ifdef SYNTHESIS
+```
+as true, and skips the timing constructs.
+
+🛠️ Optional: For Yosys Synthesis
+
+Yosys doesn’t error on delays but if you're writing generic macros and want consistent conditional logic, you can also define SYNTHESIS during synthesis by setting:
+```
+"SYNTH_DEFINES": ["SYNTHESIS"]
+```
+This isn't strictly necessary for delay handling (since Yosys ignores delays), but can help keep behavior aligned.
+
+✅ Summary of Changes in config.json
+```
+{
+  ...
+  "VERILATOR_FLAGS": ["-DSYNTHESIS"],
+  "SYNTH_DEFINES": ["SYNTHESIS"],
+  ...
+}
+```
+Once you add that, the #(T_HOLD) and #(DELAY) lines will be skipped properly.
+
+Let me know when you’ve updated that, and we’ll move on to resolving the WIDTHEXPAND warnings in matvec_mult.v.
+
+Prompt: Alright, let's go back to the vccd1 and vssd1 signals, as it seems like setting a constant doesn't pass the linter
+
+Response: Right — assigning vccd1 / vssd1 to constants like 1'b1 or 1'b0 directly in the instantiation will trigger linter errors (especially in Verilator), because:
+
+    Verilator expects these to be nets (wire), not constants.
+
+    Constants cannot drive bidirectional inouts like power pins.
+
+✅ Recommended Fix: Declare top-level wire signals for power
+
+Instead of this (which fails):
+```
+.vccd1(1'b1),
+.vssd1(1'b0)
+```
+Do this in your top-level module (matvec_mult_top):
+```
+wire vccd1 = 1'b1;
+wire vssd1 = 1'b0;
+
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (
+    .vccd1(vccd1),
+    .vssd1(vssd1),
+    ...
+);
+```
+This resolves both the directionality and drivability issues expected by the tools.
+
+💡 Tip for OpenLane
+
+Even if you're not using power-aware flows (e.g., custom PDN), OpenLane expects power and ground nets to be explicitly connected if the macro has them. So declaring and wiring them like above is correct.
+
+Would you like to review how to propagate these power wires if your design has deeper module hierarchies (e.g., top → loader → macro)?
+
+Prompt: So in my matrix_loader portlist, how should those be declared?
+
+Response: Great question. In matrix_loader, the vccd1 and vssd1 signals should be passed in just like any other inout nets from the macro, but you don’t need to use them internally unless you're forwarding them to the SRAM macro instances.
+
+✅ Minimal Setup for matrix_loader Port List
+
+If matrix_loader instantiates the SRAM macros, then declare:
+```
+module matrix_loader #(
+    ...
+) (
+    input  logic clk,
+    input  logic rst_n,
+    ...
+    inout logic vccd1,
+    inout logic vssd1
+);
+```
+    ✅ Use inout logic for compatibility and clarity in SystemVerilog.
+
+🔁 Forward to SRAM Macro
+
+Then, when instantiating the SRAM macros inside matrix_loader:
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (
+    ...
+    .vccd1(vccd1),
+    .vssd1(vssd1)
+);
+```
+
+✅ In Your Top-Level Module
+
+Finally, in matvec_mult_top (or wherever matrix_loader is instantiated):
+```
+wire vccd1 = 1'b1;
+wire vssd1 = 1'b0;
+
+matrix_loader loader_inst (
+    ...
+    .vccd1(vccd1),
+    .vssd1(vssd1)
+);
+```
+
+This ensures:
+
+    Power pins are declared at each level.
+
+    You're not assigning constants directly to bidirectional inouts (Verilator-friendly).
+
+    OpenLane’s netlist can properly track these pins for macro and core power routing.
+
+Would you like a template of this across all three modules (top, loader, and macro)?

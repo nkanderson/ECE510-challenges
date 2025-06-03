@@ -12,6 +12,8 @@ module matrix_loader #(
     // rather than a specific address width
     input  logic [ADDR_WIDTH-1:0] matrix_addr, // Base address from multiplier
     output logic [DATA_WIDTH*BANDWIDTH-1:0] matrix_data,
+    inout logic vccd1,
+    inout logic vssd1,
     output logic ready
 );
 
@@ -31,11 +33,11 @@ module matrix_loader #(
     logic halfword_select;
     logic [15:0] word;
 
-    assign addr = addr_reg + chunk_offset;
+    assign addr = addr_reg + {{(ADDR_WIDTH - $bits(chunk_offset)){1'b0}}, chunk_offset};
     assign macro_index = addr[11:10];
     assign halfword_select = addr[0];
     assign sram_addr = addr[9:1];
-    assign csb = 4'b1111 & ~(1'b1 << macro_index);
+    assign csb = 4'b1111 & ~(4'b0001 << macro_index);
 
     always @(*) begin
         case (macro_index)
@@ -52,22 +54,26 @@ module matrix_loader #(
     sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (
         .clk0(clk), .csb0(csb[0]), .web0(1'b1), .wmask0(4'b0000),
         .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout0),
-        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1),
+        .vccd1(vccd1), .vssd1(vssd1)
     );
     sky130_sram_2kbyte_1rw1r_32x512_8 sram1 (
         .clk0(clk), .csb0(csb[1]), .web0(1'b1), .wmask0(4'b0000),
         .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout1),
-        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1),
+        .vccd1(vccd1), .vssd1(vssd1)
     );
     sky130_sram_2kbyte_1rw1r_32x512_8 sram2 (
         .clk0(clk), .csb0(csb[2]), .web0(1'b1), .wmask0(4'b0000),
         .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout2),
-        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1),
+        .vccd1(vccd1), .vssd1(vssd1)
     );
     sky130_sram_2kbyte_1rw1r_32x512_8 sram3 (
         .clk0(clk), .csb0(csb[3]), .web0(1'b1), .wmask0(4'b0000),
         .addr0(sram_addr), .din0(32'b0), .dout0(sram_dout3),
-        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1)
+        .clk1(1'b0), .csb1(1'b1), .addr1(9'b0), .dout1(unused_dout1),
+        .vccd1(vccd1), .vssd1(vssd1)
     );
 `else
     // Behavioral memory for simulation
@@ -88,12 +94,12 @@ module matrix_loader #(
     // FSM to fetch one matrix value per cycle
     always_ff @(posedge clk) begin
         if (!rst_n) begin
-            addr_reg <= '0;
+            addr_reg <= {ADDR_WIDTH{1'b0}};;
             chunk_offset <= 0;
             loading <= 1'b0;
             ready <= 1'b0;
             for (int i = 0; i < BANDWIDTH; i++) begin
-                matrix_data[i*DATA_WIDTH +: DATA_WIDTH] <= '0;
+                matrix_data[i * DATA_WIDTH +: DATA_WIDTH] <= {DATA_WIDTH{1'b0}};
             end
         end else begin
             if (enable && !loading &&!ready) begin

@@ -57,5 +57,11 @@
     "PL_TARGET_DENSITY_PCT": 0.55,
     "VDD_PIN": "vccd1",
     "GND_PIN": "vssd1"
-  }
+  },
+  "LINTER_DEFINES": [
+    "SYNTHESIS"
+  ],
+  "VERILOG_DEFINES": [
+    "SYNTHESIS"
+  ]
 }
