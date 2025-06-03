@@ -81,7 +81,7 @@ module matvec_multiplier #(
     // FSM next state logic
     always_comb begin
         next_state = state;
-        case (state)
+        unique case (state)
             S_IDLE:      if (start) next_state = S_VLOAD;
             S_VLOAD:     if (vector_loaded) next_state = S_REQ_MAT;
             S_REQ_MAT:   next_state = S_WAIT_MAT;
@@ -95,6 +95,7 @@ module matvec_multiplier #(
                          else
                              next_state = S_MAC;
             S_DONE:      next_state = S_IDLE;
+            default:     next_state = state;
         endcase
     end
 
@@ -117,6 +118,9 @@ module matvec_multiplier #(
                 vector_loaded <= 1;
         end else if (state == S_IDLE) begin
             vector_loaded <= 0;
+            for (int i = 0; i < MAX_COLS; i++) begin
+                vector_buffer[i] <= vector_buffer[i];
+            end
         end
     end
 

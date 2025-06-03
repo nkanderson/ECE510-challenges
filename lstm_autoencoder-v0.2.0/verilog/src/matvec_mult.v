@@ -68,6 +68,7 @@ module matvec_multiplier (
 		if (_sv2v_0)
 			;
 		next_state = state;
+		(* full_case, parallel_case *)
 		case (state)
 			6'b000001:
 				if (start)
@@ -85,6 +86,7 @@ module matvec_multiplier (
 				else
 					next_state = 6'b010000;
 			6'b100000: next_state = 6'b000001;
+			default: next_state = state;
 		endcase
 	end
 	always @(posedge clk or negedge rst_n)
@@ -105,8 +107,14 @@ module matvec_multiplier (
 			if ((vector_base_addr + BANDWIDTH) >= num_cols)
 				vector_loaded <= 1;
 		end
-		else if (state == 6'b000001)
+		else if (state == 6'b000001) begin
 			vector_loaded <= 0;
+			begin : sv2v_autoblock_3
+				reg signed [31:0] i;
+				for (i = 0; i < MAX_COLS; i = i + 1)
+					vector_buffer[i] <= vector_buffer[i];
+			end
+		end
 	assign matrix_enable = (state == 6'b000100) || (state == 6'b001000);
 	assign matrix_addr = (row_idx * num_cols) + col_idx;
 	always @(posedge clk or negedge rst_n) begin
