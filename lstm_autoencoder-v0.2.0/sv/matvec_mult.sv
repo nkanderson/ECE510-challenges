@@ -79,7 +79,7 @@ module matvec_multiplier #(
     end
 
     // FSM next state logic
-    always_comb begin
+    always @(*) begin
         next_state = state;
         unique case (state)
             S_IDLE:      if (start) next_state = S_VLOAD;
@@ -118,9 +118,6 @@ module matvec_multiplier #(
                 vector_loaded <= 1;
         end else if (state == S_IDLE) begin
             vector_loaded <= 0;
-            for (int i = 0; i < MAX_COLS; i++) begin
-                vector_buffer[i] <= vector_buffer[i];
-            end
         end
     end
 
