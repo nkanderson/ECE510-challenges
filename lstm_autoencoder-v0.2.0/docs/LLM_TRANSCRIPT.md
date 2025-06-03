@@ -11024,3 +11024,917 @@ Because mac4 was missing from the hierarchy. Now both are loaded.
 
 
 Let me know if you'd like a full rewrite of your row_idx, col_idx, and acc blocks in clean separated *_next form — this often resolves Yosys false positives and improves synthesis clarity.
+
+Prompt: Ok, completely separating those signals into different combinational and registered next state update blocks seemed to work. I'm now running into an issue which may be related to the SRAM macro I'm trying to use:
+```
+=== matvec_multiplier ===                                                                                                                                                      
+                                                                                                                                                                               
+Number of wires:              26950                                                                                                                                            
+Number of wire bits:          27519                                                                                                                                            
+Number of public wires:        1102                                                                                                                                            
+Number of public wire bits:    1671                                                                                                                                            
+Number of ports:                 15                                                                                                                                            
+Number of port bits:            584                                                                                                                                            
+Number of memories:               0                                                                                                                                            
+Number of memory bits:            0                                                                                                                                            
+Number of processes:              0                                                                                                                                            
+Number of cells:              26982                                                                                                                                            
+$_ALDFFE_PNP_                 960                                                                                                                                              
+sky130_fd_sc_hd__a2111o_2       2                                                                                                                                              
+sky130_fd_sc_hd__a211o_2      593                                                                                                                                              
+sky130_fd_sc_hd__a211oi_2       9                                                                                                                                              
+sky130_fd_sc_hd__a21bo_2      171                                                                                                                                              
+sky130_fd_sc_hd__a21boi_2      39                                                                                                                                              
+sky130_fd_sc_hd__a21o_2      1008                                                                                                                                              
+sky130_fd_sc_hd__a21oi_2      407                                                                                                                                              
+sky130_fd_sc_hd__a221o_2      420                                                                                                                                              
+sky130_fd_sc_hd__a221oi_2       1                                                                                                                                              
+sky130_fd_sc_hd__a22o_2      3165                                                                                                                                              
+sky130_fd_sc_hd__a22oi_2       32                                                                                                                                              
+sky130_fd_sc_hd__a2bb2o_2     288                                                                                                                                              
+sky130_fd_sc_hd__a2bb2oi_2      1                                                                                                                                              
+sky130_fd_sc_hd__a311o_2      192                                                                                                                                              
+sky130_fd_sc_hd__a311oi_2       1                                                                                                                                              
+sky130_fd_sc_hd__a31o_2       730                                                                                                                                              
+sky130_fd_sc_hd__a31oi_2       11                                                                                                                                              
+sky130_fd_sc_hd__a32o_2      3132                                                                                                                                              
+sky130_fd_sc_hd__a32oi_2       18                                                                                                                                              
+sky130_fd_sc_hd__a41o_2       137                                                                                                                                              
+sky130_fd_sc_hd__a41oi_2        1                                                                                                                                              
+sky130_fd_sc_hd__and2_2       994                                                                                                                                              
+sky130_fd_sc_hd__and2b_2      228                                                                                                                                              
+sky130_fd_sc_hd__and3_2      1570                                                                                                                                              
+sky130_fd_sc_hd__and3b_2       13                                                                                                                                              
+sky130_fd_sc_hd__and4_2        72                                                                                                                                              
+sky130_fd_sc_hd__and4b_2        2                                                                                                                                              
+sky130_fd_sc_hd__and4bb_2       5                                                                                                                                              
+sky130_fd_sc_hd__dfrtp_2      159                                                                                                                                              
+sky130_fd_sc_hd__dfstp_2        1                                                                                                                                              
+sky130_fd_sc_hd__inv_2         97                                                                                                                                              
+sky130_fd_sc_hd__mux2_1      3383                                                                                                                                              
+sky130_fd_sc_hd__mux4_2        78                                                                                                                                              
+sky130_fd_sc_hd__nand2_2      997                                                                                                                                              
+sky130_fd_sc_hd__nand2b_2     168                                                                                                                                              
+sky130_fd_sc_hd__nand3_2       89                                                                                                                                              
+sky130_fd_sc_hd__nand4_2        6                                                                                                                                              
+sky130_fd_sc_hd__nor2_2      1477                                                                                                                                              
+sky130_fd_sc_hd__nor3_2        41                                                                                                                                              
+sky130_fd_sc_hd__nor3b_2        1                                                                                                                                              
+sky130_fd_sc_hd__nor4_2         4                                                                                                                                              
+sky130_fd_sc_hd__o2111a_2      57                                                                                                                                              
+sky130_fd_sc_hd__o2111ai_2      1                                                                                                                                              
+sky130_fd_sc_hd__o211a_2     1091                                                                                                                                              
+sky130_fd_sc_hd__o211ai_2      29                                                                                                                                              
+sky130_fd_sc_hd__o21a_2       433                                                                                                                                              
+sky130_fd_sc_hd__o21ai_2      241                                                                                                                                              
+sky130_fd_sc_hd__o21ba_2       35                                                                                                                                              
+sky130_fd_sc_hd__o21bai_2      26                                                                                                                                              
+sky130_fd_sc_hd__o221a_2      165                                                                                                                                              
+sky130_fd_sc_hd__o221ai_2       1                                                                                                                                              
+sky130_fd_sc_hd__o22a_2       442                                                                                                                                              
+sky130_fd_sc_hd__o22ai_2       74                                                                                                                                              
+sky130_fd_sc_hd__o2bb2a_2     201                                                                                                                                              
+sky130_fd_sc_hd__o2bb2ai_2     12                                                                                                                                              
+sky130_fd_sc_hd__o311a_2       11                                                                                                                                              
+sky130_fd_sc_hd__o311ai_2       1                                                                                                                                              
+sky130_fd_sc_hd__o31a_2        75                                                                                                                                              
+sky130_fd_sc_hd__o31ai_2       29                                                                                                                                              
+sky130_fd_sc_hd__o32a_2       115                                                                                                                                              
+sky130_fd_sc_hd__o32ai_2       11                                                                                                                                              
+sky130_fd_sc_hd__o41a_2         2                                                                                                                                              
+sky130_fd_sc_hd__or2_2       1269                                                                                                                                              
+sky130_fd_sc_hd__or3_2        201                                                                                                                                              
+sky130_fd_sc_hd__or3b_2        66                                                                                                                                              
+sky130_fd_sc_hd__or4_2         58                                                                                                                                              
+sky130_fd_sc_hd__or4b_2         7                                                                                                                                              
+sky130_fd_sc_hd__or4bb_2        3                                                                                                                                              
+sky130_fd_sc_hd__xnor2_2     1124                                                                                                                                              
+sky130_fd_sc_hd__xor2_2       499                                                                                                                                              
+                                                                                                                                                                               
+Area for cell type $_ALDFFE_PNP_ is unknown!                                                                                                                                   
+                                                                                                                                                                               
+Chip area for module '\matvec_multiplier': 259536.416000                                                                                                                       
+of which used for sequential elements: 4204.032000 (1.62%)                                                                                                                     
+                                                                                                                                                                               
+150. Executing Verilog backend.                                                                                                                                                
+Dumping module `\matvec_multiplier'.                                                                                                                                           
+                                                                                                                                                                               
+151. Executing JSON backend.                                                                                                                                                   
+[09:35:21] VERBOSE  Parsing synthesis checks…                                                                                                                      pyosys.py:54
+─────────────────────────────────────────────────────────────────────────── Unmapped Cells Checker ────────────────────────────────────────────────────────────────────────────
+[09:35:21] VERBOSE  Running 'Checker.YosysUnmappedCells' at 'runs/RUN_2025-06-03_09-31-04/07-checker-yosysunmappedcells'…                                          step.py:1122
+[09:35:21] ERROR    960 Unmapped Yosys instances found.                                                                                                          checker.py:128
+Classic - Stage 7 - Unmapped Cells Checker ━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  6/78 0:04:17
+[09:35:21] WARNING  The following warnings were generated by the flow:                                                                                              flow.py:673
+[09:35:21] WARNING  [Checker.LintWarnings] 5 Lint warnings found.                                                                                                   flow.py:675
+[09:35:21] ERROR    The following error was encountered while running the flow:                                                                                 __main__.py:187
+                    960 Unmapped Yosys instances found.                                                                                                                        
+[09:35:21] ERROR    OpenLane will now quit.  
+```
+
+Response: You're hitting a critical synthesis failure due to unmapped cells, and the source is this line from your Yosys synthesis report:
+```
+Area for cell type $_ALDFFE_PNP_ is unknown!
+```
+And later:
+```
+960 Unmapped Yosys instances found.
+```
+This corresponds exactly to:
+```
+$_ALDFFE_PNP_                 960
+```
+
+🔍 What is $_ALDFFE_PNP_?
+
+Yosys internal cell $_ALDFFE_PNP_ stands for:
+
+    A = async
+
+    LD = load (enable)
+
+    FF = flip-flop
+
+    E = enable
+
+    PNP = Positive-edge triggered, Negative async reset, Positive enable
+
+Interpretation:
+
+Yosys inferred a D flip-flop with:
+
+    posedge clock
+
+    negedge async reset
+
+    positive level enable
+
+This doesn't directly map to any cell in the sky130_fd_sc_hd standard library, which typically only includes:
+
+    sky130_fd_sc_hd__dfxtp_* (DFF with clk and optional enable)
+
+    sky130_fd_sc_hd__dfrtp_* (DFF with reset and enable — but often only for positive reset)
+
+✅ Root Cause
+
+The flip-flop you're using is:
+```
+always @(posedge clk or negedge rst_n)
+  if (!rst_n)
+    ... <= 0;
+  else if (some_enable)
+    ... <= next_val;
+```
+
+This combination:
+
+    posedge clk
+
+    negedge rst_n
+
+    if (some_enable)
+
+produces the $_ALDFFE_PNP_ primitive during proc_dff.
+
+But OpenLane's sky130_fd_sc_hd doesn't include an async negative reset + positive enable DFF primitive.
+
+✅ Solutions
+✅ Option 1: Convert async reset to sync reset (recommended for full compatibility)
+
+Convert all blocks like this:
+```verilog
+always @(posedge clk or negedge rst_n)
+  if (!rst_n)
+    reg <= 0;
+  else if (enable)
+    reg <= val;
+```
+To:
+```verilog
+always @(posedge clk)
+  if (!rst_n)
+    reg <= 0;
+  else if (enable)
+    reg <= val;
+```
+But in this case, rst_n must be synchronous.
+
+If you must support true async reset, move the enable check into the logic feeding the flop:
+```verilog
+always @(posedge clk or negedge rst_n)
+  if (!rst_n)
+    reg <= 0;
+  else
+    reg <= enable ? val : reg;
+```
+This results in a $DFF with async reset, no enable — a legal primitive.
+
+✅ Option 2: Use DFF with only sync reset and enable (if your reset is not truly async)
+
+Refactor all such blocks to use only synchronous reset if the async reset isn't critical in your design.
+🧪 Quick Patch: Remove async reset for now
+
+If you're doing design bring-up or testing:
+```verilog
+always @(posedge clk)
+  if (enable)
+    reg <= val;
+```
+...and handle reset externally. But don’t forget to restore it if needed for safety or RTL correctness.
+
+🛠 Option 3: Map to legal Sky130 DFF manually (advanced)
+
+If you're set on keeping async reset and enable together, you’ll need to override tech mapping to map $_ALDFFE_PNP_ to a legal combination (e.g., breaking it into two flops or using logic).
+
+This requires custom Liberty cell definition edits or OpenLane plugin extensions, and is not recommended unless you're maintaining your own PDK variant.
+
+✅ Action Summary
+| Step        | What to Do                                                                                     |
+| ----------- | ---------------------------------------------------------------------------------------------- |
+| 🔍 Confirm  | Which flops use `posedge clk or negedge rst_n` **and** `if (enable)`?                          |
+| ✅ Fix       | Convert these to either: <br>• sync-reset flop <br>• or move `enable` into data mux            |
+| 🔁 Re-run   | `yosys -p "read_verilog ...; synth -top matvec_multiplier"` and check for unmapped cells       |
+| 🧪 Optional | You can isolate these registers by printing Yosys netlists or using `select` + `show` commands |
+
+Would you like help rewriting one of these flop blocks into the correct compatible form?
+
+Prompt: Ok, yes, let's start with your "confirm" step, determining which flops use `posedge clk or negedge rst_n` *and* `if (enable)`. This is the current sv:
+```
+module matvec_multiplier #(
+    parameter MAX_ROWS = 64,
+    parameter MAX_COLS = 64,
+    parameter BANDWIDTH = 16,
+    parameter DATA_WIDTH = 16
+)(
+    input  logic clk,
+    input  logic rst_n,
+    input  logic start,
+
+    // Matrix dimensions
+    input  logic [$clog2(MAX_ROWS):0] num_rows,
+    input  logic [$clog2(MAX_COLS):0] num_cols,
+
+    // Vector chunk input
+    // NOTE: Client is required to convert vector values to Q4.12
+    input  logic vector_write_enable,
+    input  logic [$clog2(MAX_COLS)-1:0] vector_base_addr,
+    input  wire logic signed [DATA_WIDTH*BANDWIDTH-1:0] vector_in, // Q4.12
+
+    // Matrix SRAM interface
+    output logic [$clog2(MAX_ROWS*MAX_COLS)-1:0] matrix_addr,
+    output logic matrix_enable,
+    input  wire logic [DATA_WIDTH*BANDWIDTH-1:0] matrix_data, // Q2.14
+    input  logic matrix_ready,
+
+    // Result output
+    output logic signed [(DATA_WIDTH*2)-1:0] result_out, // Q20.12 (see note below)
+    output logic result_valid,
+    output logic busy
+);
+
+    typedef enum logic [5:0] {
+        S_IDLE      = 6'b000001,
+        S_VLOAD     = 6'b000010,
+        S_REQ_MAT   = 6'b000100,
+        S_WAIT_MAT  = 6'b001000,
+        S_MAC       = 6'b010000,
+        S_DONE      = 6'b100000
+    } state_t;
+
+    state_t state, next_state;
+
+    // Internal loop counters
+    logic [$clog2(MAX_ROWS)-1:0] row_idx;
+    logic [$clog2(MAX_COLS)-1:0] col_idx;
+    localparam MAC_CHUNK_SIZE = 4;
+    logic [BANDWIDTH-1:0] num_ops;
+
+    logic signed [(DATA_WIDTH*2):0] acc;
+    logic signed [DATA_WIDTH*MAX_COLS-1:0] vector_buffer;
+
+    // Vector load control
+    logic vector_loaded;
+
+    // MAC calculation and result
+    logic signed [(DATA_WIDTH*2)-1:0] mac_result;
+    logic [DATA_WIDTH*MAC_CHUNK_SIZE-1:0] a;
+    logic [DATA_WIDTH*MAC_CHUNK_SIZE-1:0] b;
+
+    // TODO: Consider using multiple MACs in parallel to improve throughput
+    mac4 mac(
+              .a0(a[0*DATA_WIDTH +: DATA_WIDTH]), .b0(b[0*DATA_WIDTH +: DATA_WIDTH]),
+              .a1(a[1*DATA_WIDTH +: DATA_WIDTH]), .b1(b[1*DATA_WIDTH +: DATA_WIDTH]),
+              .a2(a[2*DATA_WIDTH +: DATA_WIDTH]), .b2(b[2*DATA_WIDTH +: DATA_WIDTH]),
+              .a3(a[3*DATA_WIDTH +: DATA_WIDTH]), .b3(b[3*DATA_WIDTH +: DATA_WIDTH]),
+              .result(mac_result)
+            );
+
+    // Output logic
+    assign busy = (state != S_IDLE);
+
+    // FSM transitions
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            state <= S_IDLE;
+        else
+            state <= next_state;
+    end
+
+    // FSM next state logic
+    always @(*) begin
+        next_state = state;
+        unique case (state)
+            S_IDLE:      if (start) next_state = S_VLOAD;
+            S_VLOAD:     if (vector_loaded) next_state = S_REQ_MAT;
+            S_REQ_MAT:   next_state = S_WAIT_MAT;
+            // TODO: We should ideally start mutiplying while we are streaming in
+            // matrix data, since we can't get more than BANDWIDTH values at once.
+            S_WAIT_MAT:  if (matrix_ready) next_state = S_MAC;
+            // From S_MAC: If done with the current matrix chunk, either we need another chunk
+            // or we're done (if we're at the last row).
+            S_MAC:       if (num_ops + MAC_CHUNK_SIZE >= BANDWIDTH)
+                             next_state = (row_idx < num_rows) ? S_REQ_MAT : S_DONE;
+                         else
+                             next_state = S_MAC;
+            S_DONE:      next_state = S_IDLE;
+            default:     next_state = state;
+        endcase
+    end
+    // Optional block to replace the above always_ff updating state and FSM next state logic.
+    // This is related to troubleshooting synthesis issues for the next_state signal.
+    // always_ff @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n)
+    //         state <= S_IDLE;
+    //     else begin
+    //         case (state)
+    //             S_IDLE:      if (start) state <= S_VLOAD;
+    //             S_VLOAD:     if (vector_loaded) state <= S_REQ_MAT;
+    //             S_REQ_MAT:   state <= S_WAIT_MAT;
+    //             S_WAIT_MAT:  if (matrix_ready) state <= S_MAC;
+    //             S_MAC:       if (num_ops + MAC_CHUNK_SIZE >= BANDWIDTH)
+    //                             state <= (row_idx < num_rows) ? S_REQ_MAT : S_DONE;
+    //                         else
+    //                             state <= S_MAC;
+    //             S_DONE:      state <= S_IDLE;
+    //             default:     state <= state;
+    //         endcase
+    //     end
+    // end
+
+    // Get the entire vector from the client before moving forward with
+    // chunked reading of matrix and MAC operation.
+    // The client needs to hold vector_write_enable high and increment
+    // the vector_base_addr while updating vector_in. While vector_write_enable
+    // is high, this module will continue reading in vector chunks.
+    always_ff @(posedge clk or negedge rst_n) begin
+        integer i;
+        if (!rst_n) begin
+            vector_loaded <= 0;
+            for (i = 0; i < MAX_COLS; i++) begin
+                vector_buffer[i] <= 0;
+            end
+        end else if (vector_write_enable) begin
+            for (i = 0; i < BANDWIDTH; i++) begin
+                vector_buffer[(vector_base_addr + i) * DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+            end
+            if (vector_base_addr + BANDWIDTH >= num_cols)
+                vector_loaded <= 1;
+        end else if (state == S_IDLE) begin
+            vector_loaded <= 0;
+        end
+    end
+
+    // Matrix fetch signals
+    // TODO: We should clock in matrix_data so we're not relying on matrix_loader
+    // to hold the data on the wires. This would allow for beginning multiplication
+    // while continuing to retrieve more matrix data.
+    assign matrix_enable = (state == S_REQ_MAT || state == S_WAIT_MAT);
+    assign matrix_addr   = row_idx * num_cols + col_idx;
+
+    // MAC accumulation with row tracking
+
+    //
+    // row and col index updates
+    //
+    reg [$clog2(MAX_ROWS)-1:0] row_idx_next;
+    reg [$clog2(MAX_COLS)-1:0] col_idx_next;
+    always @(*) begin
+      row_idx_next = row_idx;
+      col_idx_next = col_idx;
+
+      if (state == S_MAC) begin
+          // If the next MAC operation will be the last for this row, update the
+          // row_idx and col_idx on the next clock cycle. Do this until the final
+          // increment of row_idx will reach the last row.
+          if (col_idx + MAC_CHUNK_SIZE >= num_cols && row_idx < (num_rows - 1)) begin
+              row_idx_next = row_idx + 1;
+              col_idx_next = 0;
+          end else begin
+              col_idx_next = col_idx + MAC_CHUNK_SIZE;
+          end
+      end else if (state == S_IDLE) begin
+          col_idx_next = 0;
+          row_idx_next = 0;
+      end
+    end
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            row_idx <= 0;
+            col_idx <= 0;
+        end else begin
+            row_idx <= row_idx_next;
+            col_idx <= col_idx_next;
+        end
+    end
+
+    //
+    // num_ops updates
+    //
+    logic [BANDWIDTH-1:0] num_ops_next;
+    always @(*) begin
+        if (state == S_MAC) begin
+            // Increment num_ops by MAC_CHUNK_SIZE for each MAC operation
+            num_ops_next = num_ops + MAC_CHUNK_SIZE;
+        end else if (state == S_WAIT_MAT || state == S_IDLE) begin
+            // Reset num_ops when waiting for matrix data or when idle
+            num_ops_next = 0;
+        end else begin
+            // Keep num_ops unchanged in other states
+            num_ops_next = num_ops;
+        end
+    end
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            num_ops <= 0;
+        else
+            num_ops <= num_ops_next;
+    end
+
+    //
+    // acc updates
+    //
+    logic signed [(DATA_WIDTH*2):0] acc_next;
+    always @(*) begin
+        if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+            // If the current MAC is the last, reset the acc next cycle
+            acc_next = 0;
+        end else if (state == S_MAC) begin
+            acc_next = acc + mac_result;
+        end else begin
+            // Keep acc unchanged in other states
+            acc_next = acc;
+        end
+    end
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            acc <= 0;
+        else
+            acc <= acc_next;
+    end
+
+    // always_ff @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n) begin
+    //         acc <= 0;
+    //         // col_idx <= 0;
+    //         // row_idx <= 0;
+    //         num_ops <= 0;
+    //     end else if (state == S_MAC) begin
+    //         // If the next MAC operation will be the last for this row, update the
+    //         // row_idx and col_idx on the next clock cycle. Do this until the final
+    //         // increment of row_idx will reach the last row.
+    //         // if (col_idx + MAC_CHUNK_SIZE >= num_cols && row_idx < (num_rows - 1)) begin
+    //         //     row_idx <= row_idx + 1;
+    //         //     col_idx <= 0;
+    //         // end else begin
+    //         //   col_idx <= col_idx + MAC_CHUNK_SIZE;
+    //         // end
+    //         acc <= acc + mac_result;
+    //         num_ops <= num_ops + MAC_CHUNK_SIZE;
+    //     end else if (state == S_WAIT_MAT) begin
+    //         num_ops <= 0;
+    //     end else if (state == S_IDLE) begin
+    //         // col_idx <= 0;
+    //         // row_idx <= 0;
+    //         num_ops <= 0;
+    //     end
+    //     // If the current MAC is the last, reset the acc next cycle
+    //     if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+    //         acc <= 0;
+    //     end
+    // end
+
+    // MAC result
+    generate
+        for (genvar i = 0; i < MAC_CHUNK_SIZE; i++) begin : mac_inputs
+            // Since we have the full vector, we can simply use the col_idx here. matrix_data is used in
+            // BANDWIDTH-sized chunks, so we need to modulo the col_idx by BANDWIDTH to get the index for
+            // the current chunk.
+            assign a[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols))
+                         ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
+            // assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols)) ? vector_buffer[col_idx + i] : '0;
+            assign b[i*DATA_WIDTH +: DATA_WIDTH] = (state == S_MAC && ((col_idx + i) < num_cols))
+            ? vector_buffer[(col_idx + i) * DATA_WIDTH +: DATA_WIDTH] : '0;
+        end
+    endgenerate
+
+    // Output logic
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            result_out   <= 0;
+            result_valid <= 0;
+        // Stream out the result after each row is completed
+        end else if (state == S_MAC &&
+                    col_idx + MAC_CHUNK_SIZE >= num_cols) begin
+            // TODO: Decide if this format should be adjusted - right now it allows
+            // for overflow of the Q4.12 fixed point. This final format is Q20.12.
+            // We may want to saturate or truncate instead, but in that case
+            // we need to handle overflow and signedness appropriately.
+            result_out   <= acc + mac_result;
+            result_valid <= 1;
+        end else begin
+            result_valid <= 0;
+        end
+    end
+
+endmodule
+```
+and the generated verilog:
+```
+module matvec_multiplier (
+	clk,
+	rst_n,
+	start,
+	num_rows,
+	num_cols,
+	vector_write_enable,
+	vector_base_addr,
+	vector_in,
+	matrix_addr,
+	matrix_enable,
+	matrix_data,
+	matrix_ready,
+	result_out,
+	result_valid,
+	busy
+);
+	parameter MAX_ROWS = 64;
+	parameter MAX_COLS = 64;
+	parameter BANDWIDTH = 16;
+	parameter DATA_WIDTH = 16;
+	input wire clk;
+	input wire rst_n;
+	input wire start;
+	input wire [$clog2(MAX_ROWS):0] num_rows;
+	input wire [$clog2(MAX_COLS):0] num_cols;
+	input wire vector_write_enable;
+	input wire [$clog2(MAX_COLS) - 1:0] vector_base_addr;
+	input wire signed [(DATA_WIDTH * BANDWIDTH) - 1:0] vector_in;
+	output wire [$clog2(MAX_ROWS * MAX_COLS) - 1:0] matrix_addr;
+	output wire matrix_enable;
+	input wire [(DATA_WIDTH * BANDWIDTH) - 1:0] matrix_data;
+	input wire matrix_ready;
+	output reg signed [(DATA_WIDTH * 2) - 1:0] result_out;
+	output reg result_valid;
+	output wire busy;
+	reg [5:0] state;
+	reg [5:0] next_state;
+	reg [$clog2(MAX_ROWS) - 1:0] row_idx;
+	reg [$clog2(MAX_COLS) - 1:0] col_idx;
+	localparam MAC_CHUNK_SIZE = 4;
+	reg [BANDWIDTH - 1:0] num_ops;
+	reg signed [DATA_WIDTH * 2:0] acc;
+	reg signed [(DATA_WIDTH * MAX_COLS) - 1:0] vector_buffer;
+	reg vector_loaded;
+	wire signed [(DATA_WIDTH * 2) - 1:0] mac_result;
+	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] a;
+	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] b;
+	mac4 mac(
+		.a0(a[0+:DATA_WIDTH]),
+		.b0(b[0+:DATA_WIDTH]),
+		.a1(a[1 * DATA_WIDTH+:DATA_WIDTH]),
+		.b1(b[1 * DATA_WIDTH+:DATA_WIDTH]),
+		.a2(a[2 * DATA_WIDTH+:DATA_WIDTH]),
+		.b2(b[2 * DATA_WIDTH+:DATA_WIDTH]),
+		.a3(a[3 * DATA_WIDTH+:DATA_WIDTH]),
+		.b3(b[3 * DATA_WIDTH+:DATA_WIDTH]),
+		.result(mac_result)
+	);
+	assign busy = state != 6'b000001;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			state <= 6'b000001;
+		else
+			state <= next_state;
+	always @(*) begin
+		next_state = state;
+		(* full_case, parallel_case *)
+		case (state)
+			6'b000001:
+				if (start)
+					next_state = 6'b000010;
+			6'b000010:
+				if (vector_loaded)
+					next_state = 6'b000100;
+			6'b000100: next_state = 6'b001000;
+			6'b001000:
+				if (matrix_ready)
+					next_state = 6'b010000;
+			6'b010000:
+				if ((num_ops + MAC_CHUNK_SIZE) >= BANDWIDTH)
+					next_state = (row_idx < num_rows ? 6'b000100 : 6'b100000);
+				else
+					next_state = 6'b010000;
+			6'b100000: next_state = 6'b000001;
+			default: next_state = state;
+		endcase
+	end
+	always @(posedge clk or negedge rst_n) begin : sv2v_autoblock_1
+		integer i;
+		if (!rst_n) begin
+			vector_loaded <= 0;
+			for (i = 0; i < MAX_COLS; i = i + 1)
+				vector_buffer[i] <= 0;
+		end
+		else if (vector_write_enable) begin
+			for (i = 0; i < BANDWIDTH; i = i + 1)
+				vector_buffer[(vector_base_addr + i) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
+			if ((vector_base_addr + BANDWIDTH) >= num_cols)
+				vector_loaded <= 1;
+		end
+		else if (state == 6'b000001)
+			vector_loaded <= 0;
+	end
+	assign matrix_enable = (state == 6'b000100) || (state == 6'b001000);
+	assign matrix_addr = (row_idx * num_cols) + col_idx;
+	reg [$clog2(MAX_ROWS) - 1:0] row_idx_next;
+	reg [$clog2(MAX_COLS) - 1:0] col_idx_next;
+	always @(*) begin
+		row_idx_next = row_idx;
+		col_idx_next = col_idx;
+		if (state == 6'b010000) begin
+			if (((col_idx + MAC_CHUNK_SIZE) >= num_cols) && (row_idx < (num_rows - 1))) begin
+				row_idx_next = row_idx + 1;
+				col_idx_next = 0;
+			end
+			else
+				col_idx_next = col_idx + MAC_CHUNK_SIZE;
+		end
+		else if (state == 6'b000001) begin
+			col_idx_next = 0;
+			row_idx_next = 0;
+		end
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			row_idx <= 0;
+			col_idx <= 0;
+		end
+		else begin
+			row_idx <= row_idx_next;
+			col_idx <= col_idx_next;
+		end
+	reg [BANDWIDTH - 1:0] num_ops_next;
+	always @(*)
+		if (state == 6'b010000)
+			num_ops_next = num_ops + MAC_CHUNK_SIZE;
+		else if ((state == 6'b001000) || (state == 6'b000001))
+			num_ops_next = 0;
+		else
+			num_ops_next = num_ops;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			num_ops <= 0;
+		else
+			num_ops <= num_ops_next;
+	reg signed [DATA_WIDTH * 2:0] acc_next;
+	always @(*)
+		if ((col_idx + MAC_CHUNK_SIZE) >= num_cols)
+			acc_next = 0;
+		else if (state == 6'b010000)
+			acc_next = acc + mac_result;
+		else
+			acc_next = acc;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			acc <= 0;
+		else
+			acc <= acc_next;
+	genvar _gv_i_1;
+	generate
+		for (_gv_i_1 = 0; _gv_i_1 < MAC_CHUNK_SIZE; _gv_i_1 = _gv_i_1 + 1) begin : mac_inputs
+			localparam i = _gv_i_1;
+			assign a[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
+			assign b[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? vector_buffer[(col_idx + i) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
+		end
+	endgenerate
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			result_out <= 0;
+			result_valid <= 0;
+		end
+		else if ((state == 6'b010000) && ((col_idx + MAC_CHUNK_SIZE) >= num_cols)) begin
+			result_out <= acc + mac_result;
+			result_valid <= 1;
+		end
+		else
+			result_valid <= 0;
+endmodule
+```
+
+Response: Great — thanks for sharing the full SystemVerilog and Verilog output. Let’s now identify the exact flip-flops that are synthesized as $_ALDFFE_PNP_, i.e., flip-flops that:
+
+    are posedge clock
+
+    are negedge async reset
+
+    and have an enable condition in the same always_ff
+
+✅ 1. Confirmed: Flip-flops with posedge clk or negedge rst_n and if (enable)
+
+From your code, these blocks match that pattern:
+(a) vector_loaded and vector_buffer block
+```systemverilog
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        vector_loaded <= 0;
+        for (i = 0; i < MAX_COLS; i++) begin
+            vector_buffer[i] <= 0;
+        end
+    end else if (vector_write_enable) begin
+        ...
+        vector_loaded <= 1;
+    end else if (state == S_IDLE) begin
+        vector_loaded <= 0;
+    end
+end
+```
+
+    ✅ negedge rst_n
+
+    ✅ gated by vector_write_enable or state == S_IDLE
+
+    ✅ vector_loaded and vector_buffer[...] are being updated only on enable-like conditions
+
+    ✅ This entire block will be inferred as $_ALDFFE_PNP_, likely one per bit of vector_buffer, which could easily account for your 960 unmapped flops.
+
+(b) All other blocks
+
+These are safe from causing $_ALDFFE_PNP_ issues:
+
+    FSM (state)
+
+    row_idx / col_idx (they update unconditionally on posedge clk)
+
+    num_ops (registered unconditionally)
+
+    acc (registered unconditionally)
+
+    result_out and result_valid (cleanly structured)
+
+✅ Fix Strategy
+
+To eliminate the problematic $_ALDFFE_PNP_ flops while preserving the logic, you can rewrite the vector_loaded and vector_buffer block using synchronous reset and conditional assignment via a mux:
+
+✅ Fixed Version: Synchronous reset + gated assignments
+```systemverilog
+always_ff @(posedge clk) begin
+    integer i;
+    if (!rst_n) begin
+        vector_loaded <= 0;
+        for (i = 0; i < MAX_COLS; i++)
+            vector_buffer[i] <= 0;
+    end else begin
+        // Default: hold value
+        if (vector_write_enable) begin
+            for (i = 0; i < BANDWIDTH; i++)
+                vector_buffer[(vector_base_addr + i)] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+            if (vector_base_addr + BANDWIDTH >= num_cols)
+                vector_loaded <= 1;
+        end else if (state == S_IDLE) begin
+            vector_loaded <= 0;
+        end
+    end
+end
+```
+
+Alternatively, if your synthesis tool still infers enable logic due to multiple branches, you can always assign vector_buffer[...], using a ternary or multiplexer structure.
+🧪 Optional: Decompose vector_buffer into multiple logic [DATA_WIDTH-1:0] elements
+
+If OpenLane still gives you trouble (e.g., doesn’t like indexed bit slicing), consider declaring:
+```systemverilog
+logic signed [DATA_WIDTH-1:0] vector_buffer_array [0:MAX_COLS-1];
+```
+And rewrite the loop accordingly:
+```systemverilog
+vector_buffer_array[vector_base_addr + i] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+```
+This can help Yosys map registers more clearly to discrete flops, avoiding excessive mux inference.
+
+✅ Summary of Actions
+| Action                             | Status                                                        |
+| ---------------------------------- | ------------------------------------------------------------- |
+| Identified offending flop block    | ✅ `vector_loaded`, `vector_buffer[...]`                       |
+| Confirmed cause of `$_ALDFFE_PNP_` | ✅ `posedge clk or negedge rst_n` + gated enable               |
+| Suggested fix                      | ✅ Convert to synchronous reset                                |
+| Optional improvements              | ✅ Break `vector_buffer` into array of `DATA_WIDTH`-wide words |
+
+Would you like me to generate the fixed SystemVerilog block including the array conversion for vector_buffer?
+
+Prompt: Yes — splitting into two separate always_ff blocks, each with a clean async reset and no conditional enables for the entire block, is a very good approach and should eliminate the $_ALDFFE_PNP_ issues without compromising your reset style consistency. Let's review and analyze both blocks.
+
+✅ Block 1: vector_buffer write logic
+```systemverilog
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        for (i = 0; i < MAX_COLS; i++) begin
+            vector_buffer[i] <= 0;
+        end
+    end else begin
+        integer i;
+        if (vector_write_enable) begin
+            for (i = 0; i < BANDWIDTH; i++) begin
+                vector_buffer[(vector_base_addr + i) * DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+            end
+        end
+    end
+end
+```
+👍 Good:
+
+    ✅ Clean async reset — maps to negedge rst_n
+
+    ✅ No explicit if (enable) gating the entire block — this prevents $_ALDFFE_PNP_
+
+    ✅ Logic inside the block is gated per-flop (but Yosys can still recognize and separate the enable logic cleanly)
+
+    ✅ Keeps vector_buffer assignment separate from control state
+
+✅ Block 2: vector_loaded logic
+```systemverilog
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        vector_loaded <= 0;
+    end else begin
+        if (vector_write_enable) begin
+            if (vector_base_addr + BANDWIDTH >= num_cols)
+                vector_loaded <= 1;
+            else
+                vector_loaded <= 0;
+        end else if (state == S_IDLE) begin
+            vector_loaded <= 0;
+        end else begin
+            vector_loaded <= vector_loaded;
+        end
+    end
+end
+```
+
+👍 Good:
+
+    ✅ Clean separation from vector_buffer
+
+    ✅ Fully async reset
+
+    ✅ Explicit default assignment (keeps value in all other states) → avoids latch inference
+
+    ✅ Will now likely map to a simple DFF with MUX for D
+
+💡 Slight improvement (style):
+
+Replace:
+```systemverilog
+else begin
+    vector_loaded <= vector_loaded;
+end
+```
+With:
+```systemverilog
+else begin
+    // Hold value
+end
+```
+Or even more idiomatically:
+```systemverilog
+else begin
+    // Do nothing — value is retained
+end
+```
+Synthesis tools already infer that the register holds its value unless explicitly overwritten, so repeating the assignment isn't strictly necessary.
+
+✅ Summary
+| Aspect                  | Status                                      |
+| ----------------------- | ------------------------------------------- |
+| Async reset consistency | ✅ Preserved                                 |
+| Avoids `_ALDFFE_PNP_`   | ✅ Yes — no more gated flip-flops inferred   |
+| Readability             | ✅ Improved                                  |
+| Style tweaks            | 🟡 Minor (optional improvement for clarity) |
+
+✅ Verdict
+
+This is the correct approach to eliminate Yosys-inferred complex FFs while preserving async reset usage and avoiding synthesis mismatches. It should now pass through proc_dff cleanly and map to standard DFFNE or DFF cells in the techlib.
+
+Would you like to run the yosys.log diff check or show the netlist to confirm $_ALDFFE_PNP_ is gone?
+

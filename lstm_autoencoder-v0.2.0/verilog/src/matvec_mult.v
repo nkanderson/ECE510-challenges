@@ -88,20 +88,24 @@ module matvec_multiplier (
 	end
 	always @(posedge clk or negedge rst_n) begin : sv2v_autoblock_1
 		integer i;
-		if (!rst_n) begin
-			vector_loaded <= 0;
+		if (!rst_n)
 			for (i = 0; i < MAX_COLS; i = i + 1)
 				vector_buffer[i] <= 0;
-		end
-		else if (vector_write_enable) begin
+		else if (vector_write_enable)
 			for (i = 0; i < BANDWIDTH; i = i + 1)
 				vector_buffer[(vector_base_addr + i) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			vector_loaded <= 0;
+		else if (vector_write_enable) begin
 			if ((vector_base_addr + BANDWIDTH) >= num_cols)
 				vector_loaded <= 1;
+			else
+				vector_loaded <= 0;
 		end
 		else if (state == 6'b000001)
 			vector_loaded <= 0;
-	end
 	assign matrix_enable = (state == 6'b000100) || (state == 6'b001000);
 	assign matrix_addr = (row_idx * num_cols) + col_idx;
 	reg [$clog2(MAX_ROWS) - 1:0] row_idx_next;
@@ -146,10 +150,10 @@ module matvec_multiplier (
 			num_ops <= num_ops_next;
 	reg signed [DATA_WIDTH * 2:0] acc_next;
 	always @(*)
-		if (state == 6'b010000)
-			acc_next = acc + mac_result;
-		else if ((col_idx + MAC_CHUNK_SIZE) >= num_cols)
+		if ((col_idx + MAC_CHUNK_SIZE) >= num_cols)
 			acc_next = 0;
+		else if (state == 6'b010000)
+			acc_next = acc + mac_result;
 		else
 			acc_next = acc;
 	always @(posedge clk or negedge rst_n)

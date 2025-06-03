@@ -98,47 +98,66 @@ module matvec_multiplier #(
             default:     next_state = state;
         endcase
     end
-    // Optional block to replace the above always_ff updating state and FSM next state logic.
-    // This is related to troubleshooting synthesis issues for the next_state signal.
-    // always_ff @(posedge clk or negedge rst_n) begin
-    //     if (!rst_n)
-    //         state <= S_IDLE;
-    //     else begin
-    //         case (state)
-    //             S_IDLE:      if (start) state <= S_VLOAD;
-    //             S_VLOAD:     if (vector_loaded) state <= S_REQ_MAT;
-    //             S_REQ_MAT:   state <= S_WAIT_MAT;
-    //             S_WAIT_MAT:  if (matrix_ready) state <= S_MAC;
-    //             S_MAC:       if (num_ops + MAC_CHUNK_SIZE >= BANDWIDTH)
-    //                             state <= (row_idx < num_rows) ? S_REQ_MAT : S_DONE;
-    //                         else
-    //                             state <= S_MAC;
-    //             S_DONE:      state <= S_IDLE;
-    //             default:     state <= state;
-    //         endcase
-    //     end
-    // end
 
     // Get the entire vector from the client before moving forward with
     // chunked reading of matrix and MAC operation.
     // The client needs to hold vector_write_enable high and increment
     // the vector_base_addr while updating vector_in. While vector_write_enable
     // is high, this module will continue reading in vector chunks.
+    // always @(posedge clk or negedge rst_n)
+    //   if (!rst_n)
+    //     reg <= 0;
+    //   else
+    //     reg <= enable ? val : reg;
+    // always_ff @(posedge clk or negedge rst_n) begin
+    //     integer i;
+    //     if (!rst_n) begin
+    //         vector_loaded <= 0;
+    //         for (i = 0; i < MAX_COLS; i++) begin
+    //             vector_buffer[i] <= 0;
+    //         end
+    //     end else if (vector_write_enable) begin
+    //         for (i = 0; i < BANDWIDTH; i++) begin
+    //             vector_buffer[(vector_base_addr + i) * DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+    //         end
+    //         if (vector_base_addr + BANDWIDTH >= num_cols)
+    //             vector_loaded <= 1;
+    //     end else if (state == S_IDLE) begin
+    //         vector_loaded <= 0;
+    //     end
+    // end
     always_ff @(posedge clk or negedge rst_n) begin
         integer i;
         if (!rst_n) begin
-            vector_loaded <= 0;
             for (i = 0; i < MAX_COLS; i++) begin
                 vector_buffer[i] <= 0;
             end
-        end else if (vector_write_enable) begin
-            for (i = 0; i < BANDWIDTH; i++) begin
-                vector_buffer[(vector_base_addr + i) * DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+        end else begin
+            if (vector_write_enable) begin
+              for (i = 0; i < BANDWIDTH; i++) begin
+                  vector_buffer[(vector_base_addr + i) * DATA_WIDTH +: DATA_WIDTH] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
+              end
             end
-            if (vector_base_addr + BANDWIDTH >= num_cols)
-                vector_loaded <= 1;
-        end else if (state == S_IDLE) begin
+        end
+    end
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             vector_loaded <= 0;
+        end else begin
+            if (vector_write_enable) begin
+                // Check if we have loaded the entire vector
+                if (vector_base_addr + BANDWIDTH >= num_cols)
+                    vector_loaded <= 1;
+                else
+                    vector_loaded <= 0;
+            end else if (state == S_IDLE) begin
+              vector_loaded <= 0;
+            end else begin
+              // Keep vector_loaded unchanged in other states
+              // vector_loaded <= vector_loaded;
+              // Hold value (should be done implicitly without the above explicit assignment)
+            end
         end
     end
 
@@ -232,37 +251,6 @@ module matvec_multiplier #(
         else
             acc <= acc_next;
     end
-
-    // always_ff @(posedge clk or negedge rst_n) begin
-    //     if (!rst_n) begin
-    //         acc <= 0;
-    //         // col_idx <= 0;
-    //         // row_idx <= 0;
-    //         num_ops <= 0;
-    //     end else if (state == S_MAC) begin
-    //         // If the next MAC operation will be the last for this row, update the
-    //         // row_idx and col_idx on the next clock cycle. Do this until the final
-    //         // increment of row_idx will reach the last row.
-    //         // if (col_idx + MAC_CHUNK_SIZE >= num_cols && row_idx < (num_rows - 1)) begin
-    //         //     row_idx <= row_idx + 1;
-    //         //     col_idx <= 0;
-    //         // end else begin
-    //         //   col_idx <= col_idx + MAC_CHUNK_SIZE;
-    //         // end
-    //         acc <= acc + mac_result;
-    //         num_ops <= num_ops + MAC_CHUNK_SIZE;
-    //     end else if (state == S_WAIT_MAT) begin
-    //         num_ops <= 0;
-    //     end else if (state == S_IDLE) begin
-    //         // col_idx <= 0;
-    //         // row_idx <= 0;
-    //         num_ops <= 0;
-    //     end
-    //     // If the current MAC is the last, reset the acc next cycle
-    //     if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
-    //         acc <= 0;
-    //     end
-    // end
 
     // MAC result
     generate
