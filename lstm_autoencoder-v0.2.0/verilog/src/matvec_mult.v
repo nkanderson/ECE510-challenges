@@ -88,10 +88,16 @@ module matvec_multiplier (
 		endcase
 	end
 	always @(posedge clk or negedge rst_n)
-		if (!rst_n)
+		if (!rst_n) begin
 			vector_loaded <= 0;
-		else if (vector_write_enable) begin
 			begin : sv2v_autoblock_1
+				reg signed [31:0] i;
+				for (i = 0; i < MAX_COLS; i = i + 1)
+					vector_buffer[i] <= 0;
+			end
+		end
+		else if (vector_write_enable) begin
+			begin : sv2v_autoblock_2
 				reg signed [31:0] i;
 				for (i = 0; i < BANDWIDTH; i = i + 1)
 					vector_buffer[vector_base_addr + i] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
