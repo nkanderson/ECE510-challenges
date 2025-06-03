@@ -106,6 +106,9 @@ module matvec_multiplier #(
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             vector_loaded <= 0;
+            for (int i = 0; i < MAX_COLS; i++) begin
+                vector_buffer[i] <= 0;
+            end
         end else if (vector_write_enable) begin
             for (int i = 0; i < BANDWIDTH; i++) begin
                 vector_buffer[vector_base_addr + i] <= vector_in[i*DATA_WIDTH +: DATA_WIDTH];
@@ -154,7 +157,7 @@ module matvec_multiplier #(
         if (col_idx + MAC_CHUNK_SIZE >= num_cols) begin
             acc <= 0;
         end
-end
+    end
 
     // MAC result
     generate
