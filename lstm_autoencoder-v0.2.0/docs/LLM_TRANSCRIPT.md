@@ -9277,3 +9277,164 @@ This name is used by:
 Once you make both changes, rerun prep and run_synthesis. That should get you past this stage.
 
 Would you like me to generate a minimal dummy wrapper or testbench just for lint validation and simulation?
+
+Prompt: Ok, got the following error, which I could use help interpreting as it applies to my design:
+
+[10:14:49] ERROR    Last 10 line(s):                                                                                                                                   step.py:1369
+                    7.8. Executing PROC_DLATCH pass (convert process syncs to latches).                                                                                            
+                    No latch inferred for signal `\matvec_multiplier.\_sv2v_0' from process                                                                                        
+                    `\matvec_multiplier.$proc$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:0$252'.                              
+                    No latch inferred for signal                                                                                                                                   
+                    `\matvec_multiplier.$mem2reg_rd$\vector_buffer$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:138             
+                    $22_DATA' from process                                                                                                                                         
+                    `\matvec_multiplier.$proc$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:0$248'.                              
+                    No latch inferred for signal                                                                                                                                   
+                    `\matvec_multiplier.$mem2reg_rd$\vector_buffer$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:138             
+                    $21_DATA' from process                                                                                                                                         
+                    `\matvec_multiplier.$proc$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:0$244'.                              
+                    No latch inferred for signal                                                                                                                                   
+                    `\matvec_multiplier.$mem2reg_rd$\vector_buffer$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:138             
+                    $20_DATA' from process                                                                                                                                         
+                    `\matvec_multiplier.$proc$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:0$240'.                              
+                    No latch inferred for signal                                                                                                                                   
+                    `\matvec_multiplier.$mem2reg_rd$\vector_buffer$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:138             
+                    $19_DATA' from process                                                                                                                                         
+                    `\matvec_multiplier.$proc$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:0$236'.                              
+                    No latch inferred for signal `\matvec_multiplier.\next_state' from process                                                                                     
+                    `\matvec_multiplier.$proc$/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/src/matvec_mult.v:67$26'.                              
+                                                                                                                                                                                   
+                    7.9. Executing PROC_DFF pass (convert process syncs to FFs).                                                                                                   
+                    ERROR: Multiple edge sensitive events found for this signal!
+
+Response: This error stems from Yosys during synthesis in OpenLane. It is saying that certain signals in your matvec_multiplier design are driven by processes (i.e., always blocks) that confuse Yosys due to conflicting sensitivity — typically a sign of:
+
+    Bad always block sensitivity lists (e.g., mixing posedge clk and negedge rst_n)
+
+    Incomplete process descriptions, making Yosys unsure whether a latch or flip-flop is intended
+
+    Mixed or implicit assignments to arrays (vector_buffer) or FSM signals (next_state)
+
+Let’s walk through what’s going wrong specifically for your design.
+
+🔍 Interpreting the Error
+❗ Main Error
+```
+ERROR: Multiple edge sensitive events found for this signal!
+```
+
+This means a signal is being assigned in multiple always blocks with conflicting sensitivity — e.g., both posedge clk and negedge rst_n. Yosys refuses to synthesize such constructs.
+
+🔍 Culprit 1: next_state
+```verilog
+always @(*) begin
+    next_state = state;
+    ...
+end
+```
+
+No problem here as long as next_state is only assigned in this combinational always @(*) block.
+
+However, if next_state also appears in a clocked always @(posedge clk) block (directly or indirectly), that creates a conflict.
+
+✅ Fix: Make sure next_state is:
+
+    Assigned only in the always @(*) block
+
+    Registered with state <= next_state; in a separate posedge clk block
+
+    Not assigned in any other block
+
+🔍 Culprit 2: vector_buffer
+
+This shows up with warnings like:
+```
+No latch inferred for signal `\matvec_multiplier.$mem2reg_rd$\vector_buffer$...
+```
+
+This implies vector_buffer is:
+
+    Being read in some processes
+
+    But not consistently assigned in all branches of the control flow
+
+This makes Yosys infer a latch, but then fails to infer it properly due to conflicting conditions or sensitivity.
+✅ Fix:
+
+In your existing code:
+```verilog
+if (vector_write_enable) begin
+  for (i = 0; i < BANDWIDTH; i++)
+    vector_buffer[vector_base_addr + i] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
+end
+```
+
+This only writes when vector_write_enable is high. If that condition is false, no assignment occurs, and latches are inferred.
+
+✅ To avoid that:
+
+Either:
+
+    Explicitly initialize all elements when the condition is false
+    (not great for synthesis)
+
+    Rewrite using clocked always block, so it's clearly registered logic:
+
+```verilog
+always @(posedge clk or negedge rst_n) begin
+  if (!rst_n) begin
+    integer i;
+    for (i = 0; i < MAX_COLS; i = i + 1)
+      vector_buffer[i] <= 0;
+  end else if (vector_write_enable) begin
+    integer i;
+    for (i = 0; i < BANDWIDTH; i = i + 1)
+      vector_buffer[vector_base_addr + i] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
+  end
+end
+```
+
+Note:
+
+    Use integer i; not reg signed inside sequential blocks.
+
+    Move vector_buffer assignments only to clocked logic.
+
+🔍 Culprit 3: _sv2v_0
+
+This is likely a dummy wire inserted by sv2v to preserve a statement like:
+```verilog
+if (_sv2v_0) ;
+```
+
+⚠️ If _sv2v_0 is declared as a reg but not assigned in all paths, it can again trigger latch inference warnings.
+
+✅ Fix:
+Either:
+
+    Ensure it is assigned explicitly in all branches, or
+
+    Remove/replace if (_sv2v_0) ; with something clean — it’s often a workaround for SystemVerilog disable iff, which Yosys doesn’t support anyway
+
+✅ Final Checklist for Fixing Yosys Latch Warnings
+| Signal            | Fix                                                                |
+| ----------------- | ------------------------------------------------------------------ |
+| `next_state`      | Assign only in `always @(*)`, and only read in `posedge clk` block |
+| `vector_buffer[]` | Assign only in `posedge clk` block; initialize on `rst_n`          |
+| `_sv2v_0`         | Remove or assign explicitly                                        |
+| General arrays    | Never assign in `@(*)`; use clocked logic for arrays               |
+
+🧪 Once Fixed
+
+After cleaning these up:
+
+    Rerun sv2v to get fresh flattened Verilog
+
+    Run openlane with:
+```
+run_synthesis
+run_floorplan
+```
+
+If synthesis passes, you can check runs/<run_tag>/logs/synthesis/yosys.log to confirm no further latch issues or combinational loops.
+
+Would you like me to patch and show you a cleaned-up version of the vector_buffer handling logic in your original file?
