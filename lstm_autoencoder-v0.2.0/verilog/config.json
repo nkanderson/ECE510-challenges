@@ -1,6 +1,7 @@
 {
   "DESIGN_NAME": "matvec_multiplier",
   "VERILOG_FILES": [
+    "dir::/src/matvec_mult_top.v",
     "dir::/src/matvec_mult.v",
     "dir::/src/matrix_loader.v",
     "dir::/src/mac4.v"

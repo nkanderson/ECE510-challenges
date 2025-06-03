@@ -6,7 +6,6 @@ module matrix_loader (
 	matrix_data,
 	ready
 );
-	reg _sv2v_0;
 	parameter signed [31:0] NUM_ROWS = 64;
 	parameter signed [31:0] NUM_COLS = 64;
 	parameter DATA_WIDTH = 16;
@@ -37,9 +36,7 @@ module matrix_loader (
 	assign halfword_select = addr[0];
 	assign sram_addr = addr[9:1];
 	assign csb = 4'b1111 & ~(1'b1 << macro_index);
-	always @(*) begin
-		if (_sv2v_0)
-			;
+	always @(*)
 		case (macro_index)
 			2'd0: word = (halfword_select == 1'b0 ? sram_dout0[15:0] : sram_dout0[31:16]);
 			2'd1: word = (halfword_select == 1'b0 ? sram_dout1[15:0] : sram_dout1[31:16]);
@@ -47,7 +44,6 @@ module matrix_loader (
 			2'd3: word = (halfword_select == 1'b0 ? sram_dout3[15:0] : sram_dout3[31:16]);
 			default: word = 16'hxxxx;
 		endcase
-	end
 	sky130_sram_2kbyte_1rw1r_32x512_8 sram0(
 		.clk0(clk),
 		.csb0(csb[0]),
@@ -130,5 +126,4 @@ module matrix_loader (
 		end
 		else
 			ready <= 1'b0;
-	initial _sv2v_0 = 0;
 endmodule

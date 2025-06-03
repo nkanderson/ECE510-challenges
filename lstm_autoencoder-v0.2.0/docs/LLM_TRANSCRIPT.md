@@ -13545,3 +13545,1135 @@ endgenerate
 You can optionally wrap the indexing into a helper function (purely combinational), but the above inline expressions are typically fine and synthesis-friendly.
 
 Let me know if you want to verify correctness with a waveform (e.g., loading a vector and confirming bank reads), or are ready to re-synthesize and examine routing improvements.
+
+Prompt: Ok, still hitting some routing congestion. This is the output:
+```
+Reading design constraints file at '/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/scripts/base.sdc'…                    
+[INFO] Using clock clk…                                                                                                                                                        
+[INFO] Setting output delay to: 8.0                                                                                                                                            
+[INFO] Setting input delay to: 8.0                                                                                                                                             
+[INFO] Setting load to: 0.033442                                                                                                                                               
+[INFO] Setting clock uncertainty to: 0.25                                                                                                                                      
+[INFO] Setting clock transition to: 0.1499999999999999944488848768742172978818416595458984375                                                                                  
+[INFO] Setting timing derate to: 5%                                                                                                                                            
+[INFO] Setting signal min routing layer to: met1 and clock min routing layer to met1.                                                                                          
+[INFO] Setting signal max routing layer to: met5 and clock max routing layer to met5.                                                                                          
+-congestion_iterations 50 -verbose                                                                                                                                             
+[INFO GRT-0020] Min routing layer: met1                                                                                                                                        
+[INFO GRT-0021] Max routing layer: met5                                                                                                                                        
+[INFO GRT-0022] Global adjustment: 30%                                                                                                                                         
+[INFO GRT-0023] Grid origin: (0, 0)                                                                                                                                            
+[INFO GRT-0043] No OR_DEFAULT vias defined.                                                                                                                                    
+[INFO GRT-0088] Layer li1     Track-Pitch = 0.4600  line-2-Via Pitch: 0.3400                                                                                                   
+[INFO GRT-0088] Layer met1    Track-Pitch = 0.3400  line-2-Via Pitch: 0.3400                                                                                                   
+[INFO GRT-0088] Layer met2    Track-Pitch = 0.4600  line-2-Via Pitch: 0.3500                                                                                                   
+[INFO GRT-0088] Layer met3    Track-Pitch = 0.6800  line-2-Via Pitch: 0.6150                                                                                                   
+[INFO GRT-0088] Layer met4    Track-Pitch = 0.9200  line-2-Via Pitch: 1.0400                                                                                                   
+[INFO GRT-0088] Layer met5    Track-Pitch = 3.4000  line-2-Via Pitch: 3.1100                                                                                                   
+[INFO GRT-0019] Found 201 clock nets.                                                                                                                                          
+[INFO GRT-0001] Minimum degree: 2                                                                                                                                              
+[INFO GRT-0002] Maximum degree: 20                                                                                                                                             
+[INFO GRT-0003] Macros: 0                                                                                                                                                      
+[INFO GRT-0043] No OR_DEFAULT vias defined.                                                                                                                                    
+[INFO GRT-0004] Blockages: 22007                                                                                                                                               
+                                                                                                                                                                               
+[INFO GRT-0053] Routing resources analysis:                                                                                                                                    
+Routing      Original      Derated      Resource                                                                                                                               
+Layer     Direction    Resources     Resources    Reduction (%)                                                                                                                
+---------------------------------------------------------------                                                                                                                
+li1        Vertical            0             0          0.00%                                                                                                                  
+met1       Horizontal     229238        111919          51.18%                                                                                                                 
+met2       Vertical       172722        113845          34.09%                                                                                                                 
+met3       Horizontal     114566         79101          30.96%                                                                                                                 
+met4       Vertical        69348         43906          36.69%                                                                                                                 
+met5       Horizontal      22892         10920          52.30%                                                                                                                 
+---------------------------------------------------------------                                                                                                                
+                                                                                                                                                                               
+[INFO GRT-0101] Running extra iterations to remove overflow.                                                                                                                   
+[INFO GRT-0103] Extra Run for hard benchmark.                                                                                                                                  
+[INFO GRT-0197] Via related to pin nodes: 236329                                                                                                                               
+[INFO GRT-0198] Via related Steiner nodes: 16664                                                                                                                               
+[INFO GRT-0199] Via filling finished.                                                                                                                                          
+[INFO GRT-0111] Final number of vias: 376337                                                                                                                                   
+[INFO GRT-0112] Final usage 3D: 1528484                                                                                                                                        
+[12:27:53] ERROR    [GRT-0118] Routing congestion too high. Check the congestion heatmap in the GUI.                                                            openroad.py:233
+Error: grt.tcl, 30 GRT-0118                                                                                                                                                    
+Classic - Stage 38 - Global Routing ━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━━━━━━━━━━━━ 37/78 0:15:21
+[12:27:53] WARNING  The following warnings were generated by the flow:                                                                                              flow.py:673
+[12:27:53] WARNING  [Checker.LintWarnings] 6 Lint warnings found.                                                                                                   flow.py:675
+[12:27:53] WARNING  [OpenROAD.CheckSDCFiles] 'PNR_SDC_FILE' is not defined. Using generic fallback SDC for OpenROAD PnR steps.                                      flow.py:675
+[12:27:53] WARNING  [OpenROAD.CheckSDCFiles] 'SIGNOFF_SDC_FILE' is not defined. Using generic fallback SDC for OpenROAD PnR steps.                                  flow.py:675
+[12:27:53] WARNING  [OpenROAD.STAMidPNR] [GRT-0097] No global routing found for nets. (and 2 similar warnings)                                                      flow.py:675
+[12:27:53] ERROR    The following error was encountered while running the flow:                                                                                 __main__.py:187
+                    OpenROAD.GlobalRouting failed with the following errors:                                                                                                   
+                    [GRT-0118] Routing congestion too high. Check the congestion heatmap in the GUI.                                                                           
+[12:27:53] ERROR    OpenLane will now quit. 
+```
+
+Response: You're hitting OpenROAD’s congestion limit again at the global routing stage (GRT-0118), even after optimizing the vector buffer into 4 banks. This suggests you’re either:
+
+    Hitting wire congestion due to dense logic and/or wide data buses, or
+
+    Your current floorplan and cell placement is too compact for the routing resources available.
+
+Let’s break this into analysis, options, and next steps.
+
+🔍 Analysis
+
+From this line:
+```
+Blockages: 22007
+```
+That’s extremely high — and consistent with the high via count and reduced routing resources:
+```
+Final number of vias: 376337
+Final usage 3D: 1528484
+```
+You are running into problems in met1 to met3, which are the denser local routing layers:
+```
+met1       Horizontal     229238        111919    (51.18% reduction)
+met2       Vertical       172722        113845    (34.09%)
+met3       Horizontal     114566         79101    (30.96%)
+```
+
+✅ Mitigation Options
+
+Here’s what you can try next (ranked by cost-effectiveness and alignment with your design goals):
+1. Increase FP_CORE_UTIL again
+
+Even though you're at 50%, you can try 55–60%, especially if you're not using macros (you said macros: 0). You may not need to touch DIE_AREA.
+2. Insert whitespace with PL_TARGET_DENSITY
+
+Try setting:
+```
+set ::env(PL_TARGET_DENSITY) 0.55
+```
+This gives the placer more freedom to spread out the cells, helping GRT.
+3. Reduce max fanout with Yosys
+
+If vector fanouts are large, split or register-slice wide buses. In Yosys:
+```
+set ::env(SYNTH_MAX_FANOUT) 10
+```
+This inserts buffers to reduce congestion from high-fanout nets.
+
+4. Stagger or pipeline vector accesses
+
+If your vector_bank access results in multiple simultaneous reads (e.g., 4+ wide accesses in 1 cycle), try pipelining or staggering read accesses. Even 1-cycle staging per MAC_CHUNK can help.
+
+5. Increase the number of routing layers
+
+If you’re not yet using met6 or met7, enable more metal layers:
+```
+set ::env(RT_MAX_LAYER) met6
+```
+Sky130 only supports 5 usable routing layers in most default setups, but met6/met7 can sometimes be manually configured if you’ve enabled them.
+6. Floorplan optimizations
+
+Use GUI to inspect the congestion heatmap:
+```
+openroad -gui
+```
+Then:
+```
+read_db runs/RUN_NAME/results/placement/<design>.odb
+gui::congestion_heatmap
+```
+You may see localized congestion around vector_bank or matvec_multiplier.
+
+🔁 Rerunning from Floorplanning
+
+To avoid starting from scratch, do:
+```
+flow.tcl -design my_design -from floorplan
+```
+Or, if you want to rerun placement + routing only:
+```
+flow.tcl -design my_design -from placement
+```
+To specify a particular run directory to reuse:
+```
+flow.tcl -design my_design -run_path runs/RUN_NAME -from placement
+```
+Make sure SYNTH_STRATEGY and FP_CORE_UTIL are not reset between runs if you're manually tweaking configs.
+
+Would you like help editing your OpenLane config.tcl with updated values for PL_TARGET_DENSITY, SYNTH_MAX_FANOUT, or enable met6?
+
+Prompt: Increasing FP_CORE_UTIL seems fine, but I never said "macros: 0", maybe you got that from some openlane output? But I am trying to use an SRAM macro, instantiating a few instances of it.
+
+Let's talk about how to enable met6
+
+Response: You're right — I did mistakenly interpret this from OpenROAD output:
+```
+[INFO GRT-0003] Macros: 0
+```
+That line reflects number of placed macros seen during routing. If your SRAM macros failed to map (e.g. due to missing LEF, DEF, or constraints), OpenROAD may not have counted them — even though you instantiated them. So this may be a signal that they weren’t placed successfully.
+
+We can dig into that, but first, let’s talk about enabling met6.
+
+✅ How to Enable met6 in OpenLane (Sky130)
+
+Sky130 by default supports up to met5. met6 exists physically in the PDK, but it's not enabled in the default tracks.info and tech LEF.
+
+Here’s how to enable it:
+
+🔧 1. Update tracks.info to include met6
+
+Edit your design’s OpenLane config or override like this:
+```
+set ::env(RT_MAX_LAYER) met6
+set ::env(RT_MIN_LAYER) met1
+```
+
+If you're using a platform that supports metal layers beyond met5, this will be honored. However, in Sky130, you must also:
+👉 Ensure your technology LEF includes met6
+
+Check the file:
+```
+$PDK_ROOT/sky130A/libs.tech/openlane/sky130_fd_sc_hd/tech.lef
+```
+Does it include:
+```
+LAYER met6
+  TYPE ROUTING ;
+  ...
+END met6
+```
+If not, you're limited to met5.
+
+You could also check your design’s merged LEF file:
+```
+grep -A 5 'LAYER met6' <merged.lef>
+```
+🔧 2. Modify tracks.info file to support met6
+
+This file defines preferred routing directions and track spacing. You can extend the track definition by appending a met6 entry:
+
+Example tracks.info addition:
+```
+metal met6 horizontal 3.40 0.17
+```
+Then, copy it into your design directory and override OpenLane’s default:
+```
+set ::env(TRACKS_INFO_FILE) "$::env(DESIGN_DIR)/tracks.info"
+```
+
+🔧 3. Check if OpenROAD honors the routing layer
+
+After placement, you can check the available layers used for routing:
+```
+report_layers
+```
+Or in logs:
+```
+[INFO GRT-0021] Max routing layer: met6
+```
+
+⚠️ Caveats
+
+    Sky130 only officially supports met1 to met5. Using met6 may break DRC or cause issues in signoff, unless your flow is customized.
+
+    You must ensure all necessary via definitions between met5 ↔ met6 are present in the tech LEF.
+
+    Commercial PDKs often support up to met9, but Sky130 is limited by open-source tooling support.
+
+✅ Safer Alternative
+
+Instead of enabling met6, you might get 80–90% of the benefit by:
+
+    Lowering PL_TARGET_DENSITY to 0.55–0.60
+
+    Inserting buffers for high-fanout nets
+
+    Physically moving SRAM macros away from congestion hot spots
+
+    Segmenting wide buses across the die
+
+Would you like to check if your SRAM macros were actually placed and recognized in the floorplan? If they weren’t, that would explain both “Macros: 0” and potentially a large chunk of your routing congestion.
+
+Prompt: Yes, I'd like to investigate potential issues with my SRAM macros
+
+Response: Great — here's a structured way to investigate whether your SRAM macros are properly integrated into your OpenLane2 flow and why they may not be counted or placed correctly.
+
+✅ Step 1: Confirm Macro Instantiation in Verilog
+
+Make sure your macros are actually instantiated in your RTL and aren't being optimized away due to being unused. For example:
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 sram3 (
+    .clk0(clk),
+    .csb0(csb[3]),
+    .web0(1'b1),
+    .wmask0(4'b0000),
+    .addr0(sram_addr),
+    .din0(32'b0),
+    .dout0(sram_dout3),
+    .clk1(1'b0),
+    .csb1(1'b1),
+    .addr1(9'b0),
+    .dout1()
+);
+```
+
+✅ Check: Are sram_dout3 or other outputs used elsewhere in the design?
+If they’re unused, Yosys might optimize away the entire macro.
+
+✅ Step 2: Confirm Macro LEF Is Available
+
+In your design’s config.tcl, you should have:
+```
+set ::env(MACRO_PLACEMENT_CFG) "$::env(DESIGN_DIR)/macro_placement.cfg"
+set ::env(MACRO_LEFS) "$::env(PDK_ROOT)/sky130A/custom/lef/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+set ::env(EXTRA_LEFS) "$::env(MACRO_LEFS)"
+```
+Or:
+```
+lappend ::env(EXTRA_LEFS) "$::env(PDK_ROOT)/..."
+```
+✅ Check:
+
+    The LEF file path exists and includes macro LEF for the SRAM.
+
+    It’s correctly listed in extra_lefs.
+
+✅ Step 3: Confirm Macro Liberty Is Available (for CTS)
+
+Even if the SRAM macro isn’t used for timing (i.e., it’s “black-boxed”), you should ideally provide a .lib file if it includes timing info. This helps avoid OpenROAD complaints during CTS or signoff.
+
+Add:
+```
+set ::env(EXTRA_LIBS) "$::env(PDK_ROOT)/sky130A/custom/lib/sky130_sram_2kbyte_1rw1r_32x512_8.lib"
+```
+
+If you're black-boxing it (which is often fine for SRAM), you can leave out the LIB, but ensure the tool knows not to expect internal timing arcs.
+
+✅ Step 4: Create macro_placement.cfg
+
+This tells OpenLane where to place your macros. Example (place four SRAM macros at corners):
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0 -orient R0 -location {100 100}
+sky130_sram_2kbyte_1rw1r_32x512_8 sram1 -orient R0 -location {100 200}
+sky130_sram_2kbyte_1rw1r_32x512_8 sram2 -orient R0 -location {200 100}
+sky130_sram_2kbyte_1rw1r_32x512_8 sram3 -orient R0 -location {200 200}
+```
+✅ Check: This file must be declared in your config.tcl via MACRO_PLACEMENT_CFG.
+
+✅ Step 5: Confirm Macro Placement During Floorplan
+
+After running the floorplan, open OpenROAD GUI:
+```
+gui_open
+```
+Then check:
+
+    Macros are visible in the floorplan.
+
+    Check floorplan.def or results/floorplan/<design>.def and search for - COMPONENTS.
+
+✅ Macros should appear there with location and orientation.
+
+If you don’t see them, they weren’t placed.
+
+✅ Step 6: Check Yosys Log for Pruned Modules
+
+After synthesis, check the log:
+```
+runs/<RUN_DIR>/logs/synthesis/1_1_yosys.log
+```
+Search for lines like:
+```
+Pruning unused module: sky130_sram_2kbyte_1rw1r_32x512_8
+```
+Or:
+```
+Removing module: sram3 (not used)
+```
+
+
+If you see this, Yosys removed your macro because it was unused. You must ensure it's functionally connected.
+✅ Step 7: Check Cell Count in 2_1_floorplan.log
+
+This file shows how many cells/macros were placed. Look for something like:
+```
+[INFO] Macro Instances: 4
+```
+If it's 0, then placement didn't happen.
+✅ Optional: Prevent Optimization
+
+To force preservation during synthesis:
+```
+(* keep *)
+sky130_sram_2kbyte_1rw1r_32x512_8 sram3 (...);
+```
+
+Would you like help writing a minimal example config + macro placement setup to confirm the SRAM integration works end-to-end?
+
+Prompt: Alright, this is my current config.tcl file:
+```
+set ::env(DESIGN_NAME) matvec_multiplier
+
+set ::env(CLOCK_PORT) "clk"
+set ::env(CLOCK_PERIOD) "40.0"
+
+# Include all source files
+set ::env(VERILOG_FILES) [glob $::env(DESIGN_DIR)/src/*.v]
+
+# Floorplan defaults
+# FP_CORE_UTIL may be increased to reduce cell density and
+# make routing easier, but this will increase area.
+set ::env(FP_CORE_UTIL) 60
+set ::env(FP_ASPECT_RATIO) 1.0
+set ::env(FP_CORE_MARGIN) 2
+set ::env(PL_TARGET_DENSITY) 0.55
+
+set ::env(SYNTH_MAX_FANOUT) 20
+
+# Allow automatic macro placement
+# Going to let OpenLane try to handle this initially
+# set ::env(MACRO_PLACEMENT_CFG) $::env(DESIGN_DIR)/macro_placement.cfg
+set ::env(PL_MACROS_GRID) 1
+
+# SRAM macro files
+set ::env(EXTRA_LEFS) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+set ::env(EXTRA_GDS_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
+lappend ::env(LIB_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+
+# Power/Ground nets for this design
+set ::env(VDD_PIN) "vccd1"
+set ::env(GND_PIN) "vssd1"
+
+# Reducing power straps to attempt to reduce congestion and routing blockages
+set ::env(FP_PDN_VPITCH) 40
+set ::env(FP_PDN_HPITCH) 40
+
+# Set max routing layer
+# Might be able to increase this to met6 if the PDK supports it
+set ::env(RT_MAX_LAYER) met5
+
+# Enable congestion-aware placement
+set ::env(PL_CONGESTION_EFFORT) high
+```
+I didn't have macro_placement_cfg set yet since we had originally determined we could try to have openlane automatically place the SRAM. This is what you gave me as possible content for the macro_placement_cfg file:
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 0 0 N
+sky130_sram_2kbyte_1rw1r_32x512_8 100 0 N
+sky130_sram_2kbyte_1rw1r_32x512_8 200 0 N
+sky130_sram_2kbyte_1rw1r_32x512_8 300 0 N
+```
+This is the verilog where the sram macro is used:
+```
+module matrix_loader (
+	clk,
+	rst_n,
+	enable,
+	matrix_addr,
+	matrix_data,
+	ready
+);
+	reg _sv2v_0;
+	parameter signed [31:0] NUM_ROWS = 64;
+	parameter signed [31:0] NUM_COLS = 64;
+	parameter DATA_WIDTH = 16;
+	parameter BANDWIDTH = 16;
+	localparam signed [31:0] ADDR_WIDTH = $clog2(NUM_ROWS * NUM_COLS);
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	input wire [ADDR_WIDTH - 1:0] matrix_addr;
+	output reg [(DATA_WIDTH * BANDWIDTH) - 1:0] matrix_data;
+	output reg ready;
+	reg [ADDR_WIDTH - 1:0] addr_reg;
+	reg [$clog2(BANDWIDTH):0] chunk_offset;
+	reg loading;
+	wire [31:0] sram_dout0;
+	wire [31:0] sram_dout1;
+	wire [31:0] sram_dout2;
+	wire [31:0] sram_dout3;
+	wire [31:0] unused_dout1;
+	wire [8:0] sram_addr;
+	wire [3:0] csb;
+	wire [ADDR_WIDTH - 1:0] addr;
+	wire [1:0] macro_index;
+	wire halfword_select;
+	reg [15:0] word;
+	assign addr = addr_reg + chunk_offset;
+	assign macro_index = addr[11:10];
+	assign halfword_select = addr[0];
+	assign sram_addr = addr[9:1];
+	assign csb = 4'b1111 & ~(1'b1 << macro_index);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		case (macro_index)
+			2'd0: word = (halfword_select == 1'b0 ? sram_dout0[15:0] : sram_dout0[31:16]);
+			2'd1: word = (halfword_select == 1'b0 ? sram_dout1[15:0] : sram_dout1[31:16]);
+			2'd2: word = (halfword_select == 1'b0 ? sram_dout2[15:0] : sram_dout2[31:16]);
+			2'd3: word = (halfword_select == 1'b0 ? sram_dout3[15:0] : sram_dout3[31:16]);
+			default: word = 16'hxxxx;
+		endcase
+	end
+	sky130_sram_2kbyte_1rw1r_32x512_8 sram0(
+		.clk0(clk),
+		.csb0(csb[0]),
+		.web0(1'b1),
+		.wmask0(4'b0000),
+		.addr0(sram_addr),
+		.din0(32'b00000000000000000000000000000000),
+		.dout0(sram_dout0),
+		.clk1(1'b0),
+		.csb1(1'b1),
+		.addr1(9'b000000000),
+		.dout1(unused_dout1)
+	);
+	sky130_sram_2kbyte_1rw1r_32x512_8 sram1(
+		.clk0(clk),
+		.csb0(csb[1]),
+		.web0(1'b1),
+		.wmask0(4'b0000),
+		.addr0(sram_addr),
+		.din0(32'b00000000000000000000000000000000),
+		.dout0(sram_dout1),
+		.clk1(1'b0),
+		.csb1(1'b1),
+		.addr1(9'b000000000),
+		.dout1(unused_dout1)
+	);
+	sky130_sram_2kbyte_1rw1r_32x512_8 sram2(
+		.clk0(clk),
+		.csb0(csb[2]),
+		.web0(1'b1),
+		.wmask0(4'b0000),
+		.addr0(sram_addr),
+		.din0(32'b00000000000000000000000000000000),
+		.dout0(sram_dout2),
+		.clk1(1'b0),
+		.csb1(1'b1),
+		.addr1(9'b000000000),
+		.dout1(unused_dout1)
+	);
+	sky130_sram_2kbyte_1rw1r_32x512_8 sram3(
+		.clk0(clk),
+		.csb0(csb[3]),
+		.web0(1'b1),
+		.wmask0(4'b0000),
+		.addr0(sram_addr),
+		.din0(32'b00000000000000000000000000000000),
+		.dout0(sram_dout3),
+		.clk1(1'b0),
+		.csb1(1'b1),
+		.addr1(9'b000000000),
+		.dout1(unused_dout1)
+	);
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			addr_reg <= 1'sb0;
+			chunk_offset <= 0;
+			loading <= 1'b0;
+			ready <= 1'b0;
+			begin : sv2v_autoblock_1
+				reg signed [31:0] i;
+				for (i = 0; i < BANDWIDTH; i = i + 1)
+					matrix_data[i * DATA_WIDTH+:DATA_WIDTH] <= 1'sb0;
+			end
+		end
+		else if ((enable && !loading) && !ready) begin
+			addr_reg <= matrix_addr;
+			chunk_offset <= 0;
+			loading <= 1'b1;
+			ready <= 1'b0;
+		end
+		else if (loading) begin
+			matrix_data[chunk_offset * DATA_WIDTH+:DATA_WIDTH] <= $signed(word);
+			chunk_offset <= chunk_offset + 1;
+			if (chunk_offset == (BANDWIDTH - 1)) begin
+				loading <= 1'b0;
+				ready <= 1'b1;
+			end
+			else
+				ready <= 1'b0;
+		end
+		else
+			ready <= 1'b0;
+	initial _sv2v_0 = 0;
+endmodule
+```
+It seems that they are being instanitated and connected to outputs.
+
+I couldn't find the exact yosys logfiles you're referencing, since openlane2 is set up a little differently. I have directories in `runs/<RUN datetime>/` that correspond to different stages, like 05-yosys-jsonheader, 06-yosys-synthesis, 07-checker-yosysunmappedcells, etc.
+
+Let's confirm the desired config.tcl, the contents of macro_placement.cfg, whether the verilog looks like the SRAM macros are used in such a way that they should not be optimized away, then determine whether there's a yosys logfile somewhere I should investigate.
+
+Response: Thanks — you’re in good shape, and we can now walk through a precise checklist for confirming that your SRAM macros are integrated, retained, and placed correctly in OpenLane2. I’ll verify each part of your setup:
+
+✅ 1. Your config.tcl Setup
+
+Looks solid overall. Key parts for SRAM:
+```
+set ::env(EXTRA_LEFS) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+set ::env(EXTRA_GDS_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
+lappend ::env(LIB_FILES) "$::env(DESIGN_DIR)/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+```
+💡 You’re not using a MACRO_PLACEMENT_CFG file yet, so OpenLane will try automatic placement. That’s fine if the macros are visible.
+
+👉 Suggestion: add this (as a fallback):
+```
+set ::env(MACRO_PLACEMENT_CFG) "$::env(DESIGN_DIR)/macro_placement.cfg"
+```
+…and create macro_placement.cfg like this:
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0 -location {50 100} -orient R0
+sky130_sram_2kbyte_1rw1r_32x512_8 sram1 -location {250 100} -orient R0
+sky130_sram_2kbyte_1rw1r_32x512_8 sram2 -location {50 300} -orient R0
+sky130_sram_2kbyte_1rw1r_32x512_8 sram3 -location {250 300} -orient R0
+```
+This guarantees placement and can be tuned later.
+
+✅ 2. Your Verilog Instantiations
+
+You’re instantiating the four SRAM macros correctly:
+```verilog
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0 ( ... );
+...
+sky130_sram_2kbyte_1rw1r_32x512_8 sram3 ( ... );
+```
+✅ They are:
+
+    Wired to outputs (e.g., sram_dout0)
+
+    Used in combinational logic (word = ...)
+
+    Ultimately consumed in the FSM that drives matrix_data
+
+So: these are definitely live. They should not be optimized away by Yosys.
+
+✅ 3. Where to Check Yosys Optimization (OpenLane2)
+
+You’re correct: OpenLane2 splits its Yosys flow across stages. For macro pruning, look here:
+```
+Removing module
+Pruning unused module
+```
+If you see:
+```
+Pruning unused module: sky130_sram_2kbyte_1rw1r_32x512_8
+```
+❌ Then they were eliminated — maybe due to testbench simulation or something not being exercised. But your current design shouldn’t trigger that.
+
+✅ 4. How to Confirm in Floorplan / DEF
+
+Once placement finishes (stage 22), open this file:
+```
+runs/<run-id>/22-floorplan/results/floorplan/<design>.def
+```
+Search for:
+```
+- sram0 sky130_sram_2kbyte_1rw1r_32x512_8 ...
+```
+If they’re there, placement succeeded.
+
+Also, open OpenROAD GUI at that point:
+```
+openroad
+# inside OpenROAD shell:
+read_def runs/<run-id>/22-floorplan/results/floorplan/<design>.def
+gui
+```
+You should see the SRAMs placed visibly on the canvas.
+🧩 Optional: Add (* keep *) to Protect Macros
+
+While unlikely necessary here, you can add:
+```
+(* keep *) sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (...);
+```
+This instructs Yosys to not prune the module even if it looks unused.
+
+✅ Next Steps
+
+Let’s proceed in this order:
+
+    🔍 Search 06-yosys-synthesis/yosys.log for "Pruning" or "Removing"
+
+    🔧 Add macro_placement.cfg and reference it in config.tcl
+
+    ✅ Re-run OpenLane (at least from floorplan stage)
+
+    📐 Open GUI and/or view DEF to confirm SRAM presence
+
+If they’re still not placed, we can dig deeper into DEF/GDS content and connectivity, or investigate cell flattening behavior in Yosys.
+
+Would you like a script snippet to resume from floorplan, or regenerate the SRAM macro placement config with calculated positions?
+
+Prompt: Ok, yes, this made me remember something I was wondering about earlier: the matvec_multiplier module does not directly instantiate a matrix_loader module, which is what uses the SRAM. I have a testbench that instantiates both to perform functional verification. In synthesis, am I supposed to have a top module that instantiates everything I want to use? Or is it enough to tell openlane via my config files that I want all the specified files to be synthesized?
+
+Response: Yes — you absolutely must have a single top-level module that instantiates everything you want synthesized and physically implemented by OpenLane.
+🚨 Why?
+
+OpenLane (and Yosys synthesis) begins from a single entry point: the DESIGN_NAME you specify in config.tcl:
+```
+set ::env(DESIGN_NAME) matvec_multiplier
+```
+This means Yosys will:
+
+    Parse all the files listed in VERILOG_FILES
+
+    Start synthesizing from the matvec_multiplier module
+
+    Prune away anything that is not instantiated from there (including your matrix_loader, and therefore the SRAM macros)
+
+✅ What You Should Do
+
+You should create a new top-level wrapper that instantiates both matvec_multiplier and matrix_loader. For example:
+```verilog
+module matvec_top (
+    input  logic clk,
+    input  logic rst_n,
+    input  logic enable,
+    input  logic [11:0] matrix_addr,
+    input  logic start,
+    output logic done
+);
+
+    logic [255:0] matrix_data;
+    logic ready;
+
+    // Matrix loader: connects to SRAM macros
+    matrix_loader matrix_loader_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .enable(enable),
+        .matrix_addr(matrix_addr),
+        .matrix_data(matrix_data),
+        .ready(ready)
+    );
+
+    // MatVec multiplier
+    matvec_multiplier dut (
+        .clk(clk),
+        .rst_n(rst_n),
+        .start(start),
+        .matrix_data(matrix_data),
+        .done(done)
+        // other connections...
+    );
+
+endmodule
+```
+
+Then update config.tcl:
+```
+set ::env(DESIGN_NAME) matvec_top
+```
+This will:
+
+    Keep matrix_loader live in the netlist
+
+    Retain all sky130_sram_* macros
+
+    Allow OpenLane to synthesize, place, and route the full integrated design
+
+🧪 Bonus: Keep Testbench Separate
+
+Your testbench is useful for simulation only — don’t include it in synthesis. Make sure VERILOG_FILES only lists source files needed for the top-level RTL — not simulation testbenches.
+
+✅ Summary
+| Step | Action                                                               |
+| ---- | -------------------------------------------------------------------- |
+| ✅    | Create new `matvec_top` module that instantiates all real components |
+| ✅    | Set `DESIGN_NAME` to `matvec_top`                                    |
+| ✅    | Confirm `matrix_loader` and SRAM macros are used via instantiation   |
+| ❌    | Do **not** rely on `VERILOG_FILES` alone to preserve modules         |
+| ❌    | Do **not** synthesize a testbench                                    |
+
+Would you like me to generate a draft matvec_top.v based on your current interfaces?
+
+Prompt: Yes, please
+
+Response: Here's a draft of matvec_top.v that instantiates both matvec_multiplier and matrix_loader, assuming you're using 64×64 matrices, 16-bit data width, and 16-wide vector bandwidth:
+
+```verilog
+module matvec_top #(
+    parameter MAX_ROWS   = 64,
+    parameter MAX_COLS   = 64,
+    parameter DATA_WIDTH = 16,
+    parameter BANDWIDTH  = 16
+)(
+    input  logic clk,
+    input  logic rst_n,
+    input  logic start,
+    input  logic enable,
+    input  logic [$clog2(MAX_ROWS * MAX_COLS)-1:0] matrix_addr,
+    output logic done
+);
+
+    // Internal wiring
+    logic [DATA_WIDTH*BANDWIDTH-1:0] matrix_data;
+    logic                             ready;
+
+    // Instantiate matrix loader (SRAM-based)
+    matrix_loader #(
+        .NUM_ROWS(MAX_ROWS),
+        .NUM_COLS(MAX_COLS),
+        .DATA_WIDTH(DATA_WIDTH),
+        .BANDWIDTH(BANDWIDTH)
+    ) matrix_loader_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .enable(enable),
+        .matrix_addr(matrix_addr),
+        .matrix_data(matrix_data),
+        .ready(ready)
+    );
+
+    // Instantiate the matvec multiplier
+    matvec_multiplier #(
+        .MAX_ROWS(MAX_ROWS),
+        .MAX_COLS(MAX_COLS),
+        .DATA_WIDTH(DATA_WIDTH),
+        .BANDWIDTH(BANDWIDTH)
+    ) matvec_multiplier_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .start(start),
+        .matrix_data(matrix_data),
+        .done(done)
+        // add other ports if needed
+    );
+
+endmodule
+```
+
+🛠 Next Steps:
+
+    Save this as src/matvec_top.v.
+
+    Update your config.tcl:
+```
+set ::env(DESIGN_NAME) matvec_top
+```
+    Run synthesis again. The SRAM macros should now stay alive in the netlist and appear in placement/routing stages.
+
+Let me know if you’d like this top to include vector_in, num_rows, or other control/config signals — we can expose them through the top-level wrapper as needed.
+
+Prompt: Yeah, I want a version that is complete, with all the signals I need. This is the verilog for matvec_mult, as a reminder:
+```
+module matvec_multiplier (
+	clk,
+	rst_n,
+	start,
+	num_rows,
+	num_cols,
+	vector_write_enable,
+	vector_base_addr,
+	vector_in,
+	matrix_addr,
+	matrix_enable,
+	matrix_data,
+	matrix_ready,
+	result_out,
+	result_valid,
+	busy
+);
+	parameter MAX_ROWS = 64;
+	parameter MAX_COLS = 64;
+	parameter BANDWIDTH = 16;
+	parameter DATA_WIDTH = 16;
+	parameter VEC_NUM_BANKS = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire start;
+	input wire [$clog2(MAX_ROWS):0] num_rows;
+	input wire [$clog2(MAX_COLS):0] num_cols;
+	input wire vector_write_enable;
+	input wire [$clog2(MAX_COLS) - 1:0] vector_base_addr;
+	input wire signed [(DATA_WIDTH * BANDWIDTH) - 1:0] vector_in;
+	output wire [$clog2(MAX_ROWS * MAX_COLS) - 1:0] matrix_addr;
+	output wire matrix_enable;
+	input wire [(DATA_WIDTH * BANDWIDTH) - 1:0] matrix_data;
+	input wire matrix_ready;
+	output reg signed [(DATA_WIDTH * 2) - 1:0] result_out;
+	output reg result_valid;
+	output wire busy;
+	localparam VEC_BANK_WIDTH = MAX_COLS / VEC_NUM_BANKS;
+	reg [5:0] state;
+	reg [5:0] next_state;
+	reg [$clog2(MAX_ROWS) - 1:0] row_idx;
+	reg [$clog2(MAX_COLS) - 1:0] col_idx;
+	localparam MAC_CHUNK_SIZE = 4;
+	reg [BANDWIDTH - 1:0] num_ops;
+	reg signed [DATA_WIDTH * 2:0] acc;
+	reg [(VEC_BANK_WIDTH * DATA_WIDTH) - 1:0] vector_bank [VEC_NUM_BANKS - 1:0];
+	reg vector_loaded;
+	wire signed [(DATA_WIDTH * 2) - 1:0] mac_result;
+	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] a;
+	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] b;
+	mac4 mac(
+		.a0(a[0+:DATA_WIDTH]),
+		.b0(b[0+:DATA_WIDTH]),
+		.a1(a[1 * DATA_WIDTH+:DATA_WIDTH]),
+		.b1(b[1 * DATA_WIDTH+:DATA_WIDTH]),
+		.a2(a[2 * DATA_WIDTH+:DATA_WIDTH]),
+		.b2(b[2 * DATA_WIDTH+:DATA_WIDTH]),
+		.a3(a[3 * DATA_WIDTH+:DATA_WIDTH]),
+		.b3(b[3 * DATA_WIDTH+:DATA_WIDTH]),
+		.result(mac_result)
+	);
+	always @(posedge clk)
+		if (!rst_n)
+			state <= 6'b000001;
+		else
+			state <= next_state;
+	always @(*) begin
+		next_state = state;
+		(* full_case, parallel_case *)
+		case (state)
+			6'b000001:
+				if (start)
+					next_state = 6'b000010;
+			6'b000010:
+				if (vector_loaded)
+					next_state = 6'b000100;
+			6'b000100: next_state = 6'b001000;
+			6'b001000:
+				if (matrix_ready)
+					next_state = 6'b010000;
+			6'b010000:
+				if ((num_ops + MAC_CHUNK_SIZE) >= BANDWIDTH)
+					next_state = (row_idx < num_rows ? 6'b000100 : 6'b100000);
+				else
+					next_state = 6'b010000;
+			6'b100000: next_state = 6'b000001;
+			default: next_state = state;
+		endcase
+	end
+	always @(posedge clk) begin : sv2v_autoblock_1
+		integer i;
+		if (!rst_n)
+			for (i = 0; i < MAX_COLS; i = i + 1)
+				vector_bank[i] <= 0;
+		else if (vector_write_enable)
+			for (i = 0; i < BANDWIDTH; i = i + 1)
+				vector_bank[(vector_base_addr + i) >> $clog2(VEC_BANK_WIDTH)][((vector_base_addr + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH+:DATA_WIDTH] <= vector_in[i * DATA_WIDTH+:DATA_WIDTH];
+	end
+	always @(posedge clk)
+		if (!rst_n)
+			vector_loaded <= 0;
+		else if (vector_write_enable) begin
+			if ((vector_base_addr + BANDWIDTH) >= num_cols)
+				vector_loaded <= 1;
+			else
+				vector_loaded <= 0;
+		end
+		else if (state == 6'b000001)
+			vector_loaded <= 0;
+	assign matrix_enable = (state == 6'b000100) || (state == 6'b001000);
+	assign matrix_addr = (row_idx * num_cols) + col_idx;
+	reg [$clog2(MAX_ROWS) - 1:0] row_idx_next;
+	reg [$clog2(MAX_COLS) - 1:0] col_idx_next;
+	always @(*) begin
+		row_idx_next = row_idx;
+		col_idx_next = col_idx;
+		if (state == 6'b010000) begin
+			if (((col_idx + MAC_CHUNK_SIZE) >= num_cols) && (row_idx < (num_rows - 1))) begin
+				row_idx_next = row_idx + 1;
+				col_idx_next = 0;
+			end
+			else
+				col_idx_next = col_idx + MAC_CHUNK_SIZE;
+		end
+		else if (state == 6'b000001) begin
+			col_idx_next = 0;
+			row_idx_next = 0;
+		end
+	end
+	always @(posedge clk)
+		if (!rst_n) begin
+			row_idx <= 0;
+			col_idx <= 0;
+		end
+		else begin
+			row_idx <= row_idx_next;
+			col_idx <= col_idx_next;
+		end
+	reg [BANDWIDTH - 1:0] num_ops_next;
+	always @(*)
+		if (state == 6'b010000)
+			num_ops_next = num_ops + MAC_CHUNK_SIZE;
+		else if ((state == 6'b001000) || (state == 6'b000001))
+			num_ops_next = 0;
+		else
+			num_ops_next = num_ops;
+	always @(posedge clk)
+		if (!rst_n)
+			num_ops <= 0;
+		else
+			num_ops <= num_ops_next;
+	reg signed [DATA_WIDTH * 2:0] acc_next;
+	always @(*)
+		if ((col_idx + MAC_CHUNK_SIZE) >= num_cols)
+			acc_next = 0;
+		else if (state == 6'b010000)
+			acc_next = acc + mac_result;
+		else
+			acc_next = acc;
+	always @(posedge clk)
+		if (!rst_n)
+			acc <= 0;
+		else
+			acc <= acc_next;
+	genvar _gv_i_1;
+	generate
+		for (_gv_i_1 = 0; _gv_i_1 < MAC_CHUNK_SIZE; _gv_i_1 = _gv_i_1 + 1) begin : mac_inputs
+			localparam i = _gv_i_1;
+			assign a[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? matrix_data[((col_idx % BANDWIDTH) + i) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
+			assign b[i * DATA_WIDTH+:DATA_WIDTH] = ((state == 6'b010000) && ((col_idx + i) < num_cols) ? vector_bank[(col_idx + i) >> $clog2(VEC_BANK_WIDTH)][((col_idx + i) & (VEC_BANK_WIDTH - 1)) * DATA_WIDTH+:DATA_WIDTH] : {DATA_WIDTH * 1 {1'sb0}});
+		end
+	endgenerate
+	always @(posedge clk)
+		if (!rst_n) begin
+			result_out <= 0;
+			result_valid <= 0;
+		end
+		else if ((state == 6'b010000) && ((col_idx + MAC_CHUNK_SIZE) >= num_cols)) begin
+			result_out <= acc + mac_result;
+			result_valid <= 1;
+		end
+		else
+			result_valid <= 0;
+	assign busy = state != 6'b000001;
+endmodule
+```
+
+Response: Great, based on your full matvec_multiplier module and existing matrix_loader, here is a complete and synthesizable top-level module matvec_top.v that:
+
+    Instantiates both submodules
+
+    Wires all control, address, and data signals
+
+    Exposes all required top-level inputs and outputs
+
+✅ matvec_top.v
+```verilog
+module matvec_top #(
+    parameter MAX_ROWS       = 64,
+    parameter MAX_COLS       = 64,
+    parameter DATA_WIDTH     = 16,
+    parameter BANDWIDTH      = 16,
+    parameter VEC_NUM_BANKS  = 4
+)(
+    input  logic clk,
+    input  logic rst_n,
+    input  logic start,
+    input  logic enable,
+    input  logic vector_write_enable,
+    input  logic [$clog2(MAX_COLS)-1:0] vector_base_addr,
+    input  logic signed [(DATA_WIDTH * BANDWIDTH)-1:0] vector_in,
+    input  logic [$clog2(MAX_ROWS):0] num_rows,
+    input  logic [$clog2(MAX_COLS):0] num_cols,
+
+    output logic signed [(DATA_WIDTH * 2)-1:0] result_out,
+    output logic result_valid,
+    output logic busy
+);
+
+    // Wires between matrix_loader and matvec_multiplier
+    logic [$clog2(MAX_ROWS * MAX_COLS)-1:0] matrix_addr;
+    logic matrix_enable;
+    logic [(DATA_WIDTH * BANDWIDTH)-1:0] matrix_data;
+    logic matrix_ready;
+
+    // Instantiate the matrix loader
+    matrix_loader #(
+        .NUM_ROWS(MAX_ROWS),
+        .NUM_COLS(MAX_COLS),
+        .DATA_WIDTH(DATA_WIDTH),
+        .BANDWIDTH(BANDWIDTH)
+    ) matrix_loader_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .enable(matrix_enable),
+        .matrix_addr(matrix_addr),
+        .matrix_data(matrix_data),
+        .ready(matrix_ready)
+    );
+
+    // Instantiate the matvec multiplier
+    matvec_multiplier #(
+        .MAX_ROWS(MAX_ROWS),
+        .MAX_COLS(MAX_COLS),
+        .DATA_WIDTH(DATA_WIDTH),
+        .BANDWIDTH(BANDWIDTH),
+        .VEC_NUM_BANKS(VEC_NUM_BANKS)
+    ) matvec_multiplier_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .start(start),
+        .num_rows(num_rows),
+        .num_cols(num_cols),
+        .vector_write_enable(vector_write_enable),
+        .vector_base_addr(vector_base_addr),
+        .vector_in(vector_in),
+        .matrix_addr(matrix_addr),
+        .matrix_enable(matrix_enable),
+        .matrix_data(matrix_data),
+        .matrix_ready(matrix_ready),
+        .result_out(result_out),
+        .result_valid(result_valid),
+        .busy(busy)
+    );
+
+endmodule
+```
+
+🛠 Next Steps:
+
+    Save this file as:
+    src/matvec_top.v
+
+    Update your config.tcl:
+```
+set ::env(DESIGN_NAME) matvec_top
+```
+Confirm that matvec_top is included in your VERILOG_FILES glob:
+```
+set ::env(VERILOG_FILES) [glob $::env(DESIGN_DIR)/src/*.v]
+```
+    Re-run synthesis with OpenLane2.
+
+Let me know if you want to expose additional signals like control FSM state, or if you'd like to include wrapper logic for test pattern generation.
+
+Prompt: Ok, great. I want to do one more thing to confirm I'm using the right config file. You said that config.tcl and config.json should both be used. Right now, I'm calling openlane with `openlane config.json`. Will that automatically also check for config.tcl?
+
+Response: Yes — OpenLane2 does automatically load config.tcl if it exists in the same directory as config.json, even when you invoke it like:
+```
+openlane config.json
+```
+Here’s how it works internally:
+🔍 How OpenLane2 handles config files:
+
+    config.json is the entry point, used to define high-level flow configuration (stages, paths, variables).
+
+    When config.json specifies the design_dir, OpenLane will automatically look for config.tcl inside that directory.
+
+    If found, it sources config.tcl and applies its variables.
+
+✅ To confirm:
+
+Make sure your config.json has this entry (or equivalent):
+```
+{
+  "design_dir": "your/design/path"
+}
+```
+Then in that directory:
+```
+your/design/path/
+├── config.json
+├── config.tcl   <-- ✔ Will be automatically sourced
+├── src/
+│   └── ...
+```
+You can also verify during a run by looking at the OpenLane output — you'll see a log line like:
+```
+[INFO] Sourcing design config from /your/path/config.tcl
+```
+
+Let me know if you want a quick sanity check command to dump your config variables mid-run

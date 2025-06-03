@@ -37,7 +37,7 @@ module matrix_loader #(
     assign sram_addr = addr[9:1];
     assign csb = 4'b1111 & ~(1'b1 << macro_index);
 
-    always_comb begin
+    always @(*) begin
         case (macro_index)
             2'd0: word = (halfword_select == 1'b0) ? sram_dout0[15:0]  : sram_dout0[31:16];
             2'd1: word = (halfword_select == 1'b0) ? sram_dout1[15:0]  : sram_dout1[31:16];

@@ -1,4 +1,4 @@
-set ::env(DESIGN_NAME) matvec_multiplier
+set ::env(DESIGN_NAME) matvec_mult_top
 
 set ::env(CLOCK_PORT) "clk"
 set ::env(CLOCK_PERIOD) "40.0"
@@ -9,13 +9,17 @@ set ::env(VERILOG_FILES) [glob $::env(DESIGN_DIR)/src/*.v]
 # Floorplan defaults
 # FP_CORE_UTIL may be increased to reduce cell density and
 # make routing easier, but this will increase area.
-set ::env(FP_CORE_UTIL) 50
+set ::env(FP_CORE_UTIL) 60
 set ::env(FP_ASPECT_RATIO) 1.0
 set ::env(FP_CORE_MARGIN) 2
+set ::env(PL_TARGET_DENSITY) 0.55
 
-# Allow automatic macro placement
-# Going to let OpenLane try to handle this initially
-# set ::env(MACRO_PLACEMENT_CFG) $::env(DESIGN_DIR)/macro_placement.cfg
+set ::env(SYNTH_MAX_FANOUT) 20
+
+# Specify macro placement
+# May try to let OpenLane try to handle this by commenting out the
+# macro_placement.cfg file
+set ::env(MACRO_PLACEMENT_CFG) $::env(DESIGN_DIR)/macro_placement.cfg
 set ::env(PL_MACROS_GRID) 1
 
 # SRAM macro files
