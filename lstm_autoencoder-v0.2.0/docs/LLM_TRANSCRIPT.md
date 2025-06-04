@@ -20465,4 +20465,292 @@ You will likely get a similar combinational error — if so, this confirms the Y
 
 Would you like a minimal edited version of matrix_loader.v that includes these changes?
 
+Prompt: This is from `yosys -p 'read_verilog -sv -D SYNTHESIS -D USE_POWER_PINS src/*.v; hierarchy -top matvec_mult_top; proc; flatten; opt; check'`
+
+```
+10. Executing CHECK pass (checking for obvious problems).
+Checking module matvec_mult_top...
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [31]:
+    port dout1[31] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[31] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[31] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[31] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [30]:
+    port dout1[30] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[30] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[30] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[30] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [29]:
+    port dout1[29] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[29] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[29] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[29] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [28]:
+    port dout1[28] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[28] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[28] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[28] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [27]:
+    port dout1[27] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[27] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[27] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[27] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [26]:
+    port dout1[26] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[26] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[26] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[26] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [25]:
+    port dout1[25] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[25] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[25] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[25] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [24]:
+    port dout1[24] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[24] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[24] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[24] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [23]:
+    port dout1[23] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[23] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[23] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[23] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [22]:
+    port dout1[22] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[22] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[22] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[22] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [21]:
+    port dout1[21] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[21] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[21] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[21] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [20]:
+    port dout1[20] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[20] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[20] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[20] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [19]:
+    port dout1[19] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[19] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[19] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[19] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [18]:
+    port dout1[18] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[18] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[18] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[18] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [17]:
+    port dout1[17] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[17] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[17] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[17] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [16]:
+    port dout1[16] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[16] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[16] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[16] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [15]:
+    port dout1[15] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[15] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[15] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[15] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [14]:
+    port dout1[14] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[14] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[14] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[14] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [13]:
+    port dout1[13] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[13] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[13] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[13] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [12]:
+    port dout1[12] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[12] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[12] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[12] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [11]:
+    port dout1[11] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[11] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[11] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[11] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [10]:
+    port dout1[10] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[10] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[10] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[10] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [9]:
+    port dout1[9] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[9] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[9] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[9] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [8]:
+    port dout1[8] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[8] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[8] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[8] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [7]:
+    port dout1[7] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[7] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[7] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[7] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [6]:
+    port dout1[6] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[6] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[6] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[6] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [5]:
+    port dout1[5] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[5] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[5] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[5] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [4]:
+    port dout1[4] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[4] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[4] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[4] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [3]:
+    port dout1[3] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[3] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[3] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[3] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [2]:
+    port dout1[2] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[2] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[2] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[2] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [1]:
+    port dout1[1] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[1] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[1] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[1] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [0]:
+    port dout1[0] of cell matrix_loader_inst.sram0 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[0] of cell matrix_loader_inst.sram1 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[0] of cell matrix_loader_inst.sram2 (sky130_sram_2kbyte_1rw1r_32x512_8)
+    port dout1[0] of cell matrix_loader_inst.sram3 (sky130_sram_2kbyte_1rw1r_32x512_8)
+Found and reported 32 problems.
+
+Warnings: 32 unique messages, 32 total
+End of script. Logfile hash: 15db1ec385, CPU: user 1.11s system 0.14s, MEM: 134.98 MB peak
+Yosys 0.46 (git sha1 e97731b9dda91fa5fa53ed87df7c34163ba59a41, clang
+```
+
+Response: Excellent — this is very revealing.
+🧠 Root Cause Identified
+
+You are driving a single wire (unused_dout1) from four different SRAM macros simultaneously:
+
+Warning: multiple conflicting drivers for matvec_mult_top.\matrix_loader_inst.unused_dout1 [31]:
+    port dout1[31] of cell sram0
+    port dout1[31] of cell sram1
+    port dout1[31] of cell sram2
+    port dout1[31] of cell sram3
+
+This happens for every bit [0] to [31] of the unused_dout1 signal, meaning:
+
+    ❌ You connected all the dout1 ports of sram0–sram3 to the same wire, unused_dout1.
+
+This creates a multi-driver bus, which is illegal in synthesis unless explicitly tri-stated — and even then, it can break analysis (especially in Yosys). This is likely what triggers ABC to fail with:
+
+ABC: Error: The network is combinational.
+
+🔧 Fix It
+
+You have two valid options:
+✅ Option 1: Disconnect dout1 completely
+
+If you're not using dout1 (i.e. the read-port output), just leave it unconnected in each instance:
+
+.sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (
+  ...
+  .dout1(), // unconnected
+  ...
+);
+
+Repeat for sram1, sram2, and sram3.
+
+This tells Yosys that you're not using that output, so it won’t try to wire multiple outputs into one line
+
+✅ Option 2: Give each dout1 its own wire
+
+If you do need access to dout1, declare separate wires:
+
+logic [31:0] sram0_dout1, sram1_dout1, sram2_dout1, sram3_dout1;
+
+Then connect them:
+
+.sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (
+  ...
+  .dout1(sram0_dout1),
+  ...
+);
+
+You can safely discard them later or mux them conditionally — but the key is: each macro drives its own signal, not a shared one.
+
+🧼 Bonus: Clean Up Unused Outputs
+
+If dout1 isn’t used in your flow:
+
+    Declare it as unconnected (.dout1())
+
+    Or /* verilator lint_off UNUSED */ if needed
+
+This prevents Yosys and Verilator from flagging them.
+✅ Confirmed: This Explains the “Combinational” Network
+
+    ABC sees multiple outputs shorted together → can't resolve timing or clock domains → assumes combinational → errors out.
+
+So while your actual logic is sequential, Yosys's view of this multi-driver net turns it into an invalid combinational loop.
+
+Would you like me to generate a corrected matrix_loader.v header and SRAM instantiation block based on this?
+
+Prompt: Show me a snippet with `/* verilator lint_off UNUSED */` usage. These signals only got added to silence a linter issue
+
+Response: Perfect — if you're only assigning these outputs to silence Verilator, and you're not actually using them functionally, you can suppress the warning cleanly.
+
+Here’s a recommended pattern using /* verilator lint_off UNUSED */:
+✅ Example
+
+/* verilator lint_off UNUSED */
+logic [31:0] unused_dout1_0, unused_dout1_1, unused_dout1_2, unused_dout1_3;
+/* verilator lint_on UNUSED */
+
+sky130_sram_2kbyte_1rw1r_32x512_8 sram0 (
+    // ...
+    .dout1(unused_dout1_0),
+    // ...
+);
+
+sky130_sram_2kbyte_1rw1r_32x512_8 sram1 (
+    // ...
+    .dout1(unused_dout1_1),
+    // ...
+);
+
+sky130_sram_2kbyte_1rw1r_32x512_8 sram2 (
+    // ...
+    .dout1(unused_dout1_2),
+    // ...
+);
+
+sky130_sram_2kbyte_1rw1r_32x512_8 sram3 (
+    // ...
+    .dout1(unused_dout1_3),
+    // ...
+);
+
+🔒 Why This Works
+
+    Verilator sees that unused_dout1_N is not used.
+
+    Normally this triggers a warning: UNUSED.
+
+    By wrapping the declaration in /* lint_off */, you tell Verilator: “Yes, I know it’s unused — that’s intentional.”
+
+It’s best practice to scope lint_off narrowly like above — just around the relevant signal declarations — so you don’t unintentionally silence other unused signals.
+
+Let me know if you want to wrap this into a macro or add a dummy assign instead (e.g., assign _ = unused_dout1_0).
+
 

@@ -71,6 +71,12 @@ The tool [sv2v](https://github.com/zachjs/sv2v) was used to convert the SystemVe
 sv2v --write=adjacent --define=USE_SRAM_MACRO matrix_loader.sv mac4.sv matvec_mult.sv
 ```
 
+#### Troubleshooting Synthesis
+
+```sh
+yosys -p 'read_verilog -sv -D SYNTHESIS -D USE_POWER_PINS src/*.v; hierarchy -top matvec_mult_top; proc; flatten; opt; check'
+```
+
 ## Future Work
 
 ### Controller for Multiple Layers, Gates, and Weights
