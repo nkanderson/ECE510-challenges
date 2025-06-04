@@ -74,8 +74,7 @@
   },
   "pdk::sky130A": {
     "VDD_PIN": "vccd1",
-    "GND_PIN": "vssd1",
-    "DEFAULT_CORNER": "sky130_fd_sc_hd__tt_025C_1v80"
+    "GND_PIN": "vssd1"
   },
   "FP_CORE_UTIL": 30,
   "PL_TARGET_DENSITY_PCT": 28.0,
