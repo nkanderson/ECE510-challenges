@@ -15,15 +15,6 @@
     2000.0,
     2000.0
   ],
-  "EXTRA_LEFS": [
-    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
-  ],
-  "EXTRA_GDS_FILES": [
-    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
-  ],
-  "EXTRA_LIBS": [
-    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
-  ],
   "MACROS": {
     "sky130_sram_2kbyte_1rw1r_32x512_8": {
       "gds": [
@@ -70,11 +61,17 @@
     }
   },
   "pdk::sky130A": {
-    "FP_CORE_UTIL": 40,
-    "PL_TARGET_DENSITY_PCT": 0.30,
     "VDD_PIN": "vccd1",
     "GND_PIN": "vssd1"
   },
+  "VDD_NETS": [
+    "vccd1"
+  ],
+  "GND_NETS": [
+    "vssd1"
+  ],
+  "FP_CORE_UTIL": 60,
+  "PL_TARGET_DENSITY_PCT": 0.20,
   "LINTER_DEFINES": [
     "SYNTHESIS",
     "USE_POWER_PINS"
