@@ -23,19 +23,19 @@
         ]
       },
       "instances": {
-        "sram0": {
+        "matrix_loader_inst.sram0": {
           "location": null,
           "orientation": null
         },
-        "sram1": {
+        "matrix_loader_inst.sram1": {
           "location": null,
           "orientation": null
         },
-        "sram2": {
+        "matrix_loader_inst.sram2": {
           "location": null,
           "orientation": null
         },
-        "sram3": {
+        "matrix_loader_inst.sram3": {
           "location": null,
           "orientation": null
         }
