@@ -24,25 +24,36 @@
       },
       "instances": {
         "matrix_loader_inst.sram0": {
-          "location": null,
-          "orientation": null
+          "location": [
+            100,
+            100
+          ],
+          "orientation": "N"
         },
         "matrix_loader_inst.sram1": {
-          "location": null,
-          "orientation": null
+          "location": [
+            100,
+            300
+          ],
+          "orientation": "N"
         },
         "matrix_loader_inst.sram2": {
-          "location": null,
-          "orientation": null
+          "location": [
+            300,
+            100
+          ],
+          "orientation": "N"
         },
         "matrix_loader_inst.sram3": {
-          "location": null,
-          "orientation": null
+          "location": [
+            300,
+            300
+          ],
+          "orientation": "N"
         }
       }
     }
   },
-  "MACRO_PLACEMENT_CFG": "dir::/macro_placement.cfg",
   "pdk::sky130A": {
     "FP_CORE_UTIL": 60,
     "PL_TARGET_DENSITY_PCT": 0.55,
