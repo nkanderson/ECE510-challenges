@@ -1,4 +1,5 @@
 module mac4 (
+	clk,
 	a0,
 	b0,
 	a1,
@@ -10,6 +11,7 @@ module mac4 (
 	result
 );
 	parameter DATA_WIDTH = 16;
+	input wire clk;
 	input wire signed [DATA_WIDTH - 1:0] a0;
 	input wire signed [DATA_WIDTH - 1:0] b0;
 	input wire signed [DATA_WIDTH - 1:0] a1;

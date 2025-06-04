@@ -1,4 +1,4 @@
-module matvec_multiplier #(
+module matvec_mult #(
     parameter MAX_ROWS = 64,
     parameter MAX_COLS = 64,
     parameter BANDWIDTH = 16,
@@ -63,6 +63,7 @@ module matvec_multiplier #(
 
     // TODO: Consider using multiple MACs in parallel to improve throughput
     mac4 mac(
+              .clk(clk),
               .a0(a[0*DATA_WIDTH +: DATA_WIDTH]), .b0(b[0*DATA_WIDTH +: DATA_WIDTH]),
               .a1(a[1*DATA_WIDTH +: DATA_WIDTH]), .b1(b[1*DATA_WIDTH +: DATA_WIDTH]),
               .a2(a[2*DATA_WIDTH +: DATA_WIDTH]), .b2(b[2*DATA_WIDTH +: DATA_WIDTH]),

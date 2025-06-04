@@ -1,6 +1,8 @@
 module mac4 #(
     parameter DATA_WIDTH = 16
 )(
+    // clk signal is for synthesis
+    input  logic clk,
     input  logic signed [DATA_WIDTH-1:0] a0, b0,
     input  logic signed [DATA_WIDTH-1:0] a1, b1,
     input  logic signed [DATA_WIDTH-1:0] a2, b2,

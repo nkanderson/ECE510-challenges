@@ -1,4 +1,4 @@
-module matvec_multiplier (
+module matvec_mult (
 	clk,
 	rst_n,
 	start,
@@ -49,6 +49,7 @@ module matvec_multiplier (
 	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] a;
 	wire [(DATA_WIDTH * MAC_CHUNK_SIZE) - 1:0] b;
 	mac4 mac(
+		.clk(clk),
 		.a0(a[0+:DATA_WIDTH]),
 		.b0(b[0+:DATA_WIDTH]),
 		.a1(a[1 * DATA_WIDTH+:DATA_WIDTH]),

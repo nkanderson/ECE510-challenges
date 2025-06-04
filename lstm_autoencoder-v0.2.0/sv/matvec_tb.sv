@@ -73,7 +73,7 @@ module matvec_tb;
     // === DUT instantiations ===
     //
     // For 4x4
-    matvec_multiplier #(
+    matvec_mult #(
         .MAX_ROWS(MIN_ROWS),
         .MAX_COLS(MIN_COLS),
         .BANDWIDTH(BANDWIDTH_4X4),
@@ -104,7 +104,7 @@ module matvec_tb;
     );
 
     // For 32x32
-    matvec_multiplier #(
+    matvec_mult #(
         .MAX_ROWS(HALF_ROWS),
         .MAX_COLS(HALF_COLS),
         .BANDWIDTH(MAX_BANDWIDTH),
@@ -135,7 +135,7 @@ module matvec_tb;
     );
 
     // For 64x64
-    matvec_multiplier #(
+    matvec_mult #(
         .MAX_ROWS(MAX_ROWS),
         .MAX_COLS(MAX_COLS),
         .BANDWIDTH(MAX_BANDWIDTH),

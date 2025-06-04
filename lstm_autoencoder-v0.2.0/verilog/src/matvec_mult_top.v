@@ -46,13 +46,13 @@ module matvec_mult_top #(
     );
 
     // Instantiate the matvec multiplier
-    matvec_multiplier #(
+    matvec_mult #(
         .MAX_ROWS(MAX_ROWS),
         .MAX_COLS(MAX_COLS),
         .DATA_WIDTH(DATA_WIDTH),
         .BANDWIDTH(BANDWIDTH),
         .VEC_NUM_BANKS(VEC_NUM_BANKS)
-    ) matvec_multiplier_inst (
+    ) matvec_mult_inst (
         .clk(clk),
         .rst_n(rst_n),
         .start(start),
