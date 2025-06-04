@@ -15,9 +15,6 @@
     1000.0,
     1000.0
   ],
-  "EXTRA_LIBS": [
-    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
-  ],
   "PDN_MACRO_CONNECTIONS": [
     "matrix_loader_inst.sram.* vccd1 vssd1 vccd1 vssd1"
   ],
@@ -30,13 +27,31 @@
         "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
       ],
       "lib": {
-        "sky130_fd_sc_hd__tt_025C_1v80": [
+        "nom_tt_025C_1v80": [
           "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
         ],
-        "sky130_fd_sc_hd__ss_100C_1v60": [
+        "nom_ss_100C_1v60": [
           "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
         ],
-        "sky130_fd_sc_hd__ff_n40C_1v95": [
+        "nom_ff_n40C_1v95": [
+          "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+        ],
+        "min_tt_025C_1v80": [
+          "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+        ],
+        "min_ss_100C_1v60": [
+          "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+        ],
+        "min_ff_n40C_1v95": [
+          "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+        ],
+        "max_tt_025C_1v80": [
+          "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+        ],
+        "max_ss_100C_1v60": [
+          "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+        ],
+        "max_ff_n40C_1v95": [
           "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
         ]
       },

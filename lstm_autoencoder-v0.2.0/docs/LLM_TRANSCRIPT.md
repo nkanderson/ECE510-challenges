@@ -23103,3 +23103,433 @@ That likely means:
     Or there’s a path resolution error (e.g., the macro .lib isn’t being found even though the path looks right).
 
 Would you like help dumping the resolved config and checking the fully expanded macro .lib list that OpenLane sees for your corner? That’s the next best debugging move.
+
+Prompt: Maybe. First I'd like to review this output selected from different points of the latest run:
+```
+
+─────────────────────────────────────────────────────────────────────────────── Static Timing Analysis (Pre-PnR) ────────────────────────────────────────────────────────────────────────────────
+[10:27:51] VERBOSE  Running 'OpenROAD.STAPrePNR' at 'runs/RUN_2025-06-04_10-18-15/12-openroad-staprepnr'…                                                                            step.py:1122
+[10:27:51] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner nom_tt_025C_1v80. The module will be black-boxed.                                          toolbox.py:283
+[10:27:51] INFO     Starting STA for the nom_tt_025C_1v80 timing corner…                                                                                                          openroad.py:561
+[10:27:51] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner nom_ss_100C_1v60. The module will be black-boxed.                                          toolbox.py:283
+[10:27:51] INFO     Starting STA for the nom_ss_100C_1v60 timing corner…                                                                                                          openroad.py:561
+[10:27:51] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner nom_ff_n40C_1v95. The module will be black-boxed.                                          toolbox.py:283
+[10:27:51] INFO     Starting STA for the nom_ff_n40C_1v95 timing corner…                                                                                                          openroad.py:561
+[10:27:51] VERBOSE  Logging subprocess to 'runs/RUN_2025-06-04_10-18-15/12-openroad-staprepnr/nom_tt_025C_1v80/sta.log'…                                                             step.py:1318
+[10:27:51] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner min_tt_025C_1v80. The module will be black-boxed.                                          toolbox.py:283
+[10:27:51] INFO     Skipping corner min_tt_025C_1v80 for STA (identical to nom_tt_025C_1v80 at this stage)…                                                                       openroad.py:599
+[10:27:51] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner min_ss_100C_1v60. The module will be black-boxed.                                          toolbox.py:283
+[10:27:51] INFO     Skipping corner min_ss_100C_1v60 for STA (identical to nom_ss_100C_1v60 at this stage)…                                                                       openroad.py:599
+[10:27:51] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner min_ff_n40C_1v95. The module will be black-boxed.                                          toolbox.py:283
+[10:27:51] INFO     Skipping corner min_ff_n40C_1v95 for STA (identical to nom_ff_n40C_1v95 at this stage)…                                                                       openroad.py:599
+[10:27:51] VERBOSE  Logging subprocess to 'runs/RUN_2025-06-04_10-18-15/12-openroad-staprepnr/nom_ss_100C_1v60/sta.log'…                                                             step.py:1318
+[10:27:51] VERBOSE  Logging subprocess to 'runs/RUN_2025-06-04_10-18-15/12-openroad-staprepnr/nom_ff_n40C_1v95/sta.log'…                                                             step.py:1318
+[10:27:51] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner max_tt_025C_1v80. The module will be black-boxed.                                          toolbox.py:283
+[10:27:51] INFO     Skipping corner max_tt_025C_1v80 for STA (identical to nom_tt_025C_1v80 at this stage)…                                                                       openroad.py:599
+[10:27:51] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner max_ss_100C_1v60. The module will be black-boxed.                                          toolbox.py:283
+[10:27:51] INFO     Skipping corner max_ss_100C_1v60 for STA (identical to nom_ss_100C_1v60 at this stage)…                                                                       openroad.py:599
+[10:27:51] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner max_ff_n40C_1v95. The module will be black-boxed.                                          toolbox.py:283
+[10:27:51] INFO     Skipping corner max_ff_n40C_1v95 for STA (identical to nom_ff_n40C_1v95 at this stage)…                                                                       openroad.py:599
+[10:28:04] INFO     Finished STA for the nom_ff_n40C_1v95 timing corner.                                                                                                          openroad.py:576
+[10:28:04] INFO     Finished STA for the nom_tt_025C_1v80 timing corner.                                                                                                          openroad.py:576
+[10:28:05] INFO     Finished STA for the nom_ss_100C_1v60 timing corner.
+
+
+
+Updating metrics…                                                                                                                                                                                
+Cell type report:                       Count       Area                                                                                                                                         
+Macro                                     4 1138153.90                                                                                                                                           
+Inverter                                156     585.56                                                                                                                                           
+Sequential cell                        1397   29714.75                                                                                                                                           
+Multi-Input combinational cell        25593  244071.58                                                                                                                                           
+Total                                 27150 1412525.79  
+
+
+Placing the following macros:                                                                                                                                                                    
+{'matrix_loader_inst.sram0': ['matrix_loader_inst.sram0', 100000, 100000, 'N'], 'matrix_loader_inst.sram1': ['matrix_loader_inst.sram1', 100000, 300000, 'N'], 'matrix_loader_inst.sram2':       
+['matrix_loader_inst.sram2', 300000, 100000, 'N'], 'matrix_loader_inst.sram3': ['matrix_loader_inst.sram3', 300000, 300000, 'N']}                                                                
+Design name: matvec_mult_top                                                                                                                                                                     
+Placing matrix_loader_inst.sram0                                                                                                                                                                 
+Placing matrix_loader_inst.sram1                                                                                                                                                                 
+Placing matrix_loader_inst.sram2                                                                                                                                                                 
+Placing matrix_loader_inst.sram3                                                                                                                                                                 
+Successfully placed 4 instances.  
+
+
+Reading design constraints file at '/nix/store/b5k0h8cjlpypdp7lb98p9n8qqanyralc-python3-3.11.9-env/lib/python3.11/site-packages/openlane/scripts/base.sdc'…                                      
+[INFO] Using clock clk…                                                                                                                                                                          
+[INFO] Setting output delay to: 8.0                                                                                                                                                              
+[INFO] Setting input delay to: 8.0                                                                                                                                                               
+[INFO] Setting load to: 0.033442                                                                                                                                                                 
+[INFO] Setting clock uncertainty to: 0.25                                                                                                                                                        
+[INFO] Setting clock transition to: 0.1499999999999999944488848768742172978818416595458984375                                                                                                    
+[INFO] Setting timing derate to: 5%                                                                                                                                                              
++ global_placement -density 0.28 -skip_io -pad_right 0 -pad_left 0 -init_wirelength_coef 0.25                                                                                                    
+[INFO GPL-0002] DBU: 1000                                                                                                                                                                        
+[INFO GPL-0003] SiteSize: (  0.460  2.720 ) um                                                                                                                                                   
+[INFO GPL-0004] CoreBBox: (  5.520 10.880 ) ( 2175.340 2178.720 ) um                                                                                                                             
+[INFO GPL-0006] NumInstances:             88618                                                                                                                                                  
+[INFO GPL-0007] NumPlaceInstances:        27146                                                                                                                                                  
+[INFO GPL-0008] NumFixedInstances:        61009                                                                                                                                                  
+[INFO GPL-0009] NumDummyInstances:          463                                                                                                                                                  
+[INFO GPL-0010] NumNets:                  27683                                                                                                                                                  
+[INFO GPL-0011] NumPins:                 115341                                                                                                                                                  
+[INFO GPL-0012] DieBBox:  (  0.000  0.000 ) ( 2180.930 2191.650 ) um                                                                                                                             
+[INFO GPL-0013] CoreBBox: (  5.520 10.880 ) ( 2175.340 2178.720 ) um                                                                                                                             
+[INFO GPL-0016] CoreArea:            4703822.589 um^2                                                                                                                                            
+[INFO GPL-0017] NonPlaceInstsArea:   1256281.123 um^2                                                                                                                                            
+[INFO GPL-0018] PlaceInstsArea:      274371.894 um^2                                                                                                                                             
+[INFO GPL-0019] Util:                     7.958 %                                                                                                                                                
+[INFO GPL-0020] StdInstsArea:        274371.894 um^2                                                                                                                                             
+[INFO GPL-0021] MacroInstsArea:           0.000 um^2                                                                                                                                             
+[INFO GPL-0031] FillerInit:NumGCells:     98220                                                                                                                                                  
+[INFO GPL-0032] FillerInit:NumGNets:      27683                                                                                                                                                  
+[INFO GPL-0033] FillerInit:NumGPins:     115341                                                                                                                                                  
+[INFO GPL-0023] TargetDensity:            0.280                                                                                                                                                  
+[INFO GPL-0024] AvrgPlaceInstArea:       10.107 um^2                                                                                                                                             
+[INFO GPL-0025] IdealBinArea:            36.097 um^2                                                                                                                                             
+[INFO GPL-0026] IdealBinCnt:             130309                                                                                                                                                  
+[INFO GPL-0027] TotalBinArea:        4703822.589 um^2                                                                                                                                            
+[INFO GPL-0028] BinCnt:       256    256                                                                                                                                                         
+[INFO GPL-0029] BinSize: (  8.476  8.469 )                                                                                                                                                       
+[INFO GPL-0030] NumBins: 65536      
+
+
+[NesterovSolve] Iter: 2230 overflow: 0.624 HPWL: 15590576674                                                                                                                                     
+[10:28:57] ERROR    [GPL-0305] RePlAce diverged at newStepLength.                                                                                                                 openroad.py:233
+Error: gpl.tcl, 79 GPL-0305                                                                                                                                                                      
+Classic - Stage 23 - Global Placement Skip IO ━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 22/78 0:10:42
+[10:28:58] WARNING  The following warnings were generated by the flow:                                                                                                                flow.py:673
+[10:28:58] WARNING  [Checker.LintWarnings] 26 Lint warnings found.                                                                                                                    flow.py:675
+[10:28:58] WARNING  [OpenROAD.CheckSDCFiles] 'PNR_SDC_FILE' is not defined. Using generic fallback SDC for OpenROAD PnR steps.                                                        flow.py:675
+[10:28:58] WARNING  [OpenROAD.CheckSDCFiles] 'SIGNOFF_SDC_FILE' is not defined. Using generic fallback SDC for OpenROAD PnR steps.                                                    flow.py:675
+[10:28:58] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner nom_tt_025C_1v80. The module will be black-boxed. (and 1 similar warnings)                    flow.py:675
+[10:28:58] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner nom_ss_100C_1v60. The module will be black-boxed.                                             flow.py:675
+[10:28:58] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner nom_ff_n40C_1v95. The module will be black-boxed.                                             flow.py:675
+[10:28:58] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner min_tt_025C_1v80. The module will be black-boxed.                                             flow.py:675
+[10:28:58] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner min_ss_100C_1v60. The module will be black-boxed.                                             flow.py:675
+[10:28:58] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner min_ff_n40C_1v95. The module will be black-boxed.                                             flow.py:675
+[10:28:58] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner max_tt_025C_1v80. The module will be black-boxed.                                             flow.py:675
+[10:28:58] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner max_ss_100C_1v60. The module will be black-boxed.                                             flow.py:675
+[10:28:58] WARNING  No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner max_ff_n40C_1v95. The module will be black-boxed.                                             flow.py:675
+[10:28:58] WARNING  [OpenROAD.Floorplan] [ODB-0229] Error: library (sky130_sram_2kbyte_1rw1r_32x512_8) already exists                                                                 flow.py:675
+[10:28:58] WARNING  [Odb.CheckMacroAntennaProperties] Cell 'sky130_sram_2kbyte_1rw1r_32x512_8' has (59) input pin(s) without antenna gate information. They might not be connected to flow.py:675
+                    a gate. (and 1 similar warnings)                                                                                                                                             
+[10:28:58] ERROR    The following error was encountered while running the flow:                                                                                                   __main__.py:187
+                    OpenROAD.GlobalPlacementSkipIO failed with the following errors:                                                                                                             
+                    [GPL-0305] RePlAce diverged at newStepLength.                                                                                                                                
+[10:28:58] ERROR    OpenLane will now quit.   
+```
+
+It shows that a total macro area is determined during STA, but only some of the corners were not skipped. The macros are shown as placed later. Then during global placement, the macro instances area is zero.
+
+this is the current config:
+```
+{
+  "DESIGN_NAME": "matvec_mult_top",
+  "VERILOG_FILES": [
+    "dir::/src/matvec_mult_top.v",
+    "dir::/src/matvec_mult.v",
+    "dir::/src/matrix_loader.v",
+    "dir::/src/mac4.v",
+    "dir::/src/sky130_sram_2kbyte_1rw1r_32x512_8.v"
+  ],
+  "CLOCK_PERIOD": 40.0,
+  "CLOCK_PORT": "clk",
+  "DIE_AREA": [
+    0.0,
+    0.0,
+    1000.0,
+    1000.0
+  ],
+  "EXTRA_LIBS": [
+    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+  ],
+  "EXTRA_LEFS": [
+    "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+  ],
+  "PDN_MACRO_CONNECTIONS": [
+    "matrix_loader_inst.sram.* vccd1 vssd1 vccd1 vssd1"
+  ],
+  "MACROS": {
+    "sky130_sram_2kbyte_1rw1r_32x512_8": {
+      "gds": [
+        "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
+      ],
+      "lef": [
+        "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+      ],
+      "lib": {
+        "sky130_fd_sc_hd__tt_025C_1v80": [
+          "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+        ],
+        "sky130_fd_sc_hd__ss_100C_1v60": [
+          "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+        ],
+        "sky130_fd_sc_hd__ff_n40C_1v95": [
+          "dir::/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+        ]
+      },
+      "instances": {
+        "matrix_loader_inst.sram0": {
+          "location": [
+            100,
+            100
+          ],
+          "orientation": "N"
+        },
+        "matrix_loader_inst.sram1": {
+          "location": [
+            100,
+            300
+          ],
+          "orientation": "N"
+        },
+        "matrix_loader_inst.sram2": {
+          "location": [
+            300,
+            100
+          ],
+          "orientation": "N"
+        },
+        "matrix_loader_inst.sram3": {
+          "location": [
+            300,
+            300
+          ],
+          "orientation": "N"
+        }
+      }
+    }
+  },
+  "pdk::sky130A": {
+    "VDD_PIN": "vccd1",
+    "GND_PIN": "vssd1"
+  },
+  "FP_CORE_UTIL": 30,
+  "PL_TARGET_DENSITY_PCT": 28.0,
+  "LINTER_DEFINES": [
+    "SYNTHESIS",
+    "USE_POWER_PINS"
+  ],
+  "VERILOG_DEFINES": [
+    "SYNTHESIS",
+    "USE_POWER_PINS"
+  ],
+  "VERILOG_POWER_DEFINE": "USE_POWER_PINS"
+}
+```
+
+for what it's worth, the lib file contains:
+```
+operating_conditions(OC){
+    process : 1.0 ;
+    voltage : 1.8 ;
+    temperature : 25;
+    }
+default_operating_conditions : OC; 
+```
+
+Response: Thanks — this is extremely helpful and points clearly to the root of the issue:
+🚨 Summary of What's Going Wrong
+
+Your MACROS config is correct in structure, but OpenLane (via OpenROAD) is unable to find the .lib file for your SRAM macro at the required timing corners used during STA, so it black-boxes it and ignores its area during global placement.
+
+This explains why:
+
+    You see the macros being placed (via MACROS.instances)
+
+    But macro area = 0 during global placement
+
+    And the placer crashes due to unrealistic placement density
+
+    You get repeated warnings like:
+
+    No libs found for macro sky130_sram_2kbyte_1rw1r_32x512_8 at corner nom_tt_025C_1v80. The module will be black-boxed.
+
+🔍 The Real Problem
+
+OpenLane is using corner names like nom_tt_025C_1v80, but your macro .lib is only listed under:
+
+"sky130_fd_sc_hd__tt_025C_1v80": [ "…_TT_1p8V_25C.lib" ],
+
+So even though your macro timing library is present, OpenLane doesn't map it to the active corner (nom_tt_025C_1v80) — so it acts like it doesn't exist.
+
+    🛑 Your SRAM macro .lib must be listed under the exact corner names used in timing analysis:
+    nom_tt_025C_1v80, nom_ss_100C_1v60, nom_ff_n40C_1v95
+
+✅ Fix: Duplicate the .lib Reference Across the OpenLane Corners
+
+Update your MACROS section like this:
+
+"lib": {
+  "nom_tt_025C_1v80": [
+    "dir::/macro/.../sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+  ],
+  "nom_ss_100C_1v60": [
+    "dir::/macro/.../sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+  ],
+  "nom_ff_n40C_1v95": [
+    "dir::/macro/.../sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+  ]
+}
+
+You can (optionally) delete the old keys (sky130_fd_sc_hd__tt_025C_1v80, etc.), or leave them if you're using them elsewhere.
+✅ Why This Works
+
+Each OpenLane timing stage uses a defined list of corner names:
+
+    STA corners: nom_tt_025C_1v80, nom_ss_100C_1v60, nom_ff_n40C_1v95, etc.
+
+    These must match exactly in the MACROS.lib section for .lib files to be recognized.
+
+🔄 Optional Automation
+
+If you're using only a single .lib file for all corners, you can generate the mapping like:
+
+lib_path = "dir::/macro/.../sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+corners = ["nom_tt_025C_1v80", "nom_ss_100C_1v60", "nom_ff_n40C_1v95"]
+
+lib_dict = {corner: [lib_path] for corner in corners}
+
+Then manually paste that into your config.json.
+🧠 Extra Debug Tip
+
+You can see which corners are active in runs/*/12-openroad-staprepnr/*/sta.log — they’ll list the corner name and show which .lib was loaded for each cell. That confirms macro .lib loading success.
+
+Let me know if you'd like help scripting this transformation or verifying that the .lib file gets picked up properly afterward.
+
+Prompt: But the STA did include the following:
+```
+[10:28:04] INFO     Finished STA for the nom_ff_n40C_1v95 timing corner.                                                                                                          openroad.py:576
+[10:28:04] INFO     Finished STA for the nom_tt_025C_1v80 timing corner.                                                                                                          openroad.py:576
+[10:28:05] INFO     Finished STA for the nom_ss_100C_1v60 timing corner.
+```
+
+The stage 12 config.json includes the following:
+```
+"LIB": {
+        "*_tt_025C_1v80": [
+            "/Users/nik/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib"
+        ],
+        "*_ss_100C_1v60": [
+            "/Users/nik/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__ss_100C_1v60.lib"
+        ],
+        "*_ff_n40C_1v95": [
+            "/Users/nik/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__ff_n40C_1v95.lib"
+        ]
+    },
+```
+
+and the sta.log includes at the beginning:
+```
+Reading timing models for corner nom_tt_025C_1v80…
+Reading cell library for the 'nom_tt_025C_1v80' corner at '/Users/nik/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib'…
+Reading explicitly-specified extra libs for nom_tt_025C_1v80…
+Reading extra timing library for the 'nom_tt_025C_1v80' corner at '/Users/nik/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/verilog/macro/sky130_sram_2kbyte_1rw1r_32x512_8/sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib'…
+```
+
+So it seems like the .lib file is being used in some cases. But it also seems unlikely to me that the config.json file is really supposed to name every single corner in the `MACROS` `lib` section. Help me understand what you're really recommending, given that some corners appear to be mapped to the .lib file
+
+Response: You're right to press on this — you’ve observed correctly that:
+
+    STA did read your SRAM .lib for nom_tt_025C_1v80, nom_ff_n40C_1v95, and nom_ss_100C_1v60.
+
+    Yet despite this, macro area is reported as zero during placement, and the placer diverges due to unrealistic density.
+
+So, the .lib is being used for STA, but not interpreted during floorplanning and placement. Let’s break down what’s happening and what’s really required.
+
+🧠 What’s Actually Going On
+1. ✅ STA uses the .lib from EXTRA_LIBS
+
+Your main config.json includes:
+
+"EXTRA_LIBS": [
+  "dir::/macro/.../sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib"
+]
+
+This gets interpreted globally for each STA corner — so your SRAM .lib is seen and loaded by the STA step.
+
+✅ That’s why STA shows:
+
+Reading extra timing library for the 'nom_tt_025C_1v80' corner at '...sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib'
+
+2. ❌ Placement ignores macros without matching .lib under MACROS
+
+The key issue is that macro characterization for:
+
+    Area
+
+    Antenna properties
+
+    Power pins
+
+    PDN hookup
+
+    Macro placement legality
+
+…is handled not through EXTRA_LIBS, but through the MACROS.lib dictionary. That section is also what OpenROAD uses to connect macro LEF+LIB+GDS+instances at the correct corners.
+
+So even though the .lib file is loaded for timing, macro placement logic still believes:
+
+sky130_sram_2kbyte_1rw1r_32x512_8.lib is missing at corner nom_tt_025C_1v80 → black-box it
+
+You can even see this divergence clearly in your logs:
+
+INFO     Finished STA for the nom_tt_025C_1v80 timing corner.
+...
+MacroInstsArea:           0.000 um^2
+
+🔧 Real Recommendation (Clarified)
+
+You do not need to add to the global LIB dictionary. That’s for standard cells.
+
+But you do need to ensure that in your MACROS section:
+
+"MACROS": {
+  "sky130_sram_2kbyte_1rw1r_32x512_8": {
+    ...
+    "lib": {
+      "nom_tt_025C_1v80": [ "your_macro.lib" ],
+      "nom_ss_100C_1v60": [ "your_macro.lib" ],
+      "nom_ff_n40C_1v95": [ "your_macro.lib" ]
+    }
+  }
+}
+
+These keys must match exactly the corners used in the run.
+
+That’s what informs:
+
+    Placement
+
+    PDN hookup
+
+    Power pin connectivity
+
+    Area accounting
+
+✅ Summary: What's Required and Why
+Component	Used For	Where to Declare
+EXTRA_LIBS	Timing (STA)	Global .lib loading for all corners
+MACROS.lib	Macro integration (placement, power, area)	Per-corner mappings for macro .lib
+Corner names	Must match OpenLane's PVT tags	e.g., nom_tt_025C_1v80
+
+✅ Your .lib is already being used for STA
+❌ But it's being ignored during placement because MACROS.lib doesn't have matching keys
+🛠️ Fix Strategy
+
+Update MACROS.lib like this:
+
+"lib": {
+  "nom_tt_025C_1v80": [ "dir::/macro/.../sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib" ],
+  "nom_ss_100C_1v60": [ "dir::/macro/.../sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib" ],
+  "nom_ff_n40C_1v95": [ "dir::/macro/.../sky130_sram_2kbyte_1rw1r_32x512_8_TT_1p8V_25C.lib" ]
+}
+
+You don’t need actual temperature/voltage-specific models for now — just duplicate the same .lib file for all timing corners. This is a common practice if you only have a TT model.
+
+Once this is in place, macro area will no longer be zero, and global placement should stop diverging.
+
+Let me know if you want help regenerating this section programmatically.
+
