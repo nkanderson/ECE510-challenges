@@ -4,6 +4,6 @@
     "dir::/src/matvec_mult.v",
     "dir::/src/mac4.v"
   ],
-  "CLOCK_PERIOD": 60.0,
+  "CLOCK_PERIOD": 30.0,
   "CLOCK_PORT": "clk"
 }
