@@ -23533,3 +23533,329 @@ Once this is in place, macro area will no longer be zero, and global placement s
 
 Let me know if you want help regenerating this section programmatically.
 
+## Inferring RAM
+
+Prompt: What do I need to put into a systemverilog / verilog module in order for SRAM to be inferred?
+
+Response: To infer SRAM (or block RAM) in SystemVerilog or Verilog during synthesis, you need to follow a specific coding style that maps cleanly to the hardware primitives supported by your synthesis tool and target FPGA or ASIC library. The exact behavior depends on the synthesis tool (e.g., Synopsys Design Compiler, Vivado, Quartus) and target technology (FPGA or standard-cell ASIC with SRAM macros). Here's a breakdown:
+✅ Minimal Conditions to Infer SRAM (or block RAM)
+1. Single or Dual-Port Memory Pattern
+
+Use a construct that resembles a synchronous RAM. For example, a 1-write / 1-read port pattern (or dual-port if needed):
+```systemverilog
+module inferred_sram #(
+    parameter ADDR_WIDTH = 10,
+    parameter DATA_WIDTH = 32
+)(
+    input  logic                  clk,
+    input  logic                  we,
+    input  logic [ADDR_WIDTH-1:0] addr,
+    input  logic [DATA_WIDTH-1:0] din,
+    output logic [DATA_WIDTH-1:0] dout
+);
+
+    logic [DATA_WIDTH-1:0] mem [(1 << ADDR_WIDTH)-1:0];
+
+    always_ff @(posedge clk) begin
+        if (we)
+            mem[addr] <= din;
+        dout <= mem[addr]; // Can cause read-during-write ambiguity; some tools require bypassing
+    end
+
+endmodule
+```
+
+2. Synchronous Reads and Writes
+
+    Both read and write must happen on the clock edge.
+
+    Asynchronous reads will usually not infer SRAM, but rather distributed logic (LUT RAM or registers).
+
+3. No Reset Logic Inside the Memory Array
+
+    Initializing memory or having reset behavior inside the always block (like zeroing the array) usually prevents inference of true SRAMs.
+
+    If you want preloaded contents, use a $readmemh()/$readmemb() outside of the synthesized logic (for simulation only).
+
+4. Fixed Width and Depth
+
+    The memory size (e.g., mem[0:1023]) should be statically known.
+
+    Dynamic or variable-sized memories usually prevent inference.
+
+5. Avoid Complex Conditions
+
+    Avoid additional conditions on address or clock.
+
+    Avoid memory slicing or indirect indexing.
+
+❗️Tool-Specific Notes
+FPGA (e.g., Xilinx Vivado, Intel Quartus)
+
+    These tools do infer block RAMs (BRAM) from correctly written synchronous memory code.
+
+    You can add pragmas to help:
+```verilog
+(* ram_style = "block" *)  // Vivado
+```
+
+ASIC (e.g., OpenLane, Synopsys)
+
+    ASIC flows do not infer SRAM in the same way.
+
+    Instead, you typically instantiate a memory macro from a .lib/.lef/.gds library, e.g.:
+```verilog
+sky130_sram_2kbyte_1rw1r_32x512_8 sram_inst (
+    .clk0(clk),
+    .csb0(~cs),
+    .web0(~we),
+    .addr0(addr),
+    .din0(din),
+    .dout0(dout)
+);
+```
+
+Summary Table
+| Feature                      | Inferred SRAM (FPGA) | Inferred SRAM (ASIC) |
+| ---------------------------- | -------------------- | -------------------- |
+| `always_ff @(posedge clk)`   | ✅ Required           | ✅ Required           |
+| Read/write in same block     | ✅ Preferred          | ✅                    |
+| Asynchronous read            | ❌                    | ❌                    |
+| Reset logic on memory        | ❌                    | ❌                    |
+| `$readmemh()`/initial block  | ✅ (sim-only)         | ✅ (sim-only)         |
+| Memory size known at compile | ✅                    | ✅                    |
+| Instantiating SRAM macro     | ❌ (not needed)       | ✅ Required           |
+
+Let me know if you’re targeting FPGA or ASIC specifically — I can help tailor the example or guidance.
+
+Prompt: I'm using openlane2 with sky130 technology
+
+Response: Perfect — since you're using OpenLane2 with the Sky130 PDK, you cannot infer SRAM from behavioral code the way you can with FPGA synthesis. Instead, you must explicitly instantiate an SRAM macro from the Sky130 memory compilers (e.g., sky130_sram_macros).
+
+Here's exactly what you need:
+
+✅ How to Use SRAM in OpenLane2 (Sky130)
+1. Choose a Prebuilt SRAM Macro
+
+Sky130 provides SRAMs like:
+
+    sky130_sram_2kbyte_1rw1r_32x512_8: 1 read/write port and 1 read-only port, 32-bit wide, 512 words
+
+    You can find available macros here:
+    https://github.com/google/sky130_sram_macros
+
+Make sure your chosen macro is included in your config.json:
+```
+"MACROS": [
+  {
+    "name": "sky130_sram_2kbyte_1rw1r_32x512_8",
+    "verilog": "path/to/sky130_sram_2kbyte_1rw1r_32x512_8.v",
+    "lef": "path/to/sky130_sram_2kbyte_1rw1r_32x512_8.lef",
+    "gds": "path/to/sky130_sram_2kbyte_1rw1r_32x512_8.gds",
+    "lib": "path/to/sky130_sram_2kbyte_1rw1r_32x512_8.lib"
+  }
+]
+```
+
+2. Instantiate the SRAM in Your RTL
+
+Use the port list exactly as declared in the macro’s .v file. Example for sky130_sram_2kbyte_1rw1r_32x512_8:
+
+```systemverilog
+module top (
+    input logic clk,
+    input logic cs,
+    input logic we,
+    input logic [8:0] addr,           // 512 words = 9 bits
+    input logic [31:0] din,
+    output logic [31:0] dout
+);
+
+    sky130_sram_2kbyte_1rw1r_32x512_8 sram_inst (
+        .clk0(clk),
+        .csb0(~cs),        // active low
+        .web0(~we),        // active low write enable
+        .addr0(addr),
+        .din0(din),
+        .dout0(dout),
+
+        .clk1(1'b0),       // disable second port
+        .csb1(1'b1),
+        .addr1('0),
+        .dout1()
+    );
+
+endmodule
+```
+
+    💡 The signal polarity is active-low (e.g., csb0, web0), so invert them from active-high logic in your module.
+
+3. Update Your OpenLane config.json
+
+Make sure to add:
+```
+"EXTRA_LEFS": ["path/to/sky130_sram_2kbyte_1rw1r_32x512_8.lef"],
+"EXTRA_GDS_FILES": ["path/to/sky130_sram_2kbyte_1rw1r_32x512_8.gds"],
+"EXTRA_LIBS": ["path/to/sky130_sram_2kbyte_1rw1r_32x512_8.lib"]
+```
+(If you're using the MACROS key with full detail instead, you may omit these top-level keys.)
+4. Placement and Power Considerations
+
+    Connect vccd1 and vssd1 if the macro requires them.
+
+    Do not try to move the macro with PnR tools manually — OpenLane will place it.
+
+    You can optionally set placement constraints via user_pdngen.tcl or DEF if you want deterministic placement.
+
+❌ What Not to Do
+
+    Do not write behavioral RAM with an array hoping for inference.
+
+    Do not try to infer RAM with $readmemh() — it’s for simulation only.
+
+    Do not reset the SRAM with logic — the macro powers up in unknown state unless preloaded externally.
+
+Summary
+
+To use SRAM in OpenLane2 with Sky130:
+| Step | Action                                                          |
+| ---- | --------------------------------------------------------------- |
+| 1.   | Choose a macro (e.g., `sky130_sram_2kbyte_1rw1r_32x512_8`)      |
+| 2.   | Instantiate it explicitly in your RTL                           |
+| 3.   | Add the `.lef`, `.lib`, `.gds`, and `.v` files to `config.json` |
+| 4.   | Connect control signals properly (inverted logic)               |
+| 5.   | Simulate separately if needed (RTL model or wrapper)            |
+
+Let me know if you'd like help writing a wrapper module or generating a memory access module for your specific use case.
+
+Prompt: Tell me more about why you can't infer SRAM in openlane2. The macro configuration I'm using is not working
+
+Response: Great question — let’s dig into why SRAM cannot be inferred in OpenLane2 and what must be done instead, especially since your macro configuration is not working.
+🧠 Why SRAM Cannot Be Inferred in OpenLane2
+
+Unlike FPGA tools (Vivado, Quartus), OpenLane2 and ASIC toolchains like Yosys + OpenROAD do not support automatic inference of SRAM for several reasons:
+1. SRAMs Are Physical Hard Macros, Not Standard Cells
+
+    SRAMs in Sky130 are not synthesized from logic gates.
+
+    Instead, they’re pre-characterized, pre-placed hard blocks with fixed .lef, .gds, and .lib views.
+
+    Yosys only synthesizes logic from combinational gates and flip-flops. It has no notion of memory macros unless you instantiate them explicitly.
+
+2. No HDL Mapping to Memory Compiler
+
+    In FPGA tools, a behavioral array like mem[0:255] can be recognized and mapped to BRAM.
+
+    In ASIC flows, there's no mapping from arrays to macros like sky130_sram_2kbyte_1rw1r_32x512_8.
+
+    There is no memory inference engine in OpenLane to decide:
+    “Ah, this mem[] should map to that specific SRAM macro.”
+
+3. OpenROAD PnR Needs Placement Info
+
+    The placement engine needs explicit knowledge of the physical dimensions, pins, and orientation of a macro.
+
+    If you don’t instantiate the macro, OpenROAD doesn’t know:
+
+        where to put the SRAM
+
+        how to route power to it
+
+        how to connect signals
+
+🛠 What You Must Do Instead
+
+You must:
+
+    Explicitly instantiate the macro in Verilog
+
+    Declare the macro in config.json with all required views
+
+For example:
+In your RTL:
+```
+sky130_sram_2kbyte_1rw1r_32x512_8 sram_inst (
+    .clk0(clk),
+    .csb0(~cs),
+    .web0(~we),
+    .addr0(addr),
+    .din0(din),
+    .dout0(dout),
+    .clk1(1'b0), .csb1(1'b1), .addr1('0), .dout1()
+);
+```
+
+In config.json:
+```
+"MACROS": [
+  {
+    "name": "sky130_sram_2kbyte_1rw1r_32x512_8",
+    "verilog": "src/sky130_sram_2kbyte_1rw1r_32x512_8.v",
+    "lef": "src/sky130_sram_2kbyte_1rw1r_32x512_8.lef",
+    "gds": "src/sky130_sram_2kbyte_1rw1r_32x512_8.gds",
+    "lib": "src/sky130_sram_2kbyte_1rw1r_32x512_8.lib"
+  }
+]
+```
+
+Or if not using MACROS, then:
+```
+"EXTRA_LEFS": ["src/sky130_sram_2kbyte_1rw1r_32x512_8.lef"],
+"EXTRA_GDS_FILES": ["src/sky130_sram_2kbyte_1rw1r_32x512_8.gds"],
+"EXTRA_LIBS": ["src/sky130_sram_2kbyte_1rw1r_32x512_8.lib"]
+```
+
+🧨 Common Reasons Your Macro “Is Not Working”
+
+If your macro config isn’t working, here are things to check:
+✅ Check 1: File Paths
+
+Make sure all these files exist and are correct:
+
+    .v: Verilog model for simulation/synthesis
+
+    .lef: abstract physical layout
+
+    .gds: actual layout used during PnR
+
+    .lib: timing/power characterization
+
+Check your OpenLane logs (e.g., synthesis or placement) for errors like:
+```
+[ERROR] Cannot find macro sky130_sram_2kbyte_1rw1r_32x512_8
+```
+
+✅ Check 2: Power Pins
+
+Some macros require you to connect vccd1 and vssd1 in the Verilog instantiation:
+```
+    .vccd1(vccd1),  // connect to power net
+    .vssd1(vssd1)   // connect to ground net
+```
+
+Otherwise, OpenLane will throw errors during LVS or IR drop analysis.
+✅ Check 3: Duplicate Declaration
+
+Make sure you do not include the same macro in both MACROS and EXTRA_LIBS — OpenLane may treat this as a duplicate and fail silently or emit [GPL-0305] errors during placement.
+✅ Check 4: Memory Cell Usage in Yosys
+
+Sometimes Yosys may prune away your SRAM instantiation if:
+
+    It's unused in the logic path
+
+    It's not connected correctly
+    Check the synthesized netlist or RTLIL to confirm it's present.
+
+🧪 Next Step
+
+If you're still stuck, I can help debug it directly.
+
+Please provide:
+
+    The exact instantiation you used
+
+    The MACROS or EXTRA_* config block
+
+    The log error you're seeing from OpenLane
+
+That'll help pinpoint why your SRAM isn’t showing up.

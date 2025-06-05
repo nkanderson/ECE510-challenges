@@ -1,0 +1,9 @@
+{
+  "DESIGN_NAME": "matvec_mult",
+  "VERILOG_FILES": [
+    "dir::/src/matvec_mult.v",
+    "dir::/src/mac4.v"
+  ],
+  "CLOCK_PERIOD": 40.0,
+  "CLOCK_PORT": "clk"
+}
