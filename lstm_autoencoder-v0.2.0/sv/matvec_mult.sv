@@ -1,6 +1,6 @@
 module matvec_mult #(
-    parameter MAX_ROWS = 64,
-    parameter MAX_COLS = 64,
+    parameter MAX_ROWS = 16,
+    parameter MAX_COLS = 16,
     parameter BANDWIDTH = 16,
     parameter DATA_WIDTH = 16,
     parameter VEC_NUM_BANKS  = 4
