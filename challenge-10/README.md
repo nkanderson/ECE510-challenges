@@ -5,7 +5,11 @@
 
 ## Overview
 
-Full LLM transcripts found in [LLM_TRANSCRIPT.md](./LLM_TRANSCRIPT.md).
+Challenge 10 involved identifying computational bottlenecks, with LLM assistance, in a Q Learning algorithm applied to a Frozen Lake reinforcement learning task. LLM suggestions were evaluated, and a SystemVerilog implementation was generated.
+
+Next, for Challenge 11, the LLM was prompted to produce code optimized for GPU execution. ChatGPT was not able to provide a working version of this code. In order to make a basic comparison of CPU versus GPU execution of code, another script was created for benchmarking. In this case, the GPU performance advantage was apparent.
+
+Full LLM transcripts found in [LLM_TRANSCRIPT.md](./docs/LLM_TRANSCRIPT.md).
 
 ## ChatGPT Suggestions
 
@@ -22,6 +26,8 @@ The fourth bottleneck noted by ChatGPT was some redundant code in the `Q_Learnin
 The last potential bottleneck noted by ChatGPT was the plotting overhead. This doesn't seem like a significant bottleneck, and ChatGPT did not provide much insight into any possible improvements, simply noting the current approach is less expensive than live plotting.
 
 ChatGPT concluded by offering some quick optimization suggestions. One of these was quite straightforward and seemed reasonable, such as using a `set` for `HOLE_STATE` rather than a `list`. The rest were a bit more involved, and ChatGPT did not describe them in-depth. It's unclear whether these suggestions would truly be quick to implement or not.
+
+ChatGPT did not identify the multiply-accumulate (MAC) operation as a primary computational bottlenecks until asked explicitly about hardware implementation. With that prompt, ChatGPT quickly identified the MAC operation within the `Q_Learning` method.
 
 ### Profiling of Code
 
@@ -95,16 +101,33 @@ Running ChatGPT's initial suggestion for basic profiling produced the following:
     92962    0.006    0.000    0.006    0.000 q_learning.py:28(__init__)
 ```
 
-Visualization with Snakeviz, along with interpretation of results by ChatGPT confirmed that the most significant computation time came from the cumulative costs of many relatively quick operations.
+Visualization with Snakeviz, along with interpretation of results by ChatGPT, confirmed that the most significant computation time came from the cumulative costs of many relatively quick operations.
 
-![Profiling with snakeviz](./images/snakeviz_q-learning.png)
+![Profiling with snakeviz](./images/snakeviz_q-learning.png)  
 *Snakeviz interactive profiling, showing `nxtPosition` contribution to execution time, within `Action`.*
+
+## SystemVerilog Implementation
+
+ChatGPT was prompted to provide an implementation in SystemVerilog of the identified bottleneck that would be most suitable for hardware acceleration. As noted above, ChatGPT identified the MAC operation in the following line of code:
+```python
+q_value = (1 - self.alpha) * self.Q[(i, j, action)] + self.alpha * (
+    reward + self.gamma * self.Q[nxtStateAction]
+)
+```
+
+Though the provided implementation was largely reasonable, there were significant issues with the code. The main issue was that ChatGPT treated code inside an `always_ff` block as though it were a combinational rather than sequential block. Specifically, it used blocking assignment inside the `always_ff`, which is illegal, and the sequence of operations implied a blocking series of assignments. For example, there was a `start` signal set to one at the beginning of the block, and reset to zero at the end. This makes no sense within the context of a registered block of code.
+
+Other than clear issues with the translation to hardware, the basic operations for the MAC operation itself seemed correct.
+
+The code was updated to correct the issues with sequential and combinational logic referenced above. Further testing is required for complete functional verification.
 
 ## Optimization for GPU
 
+ChatGPT was prompted to produce a version of the original Q-Learning algorithm optimized for GPU execution.
+
 ### Profiling
 
-Original
+Original:
 ```sh
 (venv) ➜  challenge-10 git:(main) ✗ kernprof -l -v q_learning.py
 Wrote profile results to q_learning.py.lprof
@@ -123,7 +146,7 @@ Line #      Hits         Time  Per Hit   % Time  Line Contents
    136         1          1.0      1.0      0.0      return ag.plot_reward
 ```
 
-Optimized for GPU (supposedly)
+Optimized for GPU:
 ```sh
 (venv) ➜  challenge-10 git:(main) ✗ kernprof -l -v pytorch_q_learning.py
 Wrote profile results to pytorch_q_learning.py.lprof
@@ -167,26 +190,21 @@ Optimized Runtime: 3.460s
 Speedup: 0.22x
 ```
 
-The supposed GPU-optimized script is significantly slower, and doesn't produce correct results. One very obvious problem is that the computer this was executed on does not have a CUDA-capable GPU. However, there are clearly other issues with the code produced by ChatGPT, as it does not produce correct results.
+The supposed GPU-optimized script was significantly slower, and did not produce correct results. One very obvious problem initially was that the computer this was executed on did not have a CUDA-capable GPU. However, even once the target was adjusted to use Apple's Metal Performance Shaders (MPS) backend, the code still did not produce correct or timely results. Attempts were made to troubleshoot with ChatGPT, but no resolution was found in the time available.
 
-### MPS
+![Original Q-Learning algorithm rewards evolution](./images/original.png)  
+*The original Q-Learning algorithm successfully stabilized after a relatively small number of episodes.*
 
-Notes from ChatGPT:
-🧪 Things That Work Well on MPS
-    Dense matrix multiplications (@, mm)
-    Batched matrix operations
-    CNNs and fully-connected layers in inference or training
-    Activation functions (ReLU, GELU, etc.)
+![GPU-optimized Q-Learning algorithm rewards evolution](./images/new.png)  
+*The GPU-optimized Q-Learning algorithm using PyTorch never achieved the same level of rewards as the original, even after many episodes.*
 
-🛑 Still Weak on MPS
-    Sparse tensor operations
-    Frequent index-based updates (scatter, gather, where)
-    Dynamic control flow (loops per-sample)
-    Small batched operations (not enough parallelism to saturate GPU)
+### MPS versus CPU
+
+In order to understand the discrepancies in performance seen above, ChatGPT was asked about MPS performance on particular workloads. The script `mps_compare.py` was generated to compare MPS versus CPU execution of a basic matrix multiply operation. In this comparison, MPS had a clear performance advantage, even when benchmarking on relatively small matrices.
 
 Results of comparison script:
 ```sh
-(venv) ➜  challenge-10 git:(main) python mps_compare.py                              
+(venv) ➜  challenge-10 git:(main) python mps_compare.py
 
 --- Benchmarking on MPS ---
 Size 512x512: 0.001s, Peak Memory: 206.20 MB
@@ -201,4 +219,46 @@ Size 1024x1024: 0.060s, Peak Memory: 189.14 MB
 Size 2048x2048: 0.295s, Peak Memory: 281.31 MB
 Size 4096x4096: 2.398s, Peak Memory: 454.61 MB
 Size 8192x8192: 16.972s, Peak Memory: 835.95 MB
+```
+
+![Comparison of execution time across CPU and MPS for matrix multiplication](./images/matmul_exec_time.png)  
+*Comparison of execution time across CPU and MPS for matrix multiplication shows a clear performance advantage for MPS.*
+
+### ChatGPT Assessment of MPS
+
+ChatGPT provided the additional statements regarding MPS performance on difference types of workloads:
+ 
+<blockquote>
+
+🧪 Things That Work Well on MPS
+- Dense matrix multiplications (@, mm)  
+- Batched matrix operations
+- CNNs and fully-connected layers in inference or training
+- Activation functions (ReLU, GELU, etc.)
+
+🛑 Still Weak on MPS  
+- Sparse tensor operations
+- Frequent index-based updates (scatter, gather, where)
+- Dynamic control flow (loops per-sample)
+- Small batched operations (not enough parallelism to saturate GPU)
+</blockquote>
+
+This is interesting information to consider, though it may not be accurate. Even if it is correct, it does not appear to directly explain the issues with the GPU-optimized Q-Learning script.
+
+## Discussion
+
+It would be interesting to try again to generate a working script for a PyTorch implementation of the original Q-Learning algorithm. Based on the MPS-CPU comparison script and discussion with ChatGPT, it's not entirely clear that the issue with the current script is due to any shortcoming with MPS. It would take further investigation to determine whether the script ChatGPT produced contains logical errors or simply severely time-inefficient code.
+
+An additional extension of this work could be to perform functional verification on the SystemVerilog implementation and attempt to test execution of the original Python script integrated with the hardware simulation, through a tool like Cocotb. Having both a working GPU implementation and hardware simulation would provide an interesting point of comparison regarding performance across difference contexts.
+
+## Commands
+
+Profile and compare the original Q-learning script with a PyTorch implementation running MPS. **Note:** The PyTorch implementation is incorrect and will likely hang.
+```sh
+python main.py
+```
+
+Compare execution of basic matrix multiplication on MPS versus the CPU:
+```sh
+python mps_compare.py
 ```

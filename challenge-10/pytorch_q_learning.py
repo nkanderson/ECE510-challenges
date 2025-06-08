@@ -1,9 +1,17 @@
+"""
+File        : pytorch_q_learning.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Q-learning implementation targeting GPU execution using PyTorch.
+Note        : Warning: This script does not produce correct or timely results.
+"""
+
 import torch
 import matplotlib.pyplot as plt
 
 # Use Metal backend if on Apple Silicon
-# device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-device = torch.device("cpu")
+device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+# device = torch.device("cpu")
 
 BOARD_ROWS, BOARD_COLS, NUM_ACTIONS = 5, 5, 4
 START = torch.tensor([0, 0], dtype=torch.long, device=device)

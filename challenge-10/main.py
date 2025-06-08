@@ -1,3 +1,12 @@
+"""
+File        : main.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Wrapper script for comparing the performance of two Q-learning implementations:
+              - A traditional Python implementation (q_learning.py)
+              - An optimized PyTorch implementation (pytorch_q_learning.py)
+"""
+
 import subprocess
 import time
 import sys

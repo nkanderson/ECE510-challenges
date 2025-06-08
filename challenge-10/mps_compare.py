@@ -1,3 +1,10 @@
+"""
+File        : mps_compare.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Compare the performance of matrix multiplication on MPS vs CPU.
+"""
+
 import torch
 import time
 import matplotlib.pyplot as plt
