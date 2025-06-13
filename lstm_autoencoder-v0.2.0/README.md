@@ -77,6 +77,59 @@ sv2v --write=adjacent --define=USE_SRAM_MACRO matrix_loader.sv mac4.sv matvec_mu
 yosys -p 'read_verilog -sv -D SYNTHESIS -D USE_POWER_PINS src/*.v; hierarchy -top matvec_mult_top; proc; flatten; opt; check'
 ```
 
+#### Interpreting Synthesis Results
+
+Assistance with interpreting synthesis results was requested from ChatGPT, given the lack of familiarity with the OpenLane toolchain and the related metrics. ChatGPT provided the following analysis of the `metrics.json` from the synthesis run on the `matvec_mul` module using the `config-matvec_mult.json` file with a clock period of 40ns.
+
+- Confirmed timing closure was met with the configured clock period (40ns).
+- From the `"power__total": 0.00157694763` value, determined that the total power is 1.58mW at 1.8V under typical conditions.
+  - ChatGPT described this as efficient, and provided the comparison to an ARM Cortex-M0 "which might use ~10-15mW at 50MHz for simple tasks".
+- Stated that the die area is ~0.234 mm^2 with utilization around 50.2%, based on values for `design__die__area` (234460), `design__core__area` (218865), and `design__instance__utilization` (0.502092)
+  - Compared this to commerical SoCs ranging from 1mm^2 to 100+mm^2, putting this in the embedded / micrcontroller scale
+- Determined the average standard cell consisted of 4-10 transistors, with total transistors ranging from 67K to 167K, based on `"design__instance__count__stdcell": 16740`
+  - Contextualized this as being less than a RISC-V core, but greater than a 6502 CPU, and noted the number was "consistent with a specialized accelerator or control logic"
+- Noted zero errors across a number of metrics, though did not contextualize this further
+  - Noted metrics with zero errors included `timing__setup_vio__count`, `timing__hold_vio__count`, `magic__drc_error__count`, `design__lvs_error__count`, `design__xor_difference__count`. Aside from the previously discussed timing closure, the implications of these metrics having zero errors needs further investigation to contribute meaningfully to analysis.
+
+#### Commands and Visuals
+
+The following opens the openroad GUI:
+```sh
+openlane --last-run --flow openinopenroad config-matvec_mult.json
+```
+
+Example of loading a .def file:
+```
+read_def runs/RUN_2025-06-05_08-12-22/final/def/matvec_mult.def
+```
+The above shows the relative path if the GUI was opened from the `verilog` directory, or wherever `openlane` synthesis was run from.
+
+Got the following results from running tcl commands in the openroad GUI:
+```tcl
+>>> report_cell_usage
+Cell type report:                       Count       Area
+  Fill cell                               686    2574.97
+  Tap cell                              12420   15539.90
+  Standard cell                         25958  262271.54
+  Total                                 39064  280386.4
+
+```
+
+The following command opens the KLayout viewer:
+```sh
+openlane --last-run --flow openinklayout config-matvec_mult.json
+```
+
+Unfortunately, ChatGPT had a poor understand of what commands to run in order to view anything of interest. The [OpenLane2 Newcomers documentation](https://openlane2.readthedocs.io/en/latest/getting_started/newcomers/index.html) provided the basic commands to open the GUIs, as shown above, but could not provide much support in investigation of this specific design. With more time, it would be interesting to dive into the docs for these GUIs and better understand how they work.
+
+Potentially the most helpful insight from ChatGPT may be its suggestion that the layout looks fairly homegeneous because there are no macros and the design is highly uniform. However, it does not explain why it was not possible to view the individual MAC4 instance, for example, and this suggested analysis should be grounded in further exploration of alternative designs.
+
+![Power density in openroad GUI](./images/openroad-gui-power-density.png)  
+*Power density as visualized in the Openroad GUI.*
+
+![Visualization in the KLayout GUI](./images/klayout-gui-basic.png)  
+*Basic visualization in the KLayout GUI.*
+
 ## Future Work
 
 ### Controller for Multiple Layers, Gates, and Weights
