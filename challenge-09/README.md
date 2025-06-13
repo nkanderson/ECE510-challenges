@@ -366,17 +366,59 @@ The issue with the weight transposition highlights potential problems that may a
 
 ## Challenge 12: Hardware Acceleration
 
-### Hardware Execution Time
+### Estimating Hardware Execution Time
 
-The following estimations are related to Challenge 12. The HW / SW boundary was determined using the above profiling, and the results from interactive visualization with snakeviz. The snakeviz results indicated that the `matvec_mul` operation contributed significantly to the overall execution time. The encapsulating `step` function therefore is a good target, as it represents a slightly higher percentage of the overall execution time than the cumulative `matvec_mul` steps, and also provides a larger discrete functional block to implement in hardware, reducing the communication costs that would be associated with implementing *only* the `matvec_mul` in hardware.
+As made clear through the profiling above, the matrix-vector multiplication was the most significant bottleneck for the algorithm. The work below is intended to provide a target execution time that a hardware implementation would need to meet or improve on in order to ultimately speed up the overall execution time of the algorithm. This target execution time takes into account the communication costs associated with data transfer between the CPU and chiplet.
 
-Goals for estimating communication cost:
-- Get baseline for a protocol like PCIe or similar
-- Get estimate of amount of data that would be transferred to hardware
-- The above should provide a basic estimate of communication cost
+For iteration one of the hardware acceleration implementation, an initial hardware/software boundary of the `step` function was chosen. The goal in choosing this function was to implement a larger discrete functional block in hardware, reducing the communication costs that would be associated with implementing *only* the `matvec_mul` in hardware.
+
+After running into issues with synthesizing the first iteration, the hardware/software boundary for iteration two was shifted to the `matvec_mul` function, in order to reduce the scope and complexity of the hardware implementation. This adjusted boundary should still be able to provide a speedup, as long as communication costs can be minimized by storing weights in SRAM, since so much time is spent in the software implementation within this function with calls to `sum`. From there, if successful, experimentation with increasing the scope of the hardware execution could be performed in order to find the ideal boundary.
+
+Ultimately, the `step` function itself, as seen below, includes opportunities for parallization of work across calculations for individual gates. It would be ideal to be able to send the input vector and previous hidden and cell states to a chiplet which then holds those values in a buffer and performs the necessary calculations for each gate in parallel. This model is still aspirational though, and relies on an initial implementation of the `matvec_mul` operation in hardware.
+
+```python
+def step(self, x, h_prev, c_prev):
+    i = vector_sigmoid(
+        elementwise_add(
+            matvec_mul(self.W_i, x),
+            elementwise_add(matvec_mul(self.U_i, h_prev), self.b_i),
+        )
+    )
+    f = vector_sigmoid(
+        elementwise_add(
+            matvec_mul(self.W_f, x),
+            elementwise_add(matvec_mul(self.U_f, h_prev), self.b_f),
+        )
+    )
+    c_tilde = vector_tanh(
+        elementwise_add(
+            matvec_mul(self.W_c, x),
+            elementwise_add(matvec_mul(self.U_c, h_prev), self.b_c),
+        )
+    )
+    o = vector_sigmoid(
+        elementwise_add(
+            matvec_mul(self.W_o, x),
+            elementwise_add(matvec_mul(self.U_o, h_prev), self.b_o),
+        )
+    )
+
+    c = elementwise_add(elementwise_mul(f, c_prev), elementwise_mul(i, c_tilde))
+    h = elementwise_mul(o, vector_tanh(c))
+    return h, c
+```
+
+The communication cost and target execution time in hardware were estimated using the following approach:
+- Determine baseline data transfer speed for a protocol like PCIe, SPI, or similar
+- Estimate the amount of data that would be transferred to and from hardware
+- The above may be used to calculate a rough estimate for communication cost
 - From there, the existing software-only computational bottleneck minus the communication cost (round-trip) should represent a target execution time that the hardware should be faster than
 
-### Notes From ChatGPT Estimation
+### Iteration One Estimations
+
+The estimations below were performed using ChatGPT's assistance. There are some inaccuracies that were not discovered during the initial estimation, such as ChatGPT's determination that only an `h` value would be streamed out. The `step` function returns both an `h` and `c` value, for new hidden and cell states.
+
+#### Notes From ChatGPT
 
 For the `step` function, we can save on communication cost by saving the weights in SRAM. This should be estimated and considered as part of the whole hardware cost.
 
@@ -408,10 +450,55 @@ ChatGPT's total estimated time based on 45K step calls was:
 
 *Note*: There was some initial confusion in the estimatation, where ChatGPT was including a rough estimate for the execution time in hardware as well as the data transfer time. This was clarified, and the summary numbers below reflect a target execution time for the `step` function based on estimated data transfer times.
 
-### Summary
+#### Summary Estimations
 - The estimated *per-step* communication cost is ~607ns, based on estimated data transfer size and usage of PCIe gen 4. This assumes the weights are stored in SRAM to reduce data transfer.
 - The estimated *total* communication cost is pessimistically ~27.74 ms. This was based on number of step calls in the training data set. The number of step calls profiled using snakeviz was significantly lower, so we may estimate a lower bound at `26208 * 607ns = 15.91 ms`.
 - Total compute time allowed for all `step` function calls is `2 s - 27.74 ms = ~1972.26 ms`, using pessimistic estimate above
 - The **maximum total target execution time** for our hardware `step` function (using the pessemistic estimate) is `1.972 / 45696 = ~43.15 µs`.
 - An estimated ~84 KB of SRAM will be needed to store the weights.
 - Additional data transfer optimization may be done by implementing on-chip h/c buffering, which would mean we only stream `x` in and `h` out
+
+### Iteration Two Estimations
+
+In this iteration, the software/hardware boundary of the `matvec_mul` function was chosen. As in iteration one, it is assumed that the weights may be stored in SRAM to avoid the sizable communication costs associated with their transfer between the CPU and chiplet.
+
+With assistance from ChatGPT, an estimate for communication cost over a SPI bus was determined. This estimate relied on some factors known after synthesis was performed for the iteration two design, specifically the clock frequency. Estimates were simplified, but attempted to be as pessimistic as possible. The following assumptions were used:
+- Maximum clock frequency of 25MHz for SPI bus and chiplet. This was based on a 40ns clock period, which achieved timing closure in synthesis.
+  - **Note:** Successful synthesis required reduction of max vector size to 16 rather than 64. This was likely due to the inability to incorporate SRAM macros. However, this estimate assumes 64 values transferred in and out in the worst case, which would be true even if the chiplet's internal buffer could only hold 16 values at a time. The main difference would be in the additonal computation required by the client to complete the matrix-vector multiplication in the case of vectors longer than 16 values. That is, with the current implementation limited to 16 values at a time, only a partial matrix-vector multiplication could be performed in a given transaction when the dimensions exceed 16. The implications of this should be discussed further elsewhere.
+- The SPI controller may accept values up to 16 bits wide and return values 32 bits wide.
+  - The current implementation for iteration two allows for overflow by returning a 32-bit wide value. Instead, it likely makes sense to saturate this value and maintain the width of 16 bits. This estimation works around that possible change by assuming a return width of 32 bits, so that the *same total number* of transfers may be performed for data returned from the chiplet whether it uses 32- or 16-bit width outputs.
+- For simplicity, no overlap or utilization of full-duplex functionality was assumed. The calculation was based on a client streaming vector data in, some presumed execution time, then data streaming out. The data in and data out streaming costs were the focus for this estimate, which was then used to calculate the time available for execution of the calculations.
+
+With the above assumptions and simplifications, the input and output data transfer costs were estimated as the following:
+```
+t_in = 64 values / 25 * 10^6 Hz = 2.56 µs
+t_out = 64 values / 25 * 10^6 Hz = 2.56 µs
+t_total = 2.56 µs + 2.56 µs = 5.12 µs
+```
+
+From snakeviz, the number of calls to `matvec_mul` was 216216 for the inference run our estimations are using as a basis. This results in the following total communication cost:
+```
+5.12 µs * 216216 = 1.107 s
+```
+
+The snakeviz cumulative execution time for all `matvec_mul` calls was ~52 seconds for the pure Python implementation, leading to a target execution time of the following:
+```
+52 s - 1.107 s = 50.893 s
+50.893 s / 216216 = 2.354 * 10^-4 = 0.2354 ms = 235.4 µs = 235,400 ns
+```
+
+In terms of clock cycles, this would be:
+```
+235,400 ns / 40 ns = 5885 clock cycles per operation maximum
+```
+
+This means, as a rough estimate, that each complete matrix-vector multiplication may take up to 5885 clock cycles in order to meet or improve upon the pure Python software implementation. This is intended to be a pessimistic estimate, as it assumes the maximum vector length of 64 for *all* matrix-vector multiplications performed during inference. This maximum is only actually used in a fraction of the operations, meaning the actual allowable execution time may be somewhat higher in order for the hardware implementation to result in an overall speedup.
+
+## Discussion
+
+Estimations between iterations one and two are significantly different, for several reasons:
+- The software/hardware boundary was adjusted between iterations to address initial difficulty in completing synthesis for iteration one.
+- The iteration one estimations were based on a faulty estimate for total execution time of the inference algorithm, due to improper weight loading by the inference script.
+- The iteration one estimate assumed a a faster bus, using PCIe. For each of implementation and testing, iteration two assumed a SPI bus with a maximum clock frequency matching the clock frequency found via synthesis. In other words, the iteration two estimate uses retrospective information from the actual implementation, which the iteration one estimate did not have.
+
+Both estimations were intended to be relatively high-level, but pessimistic enough to account for small changes in the per-operation time allotment. The iteration two estimate should have a higher degree of accuracy due to the factors listed above, and ideally, future iterations may include greater granularity in these estimates.
