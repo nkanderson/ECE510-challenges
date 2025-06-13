@@ -1,0 +1,370 @@
+# //  Questa Intel Starter FPGA Edition-64
+# //  Version 2023.3 win64 Jul 17 2023
+# //
+# //  Copyright 1991-2023 Mentor Graphics Corporation
+# //  All Rights Reserved.
+# //
+# //  QuestaSim and its associated documentation contain trade
+# //  secrets and commercial or financial information that are the property of
+# //  Mentor Graphics Corporation and are privileged, confidential,
+# //  and exempt from disclosure under the Freedom of Information Act,
+# //  5 U.S.C. Section 552. Furthermore, this information
+# //  is prohibited from disclosure under the Trade Secrets Act,
+# //  18 U.S.C. Section 1905.
+# //
+project open C:/Users/Kirsten/OneDrive/Documents/ECE510/lstm_sim-020/lstmautoencoder-020
+# Loading project lstmautoencoder-020
+# Compile of matvec_mult.sv was successful.
+# Compile of matrix_loader.sv was successful.
+# Compile of matvec_tb.sv was successful.
+# Compile of mac4.sv was successful.
+# Compile of mac4_tb.sv was successful.
+# 5 compiles, 0 failed with no errors.
+vsim work.matvec_tb -voptargs=+acc
+# vsim work.matvec_tb -voptargs="+acc"
+# Start time: 15:53:40 on Jun 13,2025
+# ** Note: (vsim-3813) Design is being optimized due to module recompilation...
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
+# ** Note: (vopt-143) Recognized 1 FSM in module "matvec_mult(fast)".
+# ** Note: (vopt-143) Recognized 1 FSM in module "matvec_mult(fast__2)".
+# ** Note: (vopt-143) Recognized 1 FSM in module "matvec_mult(fast__1)".
+# ** Warning: C:/Users/Kirsten/OneDrive/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/sv/matvec_tb.sv(98): (vopt-2685) [TFMPC] - Too few port connections for 'loader_4x4'.  Expected 8, found 6.
+# ** Warning: C:/Users/Kirsten/OneDrive/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/sv/matvec_tb.sv(98): (vopt-2718) [TFMPC] - Missing connection for port 'vssd1'.
+# ** Warning: C:/Users/Kirsten/OneDrive/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/sv/matvec_tb.sv(98): (vopt-2718) [TFMPC] - Missing connection for port 'vccd1'.
+# ** Warning: C:/Users/Kirsten/OneDrive/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/sv/matvec_tb.sv(129): (vopt-2685) [TFMPC] - Too few port connections for 'loader_32x32'.  Expected 8, found 6.
+# ** Warning: C:/Users/Kirsten/OneDrive/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/sv/matvec_tb.sv(129): (vopt-2718) [TFMPC] - Missing connection for port 'vssd1'.
+# ** Warning: C:/Users/Kirsten/OneDrive/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/sv/matvec_tb.sv(129): (vopt-2718) [TFMPC] - Missing connection for port 'vccd1'.
+# ** Warning: C:/Users/Kirsten/OneDrive/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/sv/matvec_tb.sv(160): (vopt-2685) [TFMPC] - Too few port connections for 'loader_64x64'.  Expected 8, found 6.
+# ** Warning: C:/Users/Kirsten/OneDrive/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/sv/matvec_tb.sv(160): (vopt-2718) [TFMPC] - Missing connection for port 'vssd1'.
+# ** Warning: C:/Users/Kirsten/OneDrive/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/sv/matvec_tb.sv(160): (vopt-2718) [TFMPC] - Missing connection for port 'vccd1'.
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=10.
+# Loading sv_std.std
+# Loading work.matvec_tb(fast)
+# Loading work.matvec_mult(fast)
+# Loading work.mac4(fast)
+# Loading work.matrix_loader(fast)
+# Loading work.matvec_mult(fast__1)
+# Loading work.matrix_loader(fast__1)
+# Loading work.matvec_mult(fast__2)
+# Loading work.matrix_loader(fast__2)
+add wave -position insertpoint  \
+sim:/matvec_tb/clk \
+sim:/matvec_tb/rst_n \
+sim:/matvec_tb/start_4x4 \
+sim:/matvec_tb/num_rows_4x4 \
+sim:/matvec_tb/num_cols_4x4 \
+sim:/matvec_tb/vector_write_enable_4x4 \
+sim:/matvec_tb/vector_base_addr_4x4 \
+sim:/matvec_tb/vector_in_4x4 \
+sim:/matvec_tb/matrix_addr_4x4 \
+sim:/matvec_tb/matrix_enable_4x4 \
+sim:/matvec_tb/matrix_data_4x4 \
+sim:/matvec_tb/matrix_ready_4x4 \
+sim:/matvec_tb/result_out_4x4 \
+sim:/matvec_tb/result_valid_4x4 \
+sim:/matvec_tb/busy_4x4 \
+sim:/matvec_tb/start_32x32 \
+sim:/matvec_tb/num_rows_32x32 \
+sim:/matvec_tb/num_cols_32x32 \
+sim:/matvec_tb/vector_write_enable_32x32 \
+sim:/matvec_tb/vector_base_addr_32x32 \
+sim:/matvec_tb/vector_in_32x32 \
+sim:/matvec_tb/matrix_addr_32x32 \
+sim:/matvec_tb/matrix_enable_32x32 \
+sim:/matvec_tb/matrix_data_32x32 \
+sim:/matvec_tb/matrix_ready_32x32 \
+sim:/matvec_tb/result_out_32x32 \
+sim:/matvec_tb/result_valid_32x32 \
+sim:/matvec_tb/busy_32x32 \
+sim:/matvec_tb/start_64x64 \
+sim:/matvec_tb/num_rows_64x64 \
+sim:/matvec_tb/num_cols_64x64 \
+sim:/matvec_tb/vector_write_enable_64x64 \
+sim:/matvec_tb/vector_base_addr_64x64 \
+sim:/matvec_tb/vector_in_64x64 \
+sim:/matvec_tb/matrix_addr_64x64 \
+sim:/matvec_tb/matrix_enable_64x64 \
+sim:/matvec_tb/matrix_data_64x64 \
+sim:/matvec_tb/matrix_ready_64x64 \
+sim:/matvec_tb/result_out_64x64 \
+sim:/matvec_tb/result_valid_64x64 \
+sim:/matvec_tb/busy_64x64 \
+sim:/matvec_tb/global_cycle_count \
+run_64x64_test \
+sim:/matvec_tb/run_64x64_test/test_vector \
+sim:/matvec_tb/run_64x64_test/start_cycle \
+sim:/matvec_tb/run_64x64_test/end_cycle
+# ** UI-Msg (Warning): (vish-4014) No objects found matching 'run_64x64_test'.
+add wave -position insertpoint  \
+sim:/matvec_tb/dut_64x64/clk \
+sim:/matvec_tb/dut_64x64/rst_n \
+sim:/matvec_tb/dut_64x64/start \
+sim:/matvec_tb/dut_64x64/num_rows \
+sim:/matvec_tb/dut_64x64/num_cols \
+sim:/matvec_tb/dut_64x64/vector_write_enable \
+sim:/matvec_tb/dut_64x64/vector_base_addr \
+sim:/matvec_tb/dut_64x64/vector_in \
+sim:/matvec_tb/dut_64x64/matrix_addr \
+sim:/matvec_tb/dut_64x64/matrix_enable \
+sim:/matvec_tb/dut_64x64/matrix_data \
+sim:/matvec_tb/dut_64x64/matrix_ready \
+sim:/matvec_tb/dut_64x64/result_out \
+sim:/matvec_tb/dut_64x64/result_valid \
+sim:/matvec_tb/dut_64x64/busy \
+sim:/matvec_tb/dut_64x64/state \
+sim:/matvec_tb/dut_64x64/next_state \
+sim:/matvec_tb/dut_64x64/row_idx \
+sim:/matvec_tb/dut_64x64/col_idx \
+sim:/matvec_tb/dut_64x64/num_ops \
+sim:/matvec_tb/dut_64x64/acc \
+sim:/matvec_tb/dut_64x64/vector_bank \
+sim:/matvec_tb/dut_64x64/vector_loaded \
+sim:/matvec_tb/dut_64x64/mac_result \
+sim:/matvec_tb/dut_64x64/a \
+sim:/matvec_tb/dut_64x64/b \
+sim:/matvec_tb/dut_64x64/row_idx_next \
+sim:/matvec_tb/dut_64x64/col_idx_next \
+sim:/matvec_tb/dut_64x64/num_ops_next \
+sim:/matvec_tb/dut_64x64/acc_next
+add wave -position insertpoint  \
+sim:/matvec_tb/loader_64x64/rst_n \
+sim:/matvec_tb/loader_64x64/enable \
+sim:/matvec_tb/loader_64x64/matrix_addr \
+sim:/matvec_tb/loader_64x64/matrix_data \
+sim:/matvec_tb/loader_64x64/vccd1 \
+sim:/matvec_tb/loader_64x64/vssd1 \
+sim:/matvec_tb/loader_64x64/ready \
+sim:/matvec_tb/loader_64x64/addr_reg \
+sim:/matvec_tb/loader_64x64/chunk_offset \
+sim:/matvec_tb/loader_64x64/loading \
+sim:/matvec_tb/loader_64x64/matrix_mem
+add wave -position insertpoint  \
+sim:/matvec_tb/dut_64x64/mac/a0 \
+sim:/matvec_tb/dut_64x64/mac/b0 \
+sim:/matvec_tb/dut_64x64/mac/a1 \
+sim:/matvec_tb/dut_64x64/mac/b1 \
+sim:/matvec_tb/dut_64x64/mac/a2 \
+sim:/matvec_tb/dut_64x64/mac/b2 \
+sim:/matvec_tb/dut_64x64/mac/a3 \
+sim:/matvec_tb/dut_64x64/mac/b3 \
+sim:/matvec_tb/dut_64x64/mac/result \
+sim:/matvec_tb/dut_64x64/mac/p0 \
+sim:/matvec_tb/dut_64x64/mac/p1 \
+sim:/matvec_tb/dut_64x64/mac/p2 \
+sim:/matvec_tb/dut_64x64/mac/p3 \
+sim:/matvec_tb/dut_64x64/mac/s0 \
+sim:/matvec_tb/dut_64x64/mac/s1 \
+sim:/matvec_tb/dut_64x64/mac/s2 \
+sim:/matvec_tb/dut_64x64/mac/s3 \
+sim:/matvec_tb/dut_64x64/mac/sum
+run -all
+# [4x4] Row 0: Got 40960, Expected 40960
+# â PASS
+# [4x4] Row 1: Got 0, Expected 0
+# â PASS
+# [4x4] Row 2: Got 40960, Expected 40960
+# â PASS
+# [4x4] Row 3: Got 0, Expected 0
+# â PASS
+# [4x4] Clock cycles elapsed: 33
+# [4x4] Test complete: 4/4 passed
+# [32x32] Row 0: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 1: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 2: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 3: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 4: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 5: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 6: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 7: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 8: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 9: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 10: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 11: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 12: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 13: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 14: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 15: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 16: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 17: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 18: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 19: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 20: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 21: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 22: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 23: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 24: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 25: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 26: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 27: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 28: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 29: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 30: Got 196608, Expected 196608
+# â PASS
+# [32x32] Row 31: Got 196608, Expected 196608
+# â PASS
+# [32x32] Clock cycles elapsed: 1377
+# [32x32] Test complete: 32/32 passed
+# [64x64] Row 0: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 1: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 2: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 3: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 4: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 5: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 6: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 7: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 8: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 9: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 10: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 11: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 12: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 13: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 14: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 15: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 16: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 17: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 18: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 19: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 20: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 21: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 22: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 23: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 24: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 25: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 26: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 27: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 28: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 29: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 30: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 31: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 32: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 33: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 34: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 35: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 36: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 37: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 38: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 39: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 40: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 41: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 42: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 43: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 44: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 45: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 46: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 47: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 48: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 49: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 50: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 51: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 52: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 53: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 54: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 55: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 56: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 57: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 58: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 59: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 60: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 61: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 62: Got 131072, Expected 131072
+# â PASS
+# [64x64] Row 63: Got 131072, Expected 131072
+# â PASS
+# [64x64] Clock cycles elapsed: 4223
+# [64x64] Test complete: 64/64 passed
+# ** Note: $finish    : C:/Users/Kirsten/OneDrive/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/sv/matvec_tb.sv(365)
+#    Time: 71245 ns  Iteration: 1  Instance: /matvec_tb
+# 1
+# Break in Module matvec_tb at C:/Users/Kirsten/OneDrive/Documents/ECE510/ECE510-challenges/lstm_autoencoder-v0.2.0/sv/matvec_tb.sv line 365

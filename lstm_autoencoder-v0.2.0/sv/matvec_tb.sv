@@ -165,12 +165,22 @@ module matvec_tb;
         .ready(matrix_ready_64x64)
     );
 
+    // Clock cycle counts used within each test task
+    integer global_cycle_count = 0;
+    always @(posedge clk) begin
+        if (!rst_n)
+            global_cycle_count <= 0;
+        else
+            global_cycle_count <= global_cycle_count + 1;
+    end
+
     //
     // === Test Tasks ===
     //
     task run_4x4_test();
         automatic int row = 0;
         automatic integer pass_count = 0;
+        integer start_cycle, end_cycle;
 
         // Test vector (Q4.12 format)
         logic signed [DATA_WIDTH-1:0] test_vector [0:MIN_COLS-1];
@@ -191,6 +201,8 @@ module matvec_tb;
 
         num_rows_4x4 = MIN_ROWS;
         num_cols_4x4 = MIN_COLS;
+
+        start_cycle = global_cycle_count;
 
         rst_n = 0; start_4x4 = 0; vector_write_enable_4x4 = 0;
         repeat (2) @(posedge clk);
@@ -223,6 +235,8 @@ module matvec_tb;
                 row++;
             end
         end
+        end_cycle = global_cycle_count;
+        $display("[4x4] Clock cycles elapsed: %0d", end_cycle - start_cycle);
         $display("[4x4] Test complete: %0d/4 passed", pass_count);
     endtask
 
@@ -230,6 +244,7 @@ module matvec_tb;
         automatic int row = 0;
         automatic integer pass_count = 0;
         automatic int expected;
+        integer start_cycle, end_cycle;
 
         // Test vector (Q4.12 format)
         logic signed [DATA_WIDTH-1:0] test_vector [0:HALF_COLS-1];
@@ -239,6 +254,8 @@ module matvec_tb;
 
         num_rows_32x32 = HALF_ROWS;
         num_cols_32x32 = HALF_COLS;
+
+        start_cycle = global_cycle_count;
 
         rst_n = 0; start_32x32 = 0; vector_write_enable_32x32 = 0;
         repeat (2) @(posedge clk);
@@ -275,6 +292,8 @@ module matvec_tb;
                 row++;
             end
         end
+        end_cycle = global_cycle_count;
+        $display("[32x32] Clock cycles elapsed: %0d", end_cycle - start_cycle);
         $display("[32x32] Test complete: %0d/32 passed", pass_count);
     endtask
 
@@ -286,11 +305,15 @@ module matvec_tb;
         // Test vector (Q4.12 format)
         logic signed [DATA_WIDTH-1:0] test_vector [0:MAX_COLS-1];
 
+        integer start_cycle, end_cycle;
+
         // Test vector (Q4.12 format)
         for (int i = 0; i < MAX_COLS; i++) test_vector[i] = 16'sd4096;
 
         num_rows_64x64 = MAX_ROWS;
         num_cols_64x64 = MAX_COLS;
+
+        start_cycle = global_cycle_count;
 
         rst_n = 0; start_64x64 = 0; vector_write_enable_64x64 = 0;
         repeat (2) @(posedge clk);
@@ -327,6 +350,8 @@ module matvec_tb;
                 row++;
             end
         end
+        end_cycle = global_cycle_count;
+        $display("[64x64] Clock cycles elapsed: %0d", end_cycle - start_cycle);
         $display("[64x64] Test complete: %0d/64 passed", pass_count);
     endtask
 
@@ -336,6 +361,7 @@ module matvec_tb;
         run_32x32_test();
         repeat (5) @(posedge clk);
         run_64x64_test();
+        repeat (15) @(posedge clk);
         $finish;
     end
 
