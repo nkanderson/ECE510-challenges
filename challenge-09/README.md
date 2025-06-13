@@ -52,7 +52,7 @@ A final exam would ideally result in a synthesizable chiplet providing hardware 
 
 ## Challenge 9: LSTM Model
 
-Having used the Heilmeier Questions above and to determine the target for hardware acceleration as anomaly detection inference for weather data, a Long Short-Term Memory (LSTM) Autoencoder algorithm was chosen with guidance from ChatGPT. Data for the training was retrieved on April 16, 2025 from the [NOAA.gov archive for global marine data](https://www.ncei.noaa.gov/data/global-marine/archive/). The dataset for March, 2025 ([202503.tar.gz](https://www.ncei.noaa.gov/data/global-marine/archive/202503.tar.gz)) was chosen as the source. Specific data within that dataset were chosen based on whether there was a significant amount of source data present for training or testing inference.
+Having used the Heilmeier Questions above to determine the target for hardware acceleration as anomaly detection inference for weather data, a Long Short-Term Memory (LSTM) Autoencoder algorithm was chosen with guidance from ChatGPT. Data for the training was retrieved on April 16, 2025 from the [NOAA.gov archive for global marine data](https://www.ncei.noaa.gov/data/global-marine/archive/). The dataset for March, 2025 ([202503.tar.gz](https://www.ncei.noaa.gov/data/global-marine/archive/202503.tar.gz)) was chosen as the source. Specific data within that dataset were chosen based on whether there was a significant amount of source data present for training or testing inference.
 
 With ChatGPT assistance, the model was trained on six features from the dataset: air temperature, sea surface temperature, sea level pressure, wind speed, wave height, and wave period. The raw data was made ready for training using a preprocessing script, within a training script which created files for the model itself, the weights, and a scaler, used to normalize new data to the model training data. The training script was configured to generate these files so that the inference script could be run separately, and ultimately, so that the weights could be used inside the hardware acceleration chiplet.
 
@@ -199,16 +199,16 @@ Scaler saved to: saved_model/scaler.gz
 Reconstruction error plots were generated to understand the model's functionality. Much later after the initial training and implementation of an inference script was performed, while work was being done on exporting and validating weights for the hardware implementation, it was discovered that the original inference script was not transposing the weights as it needed to do. This was discovered while examining the inputs and outputs at difference points withing the `step` function, and seeing that the `tanh` activation function was consistently receiving zero value inputs. After fixing the weight transposition, the model accuracy improved significantly, while the execution time increased dramatically from under 4 seconds to around 1 minute.
 
 ![Plot of reconstruction error on training data](./images/reconstruction_error_per_window-training_data.png)  
-*This initial plot of reconstruction error on training data shows a relatively high error rate, given that this was inference run on the same data as used in training.*
+*This initial plot of reconstruction error on training data shows a relatively high reconstruction error (MSE), given that this was inference run on the same data as used in training.*
 
 ![Plot of reconstruction error on training data after fixing weight loading](./images/fixed-reconstruction_error_per_window-training_data.png)  
-*This alternate plot of reconstruction error on training data shows a significantly improved error rate.*
+*This alternate plot of reconstruction error on training data shows a greatly reduced error (MSE), by nearly an order of magnitude. This indicates that the changed weight usage by fixing the transposition did in fact address an issue with the original inference script.*
 
 ![Initial snakeviz results with erroneous weight usage](./images/snakeviz.png)  
 *The initial snakeviz output showed the overall script execution time to be just under 4 seconds.*
 
 ![Snakeviz output after fixing weight loading transposition](./images/fixed-snakeviz.png)  
-*After fixing the weight loading transposition issue, the overall script execution time rose dramatically to around 1 minute.*
+*After fixing the weight loading transposition issue, the overall script execution time rose dramatically to around 1 minute. This was due to a large increase in the number of calculations performed within the matrix-vector multiplication function.*
 
 ### Commands
 
@@ -352,6 +352,9 @@ Line #      Hits         Time  Per Hit   % Time  Line Contents
    104                                           
    105       273        271.0      1.0      0.0          return output_seq
 ```
+
+![Snakeviz output showing matrix-vector multiplication sum function usage and execution time](./images/snakeviz-step-fixed-weights.png)  
+*The contribution of the `sum` function within the `matvec_mul` function is visible in the Snakeviz output. This supports the output seen via `kernprof` above, and the conclusion that the matrix-vector multiplication operation is a major bottleneck for the algorithm.*
 
 ### Results
 
