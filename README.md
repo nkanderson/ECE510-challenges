@@ -6,6 +6,9 @@ An [annotated bibliography](#annotated-bibliography) covering all papers read fo
 
 ## Table of Contents
 
+**LSTM Autoencoder Hardware Acceleration Project Report**  
+Main reporting document for the LSTM autoencoder hardware acceleration project. Provides details and analysis, and links to relevant documents found throughout the repo in related challenges. ([link](./PROJECT.md))
+
 **Challenge 2: Paper Review for _Intrinsic and Designed Computation_ (2010)**  
 Summary and analysis of Crutchfield, Ditto, & Sinha 2010 paper _Intrinsic and
 Designed Computation_. ([link](./challenge-02/README.md))
@@ -42,6 +45,9 @@ Using a platform provided by EBRAINS, attempted to run small demo workloads on n
 
 **Challenge 25: Simulation with cocotb**  
 (In progress) Perform co-simulation of software and hardware using cocotb. ([link](./challenge-25/README.md))
+
+**LSTM Autoencoder Hardware Accelerator Version 0.2.0**  
+The second iteration of a hardware accelerator for the LSTM autoencoder inference algorithm created in Challenge 9 as a part of the main course project. This version implements matrix-vector multiplication in hardware and was successful in serving as a proof-of-concept for a synthesizable module meeting the execution timing requirements. ([link](./lstm_autoencoder-v0.2.0/README.md))
 
 ## Annotated Bibliography
 

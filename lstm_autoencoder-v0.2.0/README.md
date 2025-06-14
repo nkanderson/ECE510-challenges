@@ -40,10 +40,8 @@ Since our matrix-vector multiply consistently works on weights (either `W` or `U
 
 ### Time-Multilplexed Matrix-Vector Multiplier in SV
 
-TODO:
-- Will want to flatten the 2D input ports prior to synthesis. It should have flattened wires or packed arrays for all inputs and outputs.
-- In simulation, the shared memory (sram) can be a logic signed [15:0] sram[0:4095] array instantiated in the testbench and passed by reference to both matrix_loader and matvec_tm_multiplier.
-  - In synthesis, we'll eventually replace this with a dual-port SRAM macro (e.g., sky130_sram_1rw1r_32x1024_8) and mux the address/data paths between reader and writer. (Though I'm not sure we'll need a writer, so this part may be simplified.)
+- Flattened the 2D input and output ports prior to synthesis. These were adjusted to be packed arrays for all inputs and outputs.
+- TODO: Issues arose with two different options for adding an SRAM macro. This work is considered to be "in progress", but execution timing estimations have been made assuming an SRAM macro *should* be feasible with some synthesis toolchain.
 
 ### OpenLane2 Synthesis
 
