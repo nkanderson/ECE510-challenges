@@ -36,7 +36,13 @@ Additional tools used include:
 
 ## Iteration One
 
-The work for the first iteration of the hardware accelerator was performed in association with a number of weekly challenges. In the first associated challenge, an LSTM autoencoder model was created with assistance from ChatGPT using a training script and weather data from NOAA.
+The work for the first iteration of the hardware accelerator was performed in association with a number of weekly challenges. In the first associated challenge, an LSTM autoencoder model was created with assistance from ChatGPT. A training script using weather data from NOAA was created, which resulted in saved weights and scaler .npz files that were used later in an inference script.
+
+Profiling tools such as `snakeviz` and `kernprof` were used to identify performance bottlenecks in the inference script ([`lstm_inference.py`](./challenge-09/lstm_inference.py)). This script and its associated functionality in [`lstm_core.py`](./challenge-09/lstm_core.py) were intentionally created to perform calculations in Python rather than allowing delegation to C/C++. This was done so that profiling could examine execution in-depth, allowing for better understanding of performance bottlenecks.
+
+An initial software/hardware boundary of the `step` method on the `LSTMCell` class was chosen based on the number of calls made and cumulative execution time. The matrix-vector multiplication called multiple times within this method was another candidate. The initial choice to target the `step` function was based on the plan to store the model weights in SRAM, and to try to perform as much work as possible in hardware for the same data transfer cost.
+
+- Discuss failure of functional verification, but benefit of moving on to iteration 2 after working on synthesis in parallel (and more quickly discovering design issues preventing synthesis)
 
 More details are available in each of the challenges' individual directories:
 **Challenges 9 and 12: Bootstrapping the Main Project and SW / HW Boundary**  
@@ -48,14 +54,18 @@ Creation of SystemVerilog modules corresponding to initial hardware chosen for i
 **Challenge 18: Going to the Transistor Level Using OpenLane2**  
 Initial attempt to generate a physical transistor configuration from the HDL main project SystemVerilog code. ([link](./challenge-18/README.md))
 
-
-- Discuss failure of functional verification, but benefit of moving on to iteration 2 after working on synthesis in parallel (and more quickly discovering design issues preventing synthesis)
-
 ## Version 0.2.0
 
 - Implementation and changes from iteration one (reference challenge 23 checkpoint document, and README from lstm_autoencoder-v0.2.0 directory)
 - Testing - passed functional verification, but discuss improvements to be made here
   - Images from simulation
+
+More details are available in the project checkpoint document and the directory containing all relevant code for iteration two:
+**Challenge 23: Week 7 Project Checkpoint**  
+An overview of current project status and challenges. Includes a list of next steps for iterating on the current design. ([link](./challenge-23/README.md))
+
+**LSTM Autoencoder Hardware Accelerator Version 0.2.0**  
+The second iteration of a hardware accelerator for the LSTM autoencoder inference algorithm created in Challenge 9 as a part of the main course project. This version implements matrix-vector multiplication in hardware and was successful in serving as a proof-of-concept for a synthesizable module meeting the execution timing requirements. ([link](./lstm_autoencoder-v0.2.0/README.md))
 
 ## Design Decisions
 
