@@ -1,3 +1,11 @@
+//------------------------------------------------------------------------------
+// File      : mac2.sv
+// Author    : Niklas Anderson with ChatGPT assistance
+// Project   : ECE510 Challenge 10
+// Created   : Spring 2025
+// Description : 2-input MAC (Multiply-Accumulate) module
+//------------------------------------------------------------------------------
+
 module mac2 #(
     parameter DATA_WIDTH = 16
 )(

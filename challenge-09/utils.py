@@ -1,3 +1,11 @@
+"""
+File        : utils.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Utility functions for converting floating-point numbers to fixed-point hexadecimal format
+and saving arrays to memory files.
+"""
+
 import numpy as np
 
 

@@ -1,6 +1,11 @@
-"""Find min and max values used in core inference functions.
-
-Used to determine what fixed point format is required for hardware.
+"""
+File        : minmax_vals.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Find min and max values used in core inference functions.
+This script runs inference on an LSTM autoencoder model and logs the min/max values
+from core functions like matrix-vector multiplication, sigmoid, and tanh.
+Used to determine fixed-point format requirements for hardware.
 """
 
 import numpy as np

@@ -1,3 +1,13 @@
+//------------------------------------------------------------------------------
+// File      : matvec_mult.sv
+// Author    : Niklas Anderson with ChatGPT assistance
+// Project   : ECE510 Challenge 10
+// Created   : Spring 2025
+// Description : Matrix-vector multiplication module
+//              This module performs matrix-vector multiplication using a single MAC unit.
+//              It supports a fixed-point representation for both matrix and vector inputs.
+//------------------------------------------------------------------------------
+
 module matvec_mult #(
     parameter MAX_ROWS = 64,
     parameter MAX_COLS = 64,

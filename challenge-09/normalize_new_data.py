@@ -1,3 +1,12 @@
+"""
+File        : normalize_new_data.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Normalize new NOAA weather data and prepare it for LSTM inference.
+This script loads new NOAA weather data, applies the same normalization used during training,
+and creates overlapping sequences for LSTM input.
+"""
+
 import pandas as pd
 import joblib
 import numpy as np

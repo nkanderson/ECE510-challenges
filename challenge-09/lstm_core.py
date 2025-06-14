@@ -1,6 +1,15 @@
-import math
+"""
+File        : lstm_core.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Core LSTM cell and dense layer implementations.
+This module provides the core LSTM cell and dense layer functionality
+for an LSTM autoencoder.
+It includes activation functions, matrix-vector multiplication,
+and element-wise operations.
+"""
 
-# import numpy as np
+import math
 
 try:
     profile

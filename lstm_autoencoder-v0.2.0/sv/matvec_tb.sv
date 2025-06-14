@@ -1,3 +1,11 @@
+//------------------------------------------------------------------------------
+// File      : matvec_tb.sv
+// Author    : Niklas Anderson with ChatGPT assistance
+// Project   : ECE510 Challenge 10
+// Created   : Spring 2025
+// Description : Testbench for matrix-vector multiplication module
+//------------------------------------------------------------------------------
+
 `timescale 1ns/1ps
 
 module matvec_tb;

@@ -1,3 +1,12 @@
+"""
+File        : generate_mem_files.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Generate memory files from LSTM autoencoder weights.
+This script converts LSTM and dense layer weights from a saved .npz file
+to memory files in a fixed-point hexadecimal format.
+"""
+
 import os
 import numpy as np
 import argparse

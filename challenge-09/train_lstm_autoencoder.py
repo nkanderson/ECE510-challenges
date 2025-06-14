@@ -1,3 +1,12 @@
+"""
+File        : train_lstm_autoencoder.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Train an LSTM autoencoder on NOAA weather data.
+This script preprocesses the NOAA CSV data, builds an LSTM autoencoder model using TensorFlow/Keras,
+              trains the model, and saves the trained model, weights, and scaler for external use.
+"""
+
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, models

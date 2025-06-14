@@ -1,3 +1,12 @@
+"""
+File        : verify_mem_file.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Verify memory files against expected numpy arrays.
+This script loads memory files containing weights and biases from an LSTM autoencoder,
+flattens them to a fixed-point representation, and compares them against expected values.
+"""
+
 import os
 import argparse
 import numpy as np

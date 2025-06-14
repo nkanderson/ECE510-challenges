@@ -1,4 +1,9 @@
-"""Basic script to inspect the weights of the saved model"""
+"""
+File        : inspect_weights.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Basic script to inspect the weights of the saved model.
+"""
 
 import numpy as np
 import sys

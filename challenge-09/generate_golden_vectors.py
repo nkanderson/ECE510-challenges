@@ -1,4 +1,12 @@
-# generate_golden_vectors.py
+"""
+File        : generate_golden_vectors.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Generate golden vectors for LSTM autoencoder.
+This script generates golden vectors for an LSTM autoencoder
+by running inference on a set of sequence windows.
+It should be used to verify the correctness of the LSTM hardware implementation.
+"""
 
 import os
 import argparse

@@ -1,3 +1,10 @@
+"""
+File        : validate_golden_vector.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Validate golden vector against LSTM autoencoder output.
+"""
+
 import numpy as np
 from utils import float_to_fixed_hex
 from lstm_core import LSTMCell

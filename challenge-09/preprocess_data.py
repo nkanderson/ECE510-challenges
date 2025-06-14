@@ -1,3 +1,12 @@
+"""
+File        : preprocess_data.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : Preprocess NOAA CSV data for LSTM training.
+This script reads a NOAA CSV file, scales the specified features,
+               and creates sliding window sequences for LSTM input.
+"""
+
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler

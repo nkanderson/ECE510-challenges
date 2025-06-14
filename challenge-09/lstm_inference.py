@@ -1,3 +1,14 @@
+"""
+File        : lstm_inference.py
+Author      : Niklas Anderson with ChatGPT assistance
+Created     : Spring 2025
+Description : LSTM Autoencoder Inference Script
+This script loads an LSTM autoencoder model, processes input sequences,
+and computes reconstruction errors.
+It supports various output formats including CSV for errors, anomaly detection,
+and plotting reconstruction errors.
+"""
+
 import math
 import numpy as np
 import matplotlib.pyplot as plt

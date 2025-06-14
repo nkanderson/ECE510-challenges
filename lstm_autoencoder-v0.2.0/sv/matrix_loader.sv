@@ -1,3 +1,13 @@
+//------------------------------------------------------------------------------
+// File      : matrix_loader.sv
+// Author    : Niklas Anderson with ChatGPT assistance
+// Project   : ECE510 Challenge 10
+// Created   : Spring 2025
+// Description : Module to load matrix data from SRAM or behavioral memory
+//              for matrix-vector multiplication
+//              Uses SRAM macros for hardware implementation or behavioral memory for simulation
+//------------------------------------------------------------------------------
+
 module matrix_loader #(
     parameter int NUM_ROWS = 64,
     parameter int NUM_COLS = 64,
