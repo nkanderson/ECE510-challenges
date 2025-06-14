@@ -1,6 +1,6 @@
 # ECE 510: Hardware for Artifical Intelligence and Machine Learning
 
-This repository encapsulates work done related to ECE 510, with individual directories corresponding to weekly challenges. Each directory contains a README.md with additional details and links to other resources as needed. See the [table of contents](#table-of-contents) for a full listing.
+This repository encapsulates work done related to ECE 510 taken in Spring 2025, with individual directories corresponding to weekly challenges. Each directory contains a README.md with additional details and links to other resources as needed. See the [table of contents](#table-of-contents) for a full listing, or jump directly to the [main project report](./PROJECT.md).
 
 An [annotated bibliography](#annotated-bibliography) covering all papers read for this class is below.
 

@@ -18,8 +18,6 @@ module matrix_loader #(
     input  logic clk,
     input  logic rst_n,
     input  logic enable,
-    // TODO: May want to base ADDR_WIDTH on set rows and columns from matvec_multiplier
-    // rather than a specific address width
     input  logic [ADDR_WIDTH-1:0] matrix_addr, // Base address from multiplier
     output logic [DATA_WIDTH*BANDWIDTH-1:0] matrix_data,
     inout logic vccd1,
