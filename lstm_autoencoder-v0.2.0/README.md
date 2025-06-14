@@ -77,7 +77,7 @@ yosys -p 'read_verilog -sv -D SYNTHESIS -D USE_POWER_PINS src/*.v; hierarchy -to
 
 #### Interpreting Synthesis Results
 
-Assistance with interpreting synthesis results was requested from ChatGPT, given the lack of familiarity with the OpenLane toolchain and the related metrics. ChatGPT provided the following analysis of the `metrics.json` from the synthesis run on the `matvec_mul` module using the `config-matvec_mult.json` file with a clock period of 40ns.
+Assistance with interpreting synthesis results was requested from ChatGPT, given the lack of familiarity with the OpenLane toolchain and the related metrics. ChatGPT provided the following analysis of the `metrics.json` from the synthesis run on the `matvec_mul` module using the `config-matvec_mult.json` file with a clock period of 40ns. **Note:** This analysis was not performed on a synthesized module using SRAM macros. With SRAM macros successfully integrated into the design, the power, die area, and number of transistors will inevitably increase. This may make it more important to adjust the software/hardware boundary again to make better use of the fact that the weights are stored in SRAM by including more functionality in hardware.
 
 - Confirmed timing closure was met with the configured clock period (40ns).
 - From the `"power__total": 0.00157694763` value, determined that the total power is 1.58mW at 1.8V under typical conditions.

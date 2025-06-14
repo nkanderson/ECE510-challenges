@@ -34,6 +34,7 @@
   - Reference simulation results showing number of clock cycles as well
 - Analysis of metrics.json indicates this design successfully prioritized relatively low power consumption and a small footprint, in alignment with initial goals for deployment in a remote environment, over execution speed
   - Ideal comparison would be to the CPU execution, might try to look into making that determination
+  - As mentioned in the v0.2.0 README, the analysis was not performed on a synthesized module using SRAM macros. With SRAM macros successfully integrated into the design, the power, die area, and number of transistors will inevitably increase. This may make it more important to adjust the software/hardware boundary again to make better use of the fact that the weights are stored in SRAM by including more functionality in hardware.
 - Challenges, especially related to limited domain expertise in initial model creation
   - Naive LLM-driven implementation allowed for relatively quick iteration, but at the cost of making mistakes that likely could have been avoided with better conceptual understanding of the model beforehand. A deeper understanding was ultimately gained, but note the tradeoffs.
 
