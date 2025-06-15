@@ -23,4 +23,9 @@ The very long runtimes for OpenLane2 made it difficult to test different synthes
 
 Better understanding of the `openlane` toolchain was gained through this challenge, though synthesis was not successful for the first iteration of SystemVerilog code for the project. Synthesis was completed for a smaller module as a means of ensuring the toolchain was working, and to better understand what success might look like. This also served as an indication that the existing design needed alterations in order to be synthesized.
 
-The final thread with ChatGPT was focused on identifying specific changes to make in the next iteration of the design. The factors discussed were taken into consideration in the checkpoint document for [Challenge 23](../challenge-23/README.md), as well as the [second iteration of the SystemVerilog code](../lstm_autoencoder-v0.2.0/sv/).
+The [final thread with ChatGPT](./docs/LLM_TRANSCRIPT.md#chatgpt-transcript---design-issues-and-optimizations) was focused on identifying specific changes to make in the next iteration of the design. The factors discussed were taken into consideration in the checkpoint document for [Challenge 23](../challenge-23/README.md), as well as the [second iteration of the SystemVerilog code](../lstm_autoencoder-v0.2.0/sv/). At a high level, they may be summarized as:
+- **Reduce width of data buses.** This implementation based data bus widths for transferring matrix and input vector data on the layer hidden size and data width for individual values. This resulted in massive widths.
+  - Ultimate suggestion was to use no more than 16-bit fixed point values, and no more than 16 values transferred at a time.
+- **Reduce arithmetic intensity.** ChatGPT noted the many parallel elementwise operations required in this SV implementation of the `step` method. It recommended reducing parallelism in this case, when targeting ASIC.
+- **Reduce module instantation depth.** Working at the LSTM cell level required a significant depth of modules to be created for each cell, as each cell required hardware for the 4 gates.
+- ChatGPT also noted the long critical paths for the matrix multiplication and complex FSM logic.
