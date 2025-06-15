@@ -60,15 +60,36 @@ Initial attempt to generate a physical transistor configuration from the HDL mai
 
 ## Version 0.2.0
 
-- Implementation and changes from iteration one (reference challenge 23 checkpoint document, and README from lstm_autoencoder-v0.2.0 directory)
-- Testing - passed functional verification, but discuss improvements to be made here
-  - Images from simulation
+Work for the second iteration of the hardware accelerator began with a [checkpoint document](./challenge-23/README.md), which summarized project status, listed changes and possible next steps, elaborated on technical details, and stated a concrete plan for iteration two implementation. This document was informed by exploration of the issues discovered through work on the first iteration, including issues in both the implementation itself as well as the gaps in understanding which allowed implementation design flaws to manifest. Specifically, it became clear that a thorough accounting of the sizing and composition of the weights was required. In addition, a better understanding of requirements for synthesis that were not immediately apparent in simulation was necessary, due to limitations in the researcher's prior experience with synthesis.
+
+The checkpoint document plans for iteration two consisted primarily of the following:
+- Adjust software/hardware boundary to the lower level of the matrix-vector multiplication instead of the LSTM Cell `step` method, in order to simplify the design while still targeting the primary computational bottleneck. This would provide a smaller module which could later be used to build up to the `step` method, if desired.
+- Determine appropriate fixed-point formats for vector and matrix data in order to reduce data width to a 16-bit format. This would help resolve issues with very large data bus widths.
+- With an understanding of the maximum bounds of matrix and vector dimensions, implement a time-multiplexed version of the matrix-vector multiplication module. This would entail creating loading logic so that vector data could be streamed in by the client, and the resulting vector would be streamed out by the accelerator. The iteration one module was not as intentional in its design in this regard, related to it being driven by a "vibe coding" approach.
+- Perform functional verification using dummy weights rather than immediately attempting to use real weight values and a golden vector. This would simplify testing and allow for verification that was independent of the logic required for generation of weight and golden vector files.
+- Attempt OpenLane2 synthesis and recalculate target execution time. This would allow an intial sense of whether the new software/hardware boundary allowed for sufficient performance improvement.
+
+### SV Implementation
+
+After determining appropriate fixed-point formats (see [reduced precision values overview](./lstm_autoencoder-v0.2.0/README.md#reduced-precision-values) for more detail), work was started on a second iteration SV implementation. In this iteration, significant time was spent developing and testing the vector and matrix loading logic. This was done in order to limit the maximum amount of data transferred in a single transaction in an effort to reduce maximum data bus widths. The intended data flow involved allowing a client to stream in vector data, having the matrix-vector module load matrix data from SRAM, then perform multiply-accumulate (MAC) operations on the values and stream out one resulting vector value at a time. The FSM logic was built to accommodate the varying sizes of input vectors and weight matrices used in the LSTM autoencoder inference algorithm, with a maximum dimension of 64. To support the required functionality, the modules `matvec_mult`, `mac4`, and `matrix_loader` were created, along with `matvec_tb` and `mac4_tb` testbenches.
+
+Functional verification was completed for varying vector and matrix sizes with dummy weights prior to attempts to integrate an SRAM macro for storing weights. With a passing testbench, multiple changes were then made to support conditions for successful synthesis. This mainly involved flattening arrays to avoid 2D arrays that could be problematic in synthesis and addressing any simulation warnings such as ambiguous wire declarations for signals. Re-verification was performed with individual changes to ensure there were no functional regressions.
+
+Expansion of the testbench to use actual weight values and golden vectors would be a desired improvement to ensure robust functionality in line with actual performance requirements.
+
+### Synthesis
+
+Once the design was optimized for synthesis and SRAM macros were integrated into the `matrix_loader` module, OpenLane2 synthesis was attempted. Configuration challenges were encountered and ultimately not resolved for the SRAM macros. However, configuration was created for synthesis at different levels, including just the `matvec_mult` module and its `mac4` instance. Multiple rounds of synthsis were attempted, with fixes and changes completed to address issues as they arose. As above, re-verification was performed in between these iterations in order to prevent unintended functional regressions.
+
+Prior to completion of synthesis for the `matvec_mult` module, synthesis was performed on the `mac4` module by itself, which resulted in a maximum clock period of 40ns, or a frequency of 25MHz. This was ultimately the same maximum clock period found for a modified version of the `matvec_mult` module with a maximum vector size of 16, which completed synthesis successfully. Initial attempts with maximum sizes of 64 and 32 were unsuccessful. After analysis performed with assistance from ChatGPT, it seemed probable that the primary issue was not a fundamental design problem but more likely the fact that vectors of sizes greater than 16 needed to be stored in SRAM. As noted above, integration of SRAM macros was unsuccessful, so for the purposes of this analysis, the assumption was made that usage of SRAM would allow for synthesis-compatible storage of vectors up to a length of 64. This should be confirmed as early as possible in next steps, as the usage of SRAM is seen as a fundamental requirement for real-world usage of the designed chiplet.
+
+As noted above, the maximum frequency of 25MHz for the `matvec_mult` module was the same as that for the `mac4` module it instantiates. Additional investigation should be done in order to determine whether the `mac4` module then is the bottleneck for the `matvec_mult` module as a whole. This would require deeper understanding of invdividual tools within the OpenLane2 toolchain. Investigation of the synthesized design was attempted, but a lack of documentation and a poor understanding of OpenLane2 on the part of ChatGPT hindered these efforts.
 
 ### Additional Detail
 
 More details are available in the project checkpoint document and the directory containing all relevant code for iteration two:  
 **Challenge 23: Week 7 Project Checkpoint**  
-An overview of current project status and challenges. Includes a list of next steps for iterating on the current design. ([link](./challenge-23/README.md))
+An overview of project status and challenges as of week 7. Includes a list of next steps for iterating on the current design. ([link](./challenge-23/README.md))
 
 **LSTM Autoencoder Hardware Accelerator Version 0.2.0**  
 The second iteration of a hardware accelerator for the LSTM autoencoder inference algorithm created in Challenge 9 as a part of the main course project. This version implements matrix-vector multiplication in hardware and was successful in serving as a proof-of-concept for a synthesizable module meeting the execution timing requirements. ([link](./lstm_autoencoder-v0.2.0/README.md))
