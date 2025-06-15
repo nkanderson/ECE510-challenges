@@ -13,11 +13,11 @@ Full LLM transcripts found in [LLM_TRANSCRIPT.md](./docs/LLM_TRANSCRIPT.md). Inc
 
 To begin, the [SystemVerilog code from Challenge 15](../challenge-15/) was converted to Verilog using the tool [sv2v](https://github.com/zachjs/sv2v), which is explicitly for the purpose of generating synthesizable code. OpenLane2 was installed as described in their [documentation](https://openlane2.readthedocs.io/en/latest/getting_started/newcomers/index.html#installation), and the provided basic example was synthesized. From there, using the example `config.json`, a project-specific `config.json` was created and the command `openlane config.json` was run from within the `nix-shell` `openlane` environment.
 
-Synthesis failed at a number of stages. The first of which required an increase in the `DIE_AREA` in `config.json`. The `openlane` command took a significant amount of time to run through steps such as stage 6, where `yosys` synthesis was performed. Eventually there were consistent failures at stage 59, and troubleshooting was initiated.
+Synthesis failed at a number of stages. The first of which required an increase in the `DIE_AREA` in `config.json`. The `openlane` command took a significant amount of time to run through steps such as stage 6, where `yosys` synthesis was performed. Eventually there were consistent failures at stage 59, and troubleshooting was initiated, discussed further below in [challenges](#challenges).
 
 ## Challenges
 
-The very long runtimes for OpenLane2 made it difficult to test different synthesis configuration, as the feedback loop was a significant impediment to timely iteration. Working with ChatGPT, attempts were made to determine how to restart the `openlane` command from a failed stage, rather than starting from the beginning. However, ChatGPT did not seem to be familiar with version 2 of OpenLane, or with the `nix-shell` installation recommended in OpenLane2 docs. Despite working around the failure at a certain stage by manual generation of an LEF file, it was not possible to re-run starting with the stage that failed due to the missing file.
+The very long runtimes for OpenLane2 made it difficult to test different synthesis configuration, as the feedback loop was a significant impediment to timely iteration. Working with ChatGPT, attempts were made to determine how to restart the `openlane` command from a failed stage, rather than starting from the beginning. However, ChatGPT did not seem to be familiar with version 2 of OpenLane, or with the `nix-shell` installation recommended in OpenLane2 docs. Despite working around the failure at stage 59 through manual generation of an LEF file, it was not possible to re-run starting with the stage that failed due to the missing file.
 
 ## Results
 

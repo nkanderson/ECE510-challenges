@@ -499,6 +499,6 @@ This means, as a rough estimate, that each complete matrix-vector multiplication
 Estimations between iterations one and two are significantly different, for several reasons:
 - The software/hardware boundary was adjusted between iterations to address initial difficulty in completing synthesis for iteration one.
 - The iteration one estimations were based on a faulty estimate for total execution time of the inference algorithm, due to improper weight loading by the inference script.
-- The iteration one estimate assumed a a faster bus, using PCIe. For each of implementation and testing, iteration two assumed a SPI bus with a maximum clock frequency matching the clock frequency found via synthesis. In other words, the iteration two estimate uses retrospective information from the actual implementation, which the iteration one estimate did not have.
+- The iteration one estimate assumed a a faster bus, using PCIe. For ease of implementation and testing, iteration two assumed a SPI bus with a maximum clock frequency matching the clock frequency found via synthesis. In other words, the iteration two estimate uses retrospective information from the actual implementation, which the iteration one estimate did not have.
 
 Both estimations were intended to be relatively high-level, but pessimistic enough to account for small changes in the per-operation time allotment. The iteration two estimate should have a higher degree of accuracy due to the factors listed above, and ideally, future iterations may include greater granularity in these estimates.

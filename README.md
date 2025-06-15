@@ -38,7 +38,7 @@ Initial attempt to generate a physical transistor configuration from the HDL mai
 Includes discussion of neuromorphic computing software frameworks, describing the current state of the ecosystem, as well as possibilities for the future. References Kudithipudi, Schuman, & Vineyard 2025 paper _Neuromorphic computing at scale_. ([link](./challenge-22/README.md))
 
 **Challenge 23: Week 7 Project Checkpoint**  
-An overview of current project status and challenges. Includes a list of next steps for iterating on the current design. ([link](./challenge-23/README.md))
+An overview of project status and challenges as of week 7. Includes a list of next steps for iterating on the current design. ([link](./challenge-23/README.md))
 
 **Challenge 24: Running Code on Neuromorphic Hardware**  
 Using a platform provided by EBRAINS, attempted to run small demo workloads on neuromorphic hardware. ([link](./challenge-24/README.md))
