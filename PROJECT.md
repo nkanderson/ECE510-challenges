@@ -3,8 +3,6 @@
 **Niklas Anderson**  
 **Spring 2025**  
 
-**NOTE: This document is in-progress. Main sections have been outlined below, with basic lists of intended contents.**
-
 ## Overview
 
 In this project, a custom hardware accelerator was created for a Long Short-Term Memory (LSTM) autoencoder algorithm used for identifying anomalies in weather data. Software-hardware co-design principles were applied to identify bottlenecks in the algorithm and an appropriate software/hardware boundary. Multiple iterations of a hardware design were created using SystemVerilog (SV), and synthesis was performed using OpenLane2 in order to assess viability of the design as a chiplet in terms of metrics such as power usage, design footprint, and speedup achieved over software-only execution of the algorithm.
