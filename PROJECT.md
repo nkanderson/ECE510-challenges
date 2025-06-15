@@ -80,6 +80,9 @@ Expansion of the testbench to use actual weight values and golden vectors would 
 ![Simulation in Questa showing the FSM in a MAC operation](./lstm_autoencoder-v0.2.0/images/sim-64x64-result-mac-op.PNG)  
 *Simulation in Questa showing the FSM in a MAC operation for a 64x64 matrix.*
 
+![Simulation in Questa showing the full testbench](./lstm_autoencoder-v0.2.0/images/sim-full.PNG)  
+*Simulation in Questa showing the complete testbench with 4x4, 32x32, and 64x64 matrix dimensions. Note, the unknown values on some signals are expected in this context.*
+
 ### Synthesis
 
 Once the design was optimized for synthesis and SRAM macros were integrated into the `matrix_loader` module, OpenLane2 synthesis was attempted. Configuration challenges were encountered and ultimately not resolved for the SRAM macros. However, configuration was created for synthesis at different levels, including just the `matvec_mult` module and its `mac4` instance. Multiple rounds of synthsis were attempted, with fixes and changes completed to address issues as they arose. As above, re-verification was performed in between these iterations in order to prevent unintended functional regressions.
@@ -87,6 +90,9 @@ Once the design was optimized for synthesis and SRAM macros were integrated into
 Prior to completion of synthesis for the `matvec_mult` module, synthesis was performed on the `mac4` module by itself, which resulted in a maximum clock period of 40ns, or a frequency of 25MHz. This was ultimately the same maximum clock period found for a modified version of the `matvec_mult` module with a maximum vector size of 16, which completed synthesis successfully. Initial attempts with maximum sizes of 64 and 32 were unsuccessful. After analysis performed with assistance from ChatGPT, it seemed probable that the primary issue was not a fundamental design problem but more likely the fact that vectors of sizes greater than 16 needed to be stored in SRAM. As noted above, integration of SRAM macros was unsuccessful, so for the purposes of this analysis, the assumption was made that usage of SRAM would allow for synthesis-compatible storage of vectors up to a length of 64. This should be confirmed as early as possible in next steps, as the usage of SRAM is seen as a fundamental requirement for real-world usage of the designed chiplet.
 
 As noted above, the maximum frequency of 25MHz for the `matvec_mult` module was the same as that for the `mac4` module it instantiates. Additional investigation should be done in order to determine whether the `mac4` module then is the bottleneck for the `matvec_mult` module as a whole. This would require deeper understanding of invdividual tools within the OpenLane2 toolchain. Investigation of the synthesized design was attempted, but a lack of documentation and a poor understanding of OpenLane2 on the part of ChatGPT hindered these efforts.
+
+![Openroad GUI showing placement density](./lstm_autoencoder-v0.2.0/images/openroad-gui-placement-density.png)  
+*Openroad GUI showing placement density of successfully synthesized design.*
 
 ![Openroad GUI showing power density](./lstm_autoencoder-v0.2.0/images/openroad-gui-power-density.png)  
 *Openroad GUI showing power density of successfully synthesized design.*
