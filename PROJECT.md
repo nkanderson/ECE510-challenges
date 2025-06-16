@@ -143,29 +143,35 @@ Overall, the LLM support on this project was likely a net benefit which allowed 
 
 An additional issue with weight usage was uncovered through the aforementioned investigation. It was determined that the inference script created with LLM assistance did not properly transpose the weights, meaning that the initial benchmarking of the algorithm was inaccurate. Fortunately, it was a matter of overall execution time rather than specific functional differences, or more succinctly, quantity rather than quality, so the core assumptions informing software/hardware boundary decisions were still sound. However, the execution time difference was objectively massive, making the final target execution time much different.
 
-The issues described above may be seen as the cost of the fast iteration that LLM assistance supports. In addition, the LLM assistance utilized in this project provided for fast iteration not just within the different project stages, but *across the project as a whole*. This provided an improved big-picture understanding of the requirements at each individual stage, as the manner in which the stages fit together came into focus. There were a few instances where parallelizing work on synthesis with functional verification, for example, beneficially cut short unnecessary work on verification when it became apparent that fundamental design flaws for synthesis existed.
+The issues described above may be seen as the cost of the fast iteration that LLM assistance supports. In addition, the LLM assistance utilized in this project provided for fast iteration not just within the different project stages, but *across the project as a whole*. This provided an improved big-picture understanding of the requirements at each individual stage, as the manner in which the stages fit together came into focus. There were a few instances where parallelizing work on synthesis with functional verification, for example, beneficially cut short unnecessary work on verification when it became apparent that fundamental design flaws impacting synthesis were present.
 
-Overall, work with LLM assistance benefits from new approaches, where identifying essential gaps in domain expertise as early as possible is helpful in avoiding poorly-formed initial implementations. Speed of iteration should be balanced with slow, deep investigation into domain-specific requirements where necessary.
+It seems apparent that work with LLM assistance benefits from new approaches, where identifying essential gaps in domain expertise as early as possible is helpful in avoiding poorly-formed initial implementations. Speed of iteration should be balanced with slow, deep investigation into domain-specific elements where necessary.
 
 ## Future Work
 
+Though the proof-of-concept version 0.2.0 of the hardware accelerator shows promise in achieving an execution speedup in a resource-constrained environment, several changes are required for this hardware to be ready for deployment. These are elaborated on below, in priority order.
+
 ### SRAM
 
-As noted above, integration of SRAM is seen as an essential next step. The following related work should be done:
-- Find or build an SRAM macro that works with openlane2, or find another synthesis toolchain that has usable SRAM macros
-- In addition to storing weights in SRAM, move the vector data buffer to SRAM macro
+As noted above, integration of SRAM is seen as an essential next step, prioritized above other improvements. The following related work should be done:
+- Find or build an SRAM macro that works with OpenLane2, or find another synthesis toolchain that has usable SRAM macros.
+- In addition to storing weights in SRAM, move the vector data buffer to an SRAM macro.
 - Add loading logic for matrix data to `matvec_mult`, similar to loading logic for vector data, in order to reduce the sizable maximum bit width of the `matrix_data` signal. (See diagram above.)
+  - This is not directly required to incorporate SRAM, but would leverage SRAM. It should improve synthesis by reducing the widest data bus currently in the design.
 - Consider overall SRAM memory layout once the proof-of-concept work is expanded for usage with all weights and gates. Details and suggestions are found in the [lstm_autoencoder-v0.2.0 README](./lstm_autoencoder-v0.2.0/README.md#sram-addressing).
 
 ### Added Parallelization
 
-- Adjust the software/hardware boundary to leverage possible parallelism at the gate level (i.e. the 4 gates `f`, `i`, `o`, and `c` may compute values in parallel within the `step` function).
+- Use multiple `mac4` instances within `matvec_mult`. This could double the speed of calculation, but will require adjustments to the accumulation FSM logic.
+- Consider adjusting the software/hardware boundary to leverage possible parallelism at the gate level (i.e. the 4 gates `f`, `i`, `o`, and `c` may compute values in parallel within the `step` function).
   - This amortizes the power and footprint costs associated with the SRAM usage for the weights by providing more operations performed in hardware with the same data transfer cost.
-- Use multiple MAC4 instances within `matvec_mult`. This could double the speed of calculation, but will require adjustments to the accumulation FSM logic.
 
 ### MAC4 Improvements
 
-- Make MAC4 into sequential pipelined logic to avoid long critical path in combinational version. This should be prioritized after determined whether this is the computation bottleneck in the hardware, as is suggested by the maximum clock frequency seen in the final metrics from running openlane.
+- Make the `mac4` module use sequential pipelined logic to avoid the long critical path found in the current combinational version. This should be prioritized after determining whether this is the computation bottleneck in the hardware, as is suggested by the maximum clock frequency seen in the final metrics from running openlane.
 
 ### Improved Testing
-- `cocotb` testing with a simulated SPI bus to verify timing estimates should be added.
+
+- Add `cocotb` testing with a simulated SPI bus to verify timing estimates.
+- Add real weights and golden vectors to testbenches for simulation.
+- Add randomized value testing.
