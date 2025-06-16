@@ -79,7 +79,7 @@ Expansion of the testbench to use actual weight values and golden vectors would 
 *Simulation in Questa showing the FSM in a MAC operation for a 64x64 matrix.*
 
 ![Simulation in Questa showing the full testbench](./lstm_autoencoder-v0.2.0/images/sim-full.PNG)  
-*Simulation in Questa showing the complete testbench with 4x4, 32x32, and 64x64 matrix dimensions. Note, the unknown values on some signals are expected in this context.*
+*Simulation in Questa showing the complete testbench with 4x4, 32x32, and 64x64 matrix dimensions. **Note**: The unknown values visible on some signals are expected in this context.*
 
 ### Synthesis
 
@@ -88,9 +88,6 @@ Once the design was optimized for synthesis and SRAM macros were integrated into
 Prior to completion of synthesis for the `matvec_mult` module, synthesis was performed on the `mac4` module by itself, which resulted in a maximum clock period of 40ns, or a frequency of 25MHz. This was ultimately the same maximum clock period found for a modified version of the `matvec_mult` module with a maximum vector size of 16, which completed synthesis successfully. Initial attempts with maximum sizes of 64 and 32 were unsuccessful. After analysis performed with assistance from ChatGPT, it seemed probable that the primary issue was not a fundamental design problem but more likely the fact that vectors of sizes greater than 16 needed to be stored in SRAM. As noted above, integration of SRAM macros was unsuccessful, so for the purposes of this analysis, the assumption was made that usage of SRAM would allow for synthesis-compatible storage of vectors up to a length of 64. This should be confirmed as early as possible in next steps, as the usage of SRAM is seen as a fundamental requirement for real-world usage of the designed chiplet.
 
 As noted above, the maximum frequency of 25MHz for the `matvec_mult` module was the same as that for the `mac4` module it instantiates. Additional investigation should be done in order to determine whether the `mac4` module then is the bottleneck for the `matvec_mult` module as a whole. This would require deeper understanding of invdividual tools within the OpenLane2 toolchain. Investigation of the synthesized design was attempted, but a lack of documentation and a poor understanding of OpenLane2 on the part of ChatGPT hindered these efforts.
-
-![Openroad GUI showing placement density](./lstm_autoencoder-v0.2.0/images/openroad-gui-placement-density.png)  
-*Openroad GUI showing placement density of successfully synthesized design.*
 
 ![Openroad GUI showing power density](./lstm_autoencoder-v0.2.0/images/openroad-gui-power-density.png)  
 *Openroad GUI showing power density of successfully synthesized design.*
@@ -131,6 +128,14 @@ To assess the ultimate performance success of the hardware acclerator implementa
 Further work is clearly necessary to prove the execution time, power usage, and footprint characteristics are maintained sufficiently to indicate success in providing an overall benefit once SRAM is incorporated. Additional comparisons of power usage against the default software-only execution on the CPU would help strengthen the case that the chiplet provides a net improvement.
 
 It may be the case that again adjusting the software/hardware boundary would be necessary to justify the increased die area and power consumption that would result from SRAM usage. This would allow for amortization of the SRAM usage cost by providing more algorithm calculation coverage in hardware over software.
+
+#### Summary of Synthesis Results
+
+The following metrics were achieved when the `matvec_mult` module was synthesized with OpenLane2 and a configured clock period of 40ns. Though it's possible a higher maximum clock frequency may be achieved with additional configuration tuning, the configuration used in [config-matvec_mult.json](./lstm_autoencoder-v0.2.0/verilog/config-matvec_mult.json) was sufficient to meet timing closure. At a maximum frequency of 25MHz, calculation of a 64x64 matrix-vector multiplication requiring 4223 clock cycles as determined in simulation would meet the threshhold for a speedup of the original algorithm.
+
+| Clock Period   | Clock Frequency  | Power Usage    | Die Area  |
+| -------------- | ---------------- | -------------- | --------- |
+| 40ns           | 25MHz            | 1.58mW at 1.8V | 0.234mm^2 |
 
 ### LLM Usage
 
